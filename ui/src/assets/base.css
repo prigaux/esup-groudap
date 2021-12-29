@@ -1,0 +1,91 @@
+body {
+    max-width: 60rem;
+    margin: 0 auto;
+}
+
+[v-cloak] {
+    display: none;
+}
+
+h2, h4 { 
+    display: inline-block;
+    vertical-align: middle;
+}
+h2 .my-icon {
+    --my-icon-size: 24px;
+}
+.description {
+    white-space: pre-wrap;
+}
+.my-icon {
+    display: inline-block;
+    --my-icon-size: 13px;
+}
+.my-icon > svg {
+    width: auto;
+    height: var(--my-icon-size);
+    display: block;
+}
+li {
+    list-style: none;
+}
+
+fieldset ul {
+    margin-top: 0;
+    padding-left: 0;
+}
+ul.inline {
+    padding-left: 0;
+}
+ul.inline > li {
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.ss_name {
+    color: #00326E;
+    font-size: 80%;
+    font-variant: small-caps;
+    padding-left: 0.5rem;
+    display: block;
+}
+
+.search_token {
+    min-width: 20rem;
+    min-height: 1.5rem;
+    margin: 1rem;
+}
+
+table {
+    border-spacing: 0;
+}
+table:not(.with-theads) > tr:nth-child(even) { 
+    background-color: #f2f2f2;
+}
+table.with-theads > tr:nth-child(odd) { 
+    background-color: #f2f2f2;
+}
+
+td {
+    padding: 0.3rem 0.3rem 0.3rem 1rem;
+}
+
+a {
+    color: #00326E;
+    text-decoration: none;
+}
+a:visited {
+    color: #00225E;
+}
+legend label {
+    margin: 0 0.5rem;    
+}
+textarea.description {
+    width: 100%;
+    height: 10rem;
+}
+
+.warning {
+    color: darkred;
+    font-weight: bold;
+}
