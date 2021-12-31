@@ -16,10 +16,10 @@ pub type MyMods = BTreeMap<Right, BTreeMap<MyMod, HashSet<String>>>;
 impl Right {
     fn to_string(&self) -> &'static str {
         match self {
-            Right::MEMBER => "member",
-            Right::READER => "reader",
-            Right::UPDATER => "updater",
-            Right::ADMIN => "admin",
+            Self::MEMBER => "member",
+            Self::READER => "reader",
+            Self::UPDATER => "updater",
+            Self::ADMIN => "admin",
         }
     }
 }
