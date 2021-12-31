@@ -9,7 +9,8 @@ use rocket::serde::{Deserialize, Serialize};
 #[serde(rename_all = "lowercase")]
 pub enum Right { MEMBER, READER, UPDATER, ADMIN }
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum MyMod { ADD, REMOTE, REPLACE }
+#[serde(rename_all = "lowercase")]
+pub enum MyMod { ADD, DELETE, REPLACE }
 pub type MyMods = BTreeMap<Right, BTreeMap<MyMod, HashSet<String>>>;
 
 
@@ -34,8 +35,9 @@ fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
     let mut r = vec![];
     for (right, submods) in mods {
         let attr = format!("memberURL;x-{}", right.to_string());
-        for (_action, list) in submods {
-            r.push(Mod::Add(attr.to_string(), list));
+        for (action, list) in submods {
+            let mod_ = match action { MyMod::ADD => Mod::Add, MyMod::DELETE => Mod::Delete, MyMod::REPLACE => Mod::Replace };
+            r.push(mod_(attr.to_string(), list));
         }
     }
     r
@@ -83,7 +85,7 @@ pub async fn modify_members_or_rights(ldap: &mut Ldap, id: &str, my_mods: MyMods
     ldap.modify(&group_id_to_dn(id), mods).await
 }
 
-pub async fn add_test_data(ldap : &mut Ldap) -> Result<()> {
+pub async fn set_test_data(ldap : &mut Ldap) -> Result<LdapResult> {
     let _res = ldap.delete("uid=prigaux,ou=people,dc=nodomain").await;
     let _res = ldap.delete("uid=prigaux2,ou=people,dc=nodomain").await;
     let _res = ldap.delete("ou=people,dc=nodomain").await;
@@ -106,11 +108,11 @@ pub async fn add_test_data(ldap : &mut Ldap) -> Result<()> {
 
     add_group(ldap, Group { id: "foo", ou: "Foo group", description: "Foo group" }).await?;
     
-    modify_members_or_rights(ldap, "foo", btreemap!{
+    let res = modify_members_or_rights(ldap, "foo", btreemap!{
         Right::UPDATER => btreemap!{ MyMod::ADD => hashset!["https://rigaux.org".to_string()] }
     }).await?;
 
-    Ok(())
+    Ok(res)
 }
 
 pub async fn _test_search(ldap: &mut Ldap) -> Result<String> {
