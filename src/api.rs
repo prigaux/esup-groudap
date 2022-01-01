@@ -14,6 +14,7 @@ pub async fn delete(ldap: &mut Ldap, id: &str) -> Result<LdapResult> {
 }
 
 pub async fn modify_members_or_rights(ldap: &mut Ldap, id: &str, my_mods: MyMods) -> Result<LdapResult> {
-    my_ldap::modify_members_or_rights(ldap, id, my_mods).await
+    my_ldap::modify_direct_members_or_rights(ldap, id, my_mods).await
+    // TODO update indirect + propagate indirect
 }
 

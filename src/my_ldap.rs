@@ -34,7 +34,7 @@ pub fn dn_to_url(dn: &str) -> String {
 }
 
 // helper function
-pub async fn read(ldap: &mut Ldap, dn: &str, attrs: Vec<&str>) -> Result<Option<SearchEntry>> {
+pub async fn _read(ldap: &mut Ldap, dn: &str, attrs: Vec<&str>) -> Result<Option<SearchEntry>> {
     let (mut rs, _res) = ldap.search(dn, Scope::Base, "(objectClass=*)", attrs).await?.success()?;
     Ok(rs.pop().map(SearchEntry::construct))
 }
@@ -92,7 +92,7 @@ async fn is_stem(ldap: &mut Ldap, id: &str) -> Result<bool> {
     is_dn_matching_filter(ldap, &group_id_to_dn(id), "(objectClass=groupOfNames)").await
 }
 
-pub async fn modify_members_or_rights(ldap: &mut Ldap, id: &str, my_mods: MyMods) -> Result<LdapResult> {
+pub async fn modify_direct_members_or_rights(ldap: &mut Ldap, id: &str, my_mods: MyMods) -> Result<LdapResult> {
     if is_stem(ldap, id).await? {
         if my_mods.contains_key(&Right::MEMBER) { return Err(LdapError::AdapterInit("MEMBER not allowed for stems".to_string())) }
     }

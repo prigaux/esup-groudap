@@ -58,7 +58,7 @@ pub async fn add(ldap : &mut Ldap) -> Result<LdapResult> {
         Attr::Ou => "Racine".to_owned(),
         Attr::Description => "Droits sur l'arborescence entière".to_owned(),
     }).await?;
-    my_ldap::modify_members_or_rights(ldap, "ROOT", btreemap!{
+    my_ldap::modify_direct_members_or_rights(ldap, "ROOT", btreemap!{
         Right::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn("prigaux"))] },
     }).await?;
 
@@ -69,7 +69,7 @@ pub async fn add(ldap : &mut Ldap) -> Result<LdapResult> {
 
     my_ldap::create(ldap, GroupKind::GROUP, "collab.DSIUN_SCD", btreemap!{}).await?;
 
-    let res = my_ldap::modify_members_or_rights(ldap, "collab.DSIUN_SCD", btreemap!{
+    let res = my_ldap::modify_direct_members_or_rights(ldap, "collab.DSIUN_SCD", btreemap!{
         Right::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn("aanli"))] },
     }).await?;
 
