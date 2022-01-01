@@ -51,7 +51,7 @@ async fn create(id: String, kind: Option<&str>, attrs: Json<my_ldap::Attrs>) -> 
 }
 
 
-// curl 'localhost:8000/modify_members_or_rights/?id=foo' -d '{ "member": { "ADD": [ "ldap:///uid=prigaux2,..." ] } }'
+// curl 'localhost:8000/modify_members_or_rights/?id=foo.bar' -d '{ "member": { "add": [ "ldap:///uid=prigaux2,..." ] } }'
 #[post("/modify_members_or_rights?<id>", data = "<mods>")]
 async fn modify_members_or_rights(id: String, mods: Json<my_ldap::MyMods>) -> Json<bool> {
     to_json(async {

@@ -81,10 +81,10 @@ pub async fn ldap_add_group(ldap: &mut Ldap, kind: GroupKind, cn: &str, attrs: L
 }
 
 pub async fn create(ldap: &mut Ldap, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
-    let attrs_ = attrs.iter().map(|(name, value)|
+    let attrs = attrs.iter().map(|(name, value)|
         (name.to_string(), hashset![&value as &str])
     ).collect();
-    ldap_add_group(ldap, kind, id, attrs_).await
+    ldap_add_group(ldap, kind, id, attrs).await
 }
 
 pub async fn add_group(ldap: &mut Ldap, group: Group) -> Result<LdapResult> {
