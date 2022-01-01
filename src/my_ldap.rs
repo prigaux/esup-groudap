@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
-use ldap3::{Scope, SearchEntry, SearchOptions, Ldap, Mod};
+use ldap3::{Ldap, Mod};
 use ldap3::result::{Result, LdapResult};
-type Attrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
+type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use rocket::serde::{Deserialize, Serialize};
 
@@ -13,6 +13,22 @@ pub enum Right { MEMBER, READER, UPDATER, ADMIN }
 pub enum MyMod { ADD, DELETE, REPLACE }
 pub type MyMods = BTreeMap<Right, BTreeMap<MyMod, HashSet<String>>>;
 
+#[derive(PartialEq, Eq, Deserialize, Serialize)]
+pub enum GroupKind { GROUP, STEM }
+
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "lowercase")]
+pub enum Attr { Ou, Description }
+pub type Attrs = BTreeMap<Attr, String>;
+
+impl Attr {
+    fn to_string(&self) -> &'static str {
+        match self {
+            Self::Ou => "ou",
+            Self::Description => "description",
+        }
+    }
+}
 
 impl Right {
     fn to_string(&self) -> &'static str {
@@ -25,10 +41,10 @@ impl Right {
     }
 }
 
-struct Group<'a> {
-    id: &'a str,
-    ou: &'a str,
-    description: &'a str,
+pub struct Group {
+    pub id: String,
+    pub ou: String,
+    pub description: String,
 }
 
 fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
@@ -43,41 +59,37 @@ fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
     r
 }
 
-async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str) -> Result<LdapResult> {
-    let dn = format!("ou={},dc=nodomain", ou);
-    ldap.add(&dn, vec![
-        ("objectClass", hashset!{"organizationalUnit"}),
-        ("ou", hashset!{ou}),
-    ]).await
-}
-
-async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: Attrs<'_>) -> Result<LdapResult> {
-    let dn = format!("uid={},ou=people,dc=nodomain", uid);
-    let all_attrs = [ attrs, vec![
-        ("objectClass", hashset!{"inetOrgPerson", "shadowAccount"}),
-        ("uid", hashset!{uid}),
-    ] ].concat();
-    ldap.add(&dn, all_attrs).await
-}
-
 fn group_id_to_dn(cn: &str) -> String {
     format!("cn={},ou=groups,dc=nodomain", cn)
 }
 
-async fn ldap_add_group(ldap: &mut Ldap, cn: &str, attrs: Attrs<'_>) -> Result<LdapResult> {
-    let all_attrs = [ attrs, vec![
-        ("objectClass", hashset!{"groupOfNames", "up1SyncGroup"}),
-        ("cn", hashset!{cn}),
-        ("member", hashset!{""}),
-    ] ].concat();
+pub async fn ldap_add_group(ldap: &mut Ldap, kind: GroupKind, cn: &str, attrs: LdapAttrs<'_>) -> Result<LdapResult> {
+    let struct_class = if kind == GroupKind::GROUP { "groupOfNames" } else { "organizationalRole" };
+    let all_attrs = [ 
+        vec![
+            ("objectClass", hashset!{struct_class, "up1SyncGroup"}),
+            ("cn", hashset!{cn}),
+        ], 
+        attrs, 
+        if kind == GroupKind::GROUP { 
+            vec![("member", hashset!{""})] 
+        } else { 
+            vec![]
+        },
+    ].concat();
     ldap.add(&group_id_to_dn(cn), all_attrs).await
 }
 
-async fn add_group(ldap: &mut Ldap, group: Group<'_>) -> Result<LdapResult> {
-    ldap_add_group(ldap, &group.id, vec![
-        ("ou", hashset!{group.ou}),
-        ("description", hashset!{group.description}),
-    ]).await
+pub async fn create(ldap: &mut Ldap, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
+    let attrs_ = attrs.iter().map(|(name, value)|
+        (name.to_string(), hashset![&value as &str])
+    ).collect();
+    ldap_add_group(ldap, kind, id, attrs_).await
+}
+
+pub async fn add_group(ldap: &mut Ldap, group: Group) -> Result<LdapResult> {
+    let attrs = btreemap![ Attr::Ou => group.ou, Attr::Description => group.description ];
+    create(ldap, GroupKind::GROUP, &group.id, attrs).await
 }
 
 pub async fn modify_members_or_rights(ldap: &mut Ldap, id: &str, my_mods: MyMods) -> Result<LdapResult> {
@@ -85,39 +97,3 @@ pub async fn modify_members_or_rights(ldap: &mut Ldap, id: &str, my_mods: MyMods
     ldap.modify(&group_id_to_dn(id), mods).await
 }
 
-pub async fn set_test_data(ldap : &mut Ldap) -> Result<LdapResult> {
-    let _res = ldap.delete("uid=prigaux,ou=people,dc=nodomain").await;
-    let _res = ldap.delete("uid=prigaux2,ou=people,dc=nodomain").await;
-    let _res = ldap.delete("ou=people,dc=nodomain").await;
-    let _res = ldap.delete("cn=foo,ou=groups,dc=nodomain").await;
-    let _res = ldap.delete("ou=groups,dc=nodomain").await;
-    let _res = ldap.delete("dc=nodomain").await;
-
-    ldap.add("dc=nodomain", vec![
-        ("objectClass", hashset!{"dcObject", "organization"}),
-        ("dc", hashset!{"nodomain"}),
-        ("o", hashset!{"nodomain"}),
-    ]).await?;
-    ldap_add_ou_branch(ldap, "people").await?;
-    ldap_add_ou_branch(ldap, "groups").await?;
-    ldap_add_people(ldap, "prigaux", vec![
-        ("cn", hashset!{"Rigaux Pascal"}),
-        ("displayName", hashset!{"Pascal Rigaux"}),
-        ("sn", hashset!{"Rigaux"}),
-    ]).await?;
-
-    add_group(ldap, Group { id: "foo", ou: "Foo group", description: "Foo group" }).await?;
-    
-    let res = modify_members_or_rights(ldap, "foo", btreemap!{
-        Right::UPDATER => btreemap!{ MyMod::ADD => hashset!["https://rigaux.org".to_string()] }
-    }).await?;
-
-    Ok(res)
-}
-
-pub async fn _test_search(ldap: &mut Ldap) -> Result<String> {
-    let opts = SearchOptions::new().sizelimit(1);
-    let (mut rs, _res) = ldap.with_search_options(opts).search("dc=nodomain", Scope::Subtree, "(objectClass=person)", vec!["displayName"]).await?.success()?;
-    let dn = if let Some(entry) = rs.pop() { SearchEntry::construct(entry).dn } else { "????".to_string() };
-    Ok(dn)
-}
