@@ -17,6 +17,7 @@ pub struct LdapConfig {
 }
 #[derive(Deserialize)]
 pub struct Config {
+    pub trusted_auth_bearer: Option<String>,
     pub cas: CasConfig,
     pub ldap: LdapConfig,
 }

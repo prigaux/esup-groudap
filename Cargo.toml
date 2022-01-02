@@ -9,4 +9,4 @@ reqwest = { version = "0.11" }
 tokio = { version = "1.x", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1.0", features = ["derive"] }
 ldap3 = { version = "0.9.x", default-features = false } # features = ["tls"]
-rocket = { version = "0.5.0-rc.1", features = ["json"] }
+rocket = { version = "0.5.0-rc.1", features = ["json", "secrets"] }

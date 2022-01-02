@@ -1,4 +1,5 @@
 [default]
+trusted_auth_bearer = "aa"
 
 [default.cas]
 prefix_url = "https://cas-test.univ-paris1.fr/cas"

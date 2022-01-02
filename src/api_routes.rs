@@ -1,3 +1,8 @@
+use rocket::request::{self, FromRequest, Request};
+use rocket::http::Status;
+use rocket::http::{Cookie, CookieJar};
+
+use rocket::outcome::{Outcome, try_outcome};
 use rocket::serde::{json::Json};
 use rocket::{Route, State};
 
@@ -9,6 +14,30 @@ use super::api;
 use super::my_ldap;
 use super::test_data;
 use super::cas_auth;
+
+
+
+#[derive(Debug)]
+struct LoggedUser(Option<String>);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for LoggedUser {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, ()> {
+        let config = try_outcome!(request.guard::<&State<Config>>().await);
+        let bearer = request.headers().get_one("Authorization")
+                        .and_then(|auth| auth.strip_prefix("Bearer "));
+        if let (Some(b), Some(b_)) = (bearer, &config.trusted_auth_bearer) {
+            if b == b_ { return Outcome::Success(LoggedUser(None)); }
+        }
+        if let Some(cookie) = request.cookies().get_private("user_id") {
+            return Outcome::Success(LoggedUser(Some(cookie.value().to_owned())));
+        }
+        Outcome::Failure((Status::Unauthorized, ()))
+    }
+}
+
 
 fn to_json(r : Result<LdapResult>) -> Json<bool> {
     Json(match r {
@@ -27,8 +56,12 @@ fn to_json_<T>(r : std::result::Result<T, String>) -> Json<bool> {
 
 
 #[get("/login?<ticket>")]
-async fn login(ticket: String, config: &State<Config>) -> Json<bool> {
-    to_json_(async { cas_auth::validate_ticket(&config.cas.prefix_url, "http://localhost", &ticket).await }.await)
+async fn login(ticket: String, jar: &CookieJar<'_>, config: &State<Config>) -> Json<bool> {
+    to_json_(async { 
+        let user = cas_auth::validate_ticket(&config.cas.prefix_url, "http://localhost", &ticket).await?;
+        jar.add_private(Cookie::new("user_id", user));
+        Ok(())
+    }.await)
 }
 
 #[get("/set_test_data")]
@@ -45,7 +78,7 @@ async fn add_test_data(config: &State<Config>) -> Json<bool> {
 }
 
 #[post("/create?<id>&<kind>", data = "<attrs>")]
-async fn create(id: String, kind: Option<&str>, attrs: Json<Attrs>, config: &State<Config>) -> Json<bool> {
+async fn create(id: String, kind: Option<&str>, attrs: Json<Attrs>, _user: LoggedUser, config: &State<Config>) -> Json<bool> {
     let kind = match kind { 
         Some("stem") => GroupKind::STEM,
         _ => GroupKind::GROUP
