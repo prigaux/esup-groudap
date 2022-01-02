@@ -31,6 +31,28 @@ fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
     r
 }
 
+// ("a.b.c", ".") => Some("a.b")
+// ("a", ".") => None
+fn rbefore<'a>(s: &'a str, end: &'a str) -> Option<&'a str> {
+    Some(&s[..s.rfind(end)?])
+}
+
+// "a.b.c" => Some("a.b")
+// "a" => Some("ROOT")
+// "ROOT" => None
+pub fn parent_stem<'a>(config: &'a StemConfig, id: &'a str) -> Option<&'a str> {
+    rbefore(id, &config.separator).or_else(|| if id == config.root_id { None } else { Some(&config.root_id) })
+}
+
+// "a.b.c" => ["a.b", "a", "ROOT"]
+pub fn parent_stems<'a>(config: &'a StemConfig, id: &'a str) -> Vec<&'a str> {
+    let mut stems : Vec<&str> = Vec::new();
+    while let Some(id) = parent_stem(config, id) {
+        stems.push(id);
+    }
+    return stems;
+}
+
 fn group_id_to_dn(config: &LdapConfig, cn: &str) -> String {
     format!("cn={},{}", cn, config.groups_dn)
 }

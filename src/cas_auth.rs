@@ -4,8 +4,7 @@ fn after<'a>(s : &'a str, start: &'a str) -> Option<&'a str> {
 }
 
 fn before<'a>(s: &'a str, end: &'a str) -> Option<&'a str> {
-    let pos = s.find(end)?;
-    Some(&s[..pos])
+    Some(&s[..s.find(end)?])
 }
 
 fn between<'a>(s: &'a str, start: &'a str, end: &'a str) -> Option<&'a str> {

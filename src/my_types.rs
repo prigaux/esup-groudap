@@ -5,6 +5,15 @@ use rocket::serde::{Deserialize, Serialize};
 pub struct CasConfig {
     pub prefix_url: String,
 }
+fn default_separator() -> String { ".".to_owned() }
+fn default_root_id() -> String { "ROOT".to_owned() }
+#[derive(Deserialize)]
+pub struct StemConfig {
+    #[serde(default = "default_separator")]
+    pub separator: String,
+    #[serde(default = "default_root_id")]
+    pub root_id: String,
+}
 #[derive(Deserialize)]
 pub struct LdapConfig {
     pub url: String,
@@ -14,6 +23,7 @@ pub struct LdapConfig {
     pub groups_dn: String,
     pub stem_object_classes: HashSet<String>,
     pub group_object_classes: HashSet<String>,
+    pub stem: StemConfig,
 }
 #[derive(Deserialize)]
 pub struct Config {
