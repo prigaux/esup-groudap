@@ -60,3 +60,9 @@ impl Right {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum LoggedUser {
+    TrustedAdmin,
+    User(String),
+}

@@ -3,18 +3,19 @@ use ldap3::{Scope, LdapConnAsync, SearchEntry, SearchOptions, Ldap, Mod, ldap_es
 use ldap3::result::{Result, LdapResult, LdapError};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use super::my_types::{Attrs, GroupKind, MyMods, MyMod, Right, LdapConfig};
+use super::my_types::*;
 
 pub struct LdapW<'a> {
     pub ldap: Ldap,
     pub config: &'a LdapConfig,
+    pub logged_user: &'a LoggedUser,
 }
 
-pub async fn open<'a>(config: &'a LdapConfig) -> Result<LdapW<'a>> {
+pub async fn open<'a>(config: &'a LdapConfig, logged_user: &'a LoggedUser) -> Result<LdapW<'a>> {
     let (conn, mut ldap) = LdapConnAsync::new(&config.url).await?;
     ldap3::drive!(conn);
     ldap.simple_bind(&config.bind_dn, &config.bind_password).await?;
-    Ok(LdapW { ldap, config })
+    Ok(LdapW { ldap, config, logged_user })
 }
 
 
@@ -61,7 +62,7 @@ pub async fn group_exists(ldp: &mut LdapW<'_>, filter: &str) -> Result<bool> {
 }
 
 // wow, it is complex...
-fn to_hashset_ref(elts : &HashSet<String>) -> HashSet<&str> {
+fn hashset_as_deref(elts : &HashSet<String>) -> HashSet<&str> {
     let mut set: HashSet<&str> = HashSet::new();
     for e in elts { set.insert(&e); }
     set
@@ -73,7 +74,7 @@ pub async fn ldap_add_group(ldp: &mut LdapW<'_>, kind: GroupKind, cn: &str, attr
         _ => &ldp.config.stem_object_classes,
     };
     let base_attrs = vec![
-        ("objectClass", to_hashset_ref(object_classes)),
+        ("objectClass", hashset_as_deref(object_classes)),
         ("cn", hashset!{cn}),
     ];
     let member_attr = match kind {
