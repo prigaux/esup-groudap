@@ -1,6 +1,25 @@
 use std::collections::{BTreeMap, HashSet};
 use rocket::serde::{Deserialize, Serialize};
 
+#[derive(Deserialize)]
+pub struct CasConfig {
+    pub prefix_url: String,
+}
+#[derive(Deserialize)]
+pub struct LdapConfig {
+    pub url: String,
+    pub bind_dn: String,
+    pub bind_password: String,
+    pub base_dn: String,
+    pub groups_dn: String,
+    pub stem_object_classes: HashSet<String>,
+    pub group_object_classes: HashSet<String>,
+}
+#[derive(Deserialize)]
+pub struct Config {
+    pub cas: CasConfig,
+    pub ldap: LdapConfig,
+}
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]

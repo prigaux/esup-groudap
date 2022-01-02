@@ -1,0 +1,13 @@
+[default]
+
+[default.cas]
+prefix_url = "https://cas-test.univ-paris1.fr/cas"
+
+[default.ldap]
+url = "ldap://localhost"
+bind_dn = "cn=admin,dc=nodomain"
+bind_password = "a"
+base_dn = "dc=nodomain"
+groups_dn = "ou=groups,dc=nodomain"
+stem_object_classes = [ "supannGroupe", "up1SyncGroup", "organizationalRole" ]
+group_object_classes = [ "supannGroupe", "up1SyncGroup", "groupOfNames" ]

@@ -5,7 +5,7 @@ type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use super::my_types::{GroupKind, Right, MyMod, Attr};
 use super::my_ldap;
-use super::my_ldap::{people_id_to_dn, dn_to_url};
+use super::my_ldap::{LdapW, people_id_to_dn, dn_to_url};
 
 async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str) -> Result<LdapResult> {
     let dn = format!("ou={},dc=nodomain", ou);
@@ -24,61 +24,61 @@ async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: LdapAttrs<'_>) -> Re
     ldap.add(&dn, all_attrs).await
 }
 
-pub async fn clear(ldap : &mut Ldap) -> Result<LdapResult> {
-    let _res = ldap.delete("uid=aanli,ou=people,dc=nodomain").await;
-    let _res = ldap.delete("uid=prigaux,ou=people,dc=nodomain").await;
-    let _res = ldap.delete("ou=people,dc=nodomain").await;
-    let _res = ldap.delete("cn=collab.DSIUN_SCD,ou=groups,dc=nodomain").await;
-    let _res = ldap.delete("cn=collab,ou=groups,dc=nodomain").await;
-    let _res = ldap.delete("cn=ROOT,ou=groups,dc=nodomain").await;
-    ldap.delete("ou=groups,dc=nodomain").await
+pub async fn clear(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+    let _res = ldp.ldap.delete("uid=aanli,ou=people,dc=nodomain").await;
+    let _res = ldp.ldap.delete("uid=prigaux,ou=people,dc=nodomain").await;
+    let _res = ldp.ldap.delete("ou=people,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=collab.DSIUN_SCD,ou=groups,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=collab,ou=groups,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=ROOT,ou=groups,dc=nodomain").await;
+    ldp.ldap.delete("ou=groups,dc=nodomain").await
     //ldap.delete("dc=nodomain").await
 }
 
-pub async fn add(ldap : &mut Ldap) -> Result<LdapResult> {
-    ldap.add("dc=nodomain", vec![
+pub async fn add(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+    ldp.ldap.add("dc=nodomain", vec![
         ("objectClass", hashset!{"dcObject", "organization"}),
         ("dc", hashset!{"nodomain"}),
         ("o", hashset!{"nodomain"}),
     ]).await?;
-    ldap_add_ou_branch(ldap, "people").await?;
-    ldap_add_ou_branch(ldap, "groups").await?;
-    ldap_add_people(ldap, "prigaux", vec![
+    ldap_add_ou_branch(&mut ldp.ldap, "people").await?;
+    ldap_add_ou_branch(&mut ldp.ldap, "groups").await?;
+    ldap_add_people(&mut ldp.ldap, "prigaux", vec![
         ("cn", hashset!{"Rigaux Pascal"}),
         ("displayName", hashset!{"Pascal Rigaux"}),
         ("sn", hashset!{"Rigaux"}),
     ]).await?;
-    ldap_add_people(ldap, "aanli", vec![
+    ldap_add_people(&mut ldp.ldap, "aanli", vec![
         ("cn", hashset!{"Anli Aymar"}),
         ("displayName", hashset!{"Aymar Anli"}),
         ("sn", hashset!{"Anli"}),
     ]).await?;
 
-    my_ldap::create(ldap, GroupKind::STEM, "ROOT", btreemap!{ 
+    my_ldap::create(ldp, GroupKind::STEM, "ROOT", btreemap!{ 
         Attr::Ou => "Racine".to_owned(),
         Attr::Description => "Droits sur l'arborescence entière".to_owned(),
     }).await?;
-    my_ldap::modify_direct_members_or_rights(ldap, "ROOT", btreemap!{
-        Right::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn("prigaux"))] },
+    my_ldap::modify_direct_members_or_rights(ldp, "ROOT", btreemap!{
+        Right::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn(&ldp.config, "prigaux"))] },
     }).await?;
 
-    my_ldap::create(ldap, GroupKind::STEM, "collab", btreemap!{ 
+    my_ldap::create(ldp, GroupKind::STEM, "collab", btreemap!{ 
         Attr::Ou => "Collaboration".to_owned(),
         Attr::Description => "Collaboration".to_owned(),
     }).await?;
 
-    my_ldap::create(ldap, GroupKind::GROUP, "collab.DSIUN_SCD", btreemap!{}).await?;
+    my_ldap::create(ldp, GroupKind::GROUP, "collab.DSIUN_SCD", btreemap!{}).await?;
 
-    let res = my_ldap::modify_direct_members_or_rights(ldap, "collab.DSIUN_SCD", btreemap!{
-        Right::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn("aanli"))] },
+    let res = my_ldap::modify_direct_members_or_rights(ldp, "collab.DSIUN_SCD", btreemap!{
+        Right::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn(&ldp.config, "aanli"))] },
     }).await?;
 
     Ok(res)
 }
 
-pub async fn set(ldap : &mut Ldap) -> Result<LdapResult> {
-    let _res = clear(ldap).await;
-    add(ldap).await
+pub async fn set(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+    let _res = clear(ldp).await;
+    add(ldp).await
 }
 
 pub async fn _test_search(ldap: &mut Ldap) -> Result<String> {
