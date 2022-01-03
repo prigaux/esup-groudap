@@ -13,20 +13,22 @@ fn rbefore<'a>(s: &'a str, end: &'a str) -> Option<&'a str> {
     Some(&s[..s.rfind(end)?])
 }
 
-// "a.b.c" => Some("a.b")
-// "a" => Some("ROOT")
-// "ROOT" => None
-pub fn parent_stem<'a>(config: &'a StemConfig, id: &'a str) -> Option<&'a str> {
-    rbefore(id, &config.separator).or_else(|| if id == config.root_id { None } else { Some(&config.root_id) })
-}
-
-// "a.b.c" => ["a.b", "a", "ROOT"]
-pub fn parent_stems<'a>(config: &'a StemConfig, id: &'a str) -> Vec<&'a str> {
-    let mut stems : Vec<&str> = Vec::new();
-    while let Some(id) = parent_stem(config, id) {
-        stems.push(id);
+impl StemConfig {
+    // "a.b.c" => Some("a.b")
+    // "a" => Some("ROOT")
+    // "ROOT" => None
+    pub fn parent_stem<'a>(self: &'a Self, id: &'a str) -> Option<&'a str> {
+        rbefore(id, &self.separator).or_else(|| if id == self.root_id { None } else { Some(&self.root_id) })
     }
-    return stems;
+
+    // "a.b.c" => ["a.b", "a", "ROOT"]
+    pub fn parent_stems<'a>(self: &'a Self, id: &'a str) -> Vec<&'a str> {
+        let mut stems : Vec<&str> = Vec::new();
+        while let Some(id) = self.parent_stem(id) {
+            stems.push(id);
+        }
+        return stems;
+    }
 }
 
 impl LdapConfig {
@@ -36,10 +38,22 @@ impl LdapConfig {
     pub fn people_id_to_dn(self: &Self, cn: &str) -> String {
         format!("uid={},ou=people,{}", cn, self.base_dn)
     }
+    pub fn validate_group_id(self: &Self, id: &str) -> Result<()> {
+        for one in id.split(&self.stem.separator) {
+            if one == "" || one.contains(|c: char| !c.is_alphanumeric()) {
+                return Err(LdapError::AdapterInit(format!("invalid sgroup id")))
+            }
+        }
+        Ok(())
+    }   
 }
 
 pub fn dn_to_url(dn: &str) -> String {
     format!("ldap:///{}", dn)
+}
+
+pub fn url_to_dn(url: &str) -> Option<&str> {
+    url.strip_prefix("ldap:///").filter(|dn| !dn.contains("?"))
 }
 
 // wow, it is complex...
