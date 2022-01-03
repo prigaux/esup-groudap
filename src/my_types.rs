@@ -34,13 +34,15 @@ pub struct Config {
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
-pub enum Right { MEMBER, READER, UPDATER, ADMIN }
+pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
+
+pub enum Right { READER, UPDATER, ADMIN }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum MyMod { ADD, DELETE, REPLACE }
 
-pub type MyMods = BTreeMap<Right, BTreeMap<MyMod, HashSet<String>>>;
+pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
 
 
 #[derive(PartialEq, Eq, Deserialize, Serialize)]
@@ -60,14 +62,47 @@ impl Attr {
     }
 }
 
-impl Right {
-    pub fn to_string(&self) -> &'static str {
+impl Mright {
+    fn to_string(&self) -> &'static str {
         match self {
             Self::MEMBER => "member",
             Self::READER => "reader",
             Self::UPDATER => "updater",
             Self::ADMIN => "admin",
         }
+    }
+    pub fn to_attr(&self) -> String {
+        format!("memberURL;x-{}", self.to_string())
+    }
+    pub fn to_indirect_attr(&self) -> &'static str {
+        match self {
+            Self::MEMBER => "member",
+            Self::READER => "supannGroupeLecteurDN",
+            Self::UPDATER => "supannGroupeAdminDN",
+            Self::ADMIN => "owner",
+        }
+    }
+}
+impl Right {
+    pub fn to_allowed_rights(&self) -> Vec<Self> {
+        match self {
+            Self::READER => vec![Self::READER, Self::UPDATER, Self::ADMIN],
+            Self::UPDATER => vec![Self::UPDATER, Self::ADMIN],
+            Self::ADMIN => vec![Self::ADMIN],
+        }
+    }
+    pub fn to_mright(&self) -> Mright {
+        match self {
+            Self::READER => Mright::READER,
+            Self::UPDATER => Mright::UPDATER,
+            Self::ADMIN => Mright::ADMIN,
+        }
+    }
+    pub fn to_attr(&self) -> String {
+        self.to_mright().to_attr()
+    }
+    pub fn to_indirect_attr(&self) -> &'static str {
+        self.to_mright().to_indirect_attr()
     }
 }
 

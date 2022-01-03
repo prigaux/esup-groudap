@@ -5,6 +5,8 @@ extern crate maplit;
 extern crate rocket;
 
 mod my_types;
+mod ldap_filter;
+mod ldap_wrapper;
 mod api;
 mod my_ldap;
 mod test_data;
