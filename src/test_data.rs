@@ -4,9 +4,9 @@ use ldap3::result::{Result, LdapResult};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use super::my_types::{GroupKind, Mright, MyMod, Attr};
-use super::ldap_wrapper::{LdapW};
+use super::ldap_wrapper::LdapW;
 use super::my_ldap;
-use super::my_ldap::{people_id_to_dn, sgroup_id_to_dn, dn_to_url};
+use super::my_ldap::{dn_to_url};
 
 async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str) -> Result<LdapResult> {
     let dn = format!("ou={},dc=nodomain", ou);
@@ -55,49 +55,49 @@ pub async fn add(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
         ("sn", hashset!{"Anli"}),
     ]).await?;
 
-    my_ldap::create(ldp, GroupKind::STEM, "ROOT", btreemap!{ 
+    my_ldap::create_sgroup(ldp, GroupKind::STEM, "ROOT", btreemap!{ 
         Attr::Ou => "Racine".to_owned(),
         Attr::Description => "Droits sur l'arborescence entière".to_owned(),
     }).await?;
     my_ldap::modify_direct_members_or_rights(ldp, "ROOT", btreemap!{
-        Mright::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn(&ldp.config, "prigaux"))] },
+        Mright::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.people_id_to_dn("prigaux"))] },
     }).await?;
 
-    my_ldap::create(ldp, GroupKind::STEM, "collab", btreemap!{ 
+    my_ldap::create_sgroup(ldp, GroupKind::STEM, "collab", btreemap!{ 
         Attr::Ou => "Collaboration".to_owned(),
         Attr::Description => "Collaboration".to_owned(),
     }).await?;
 
-    my_ldap::create(ldp, GroupKind::GROUP, "collab.DSIUN_SCD", btreemap!{
+    my_ldap::create_sgroup(ldp, GroupKind::GROUP, "collab.DSIUN_SCD", btreemap!{
         Attr::Ou => "Collaboration DSIUN SCD".to_owned(),
         Attr::Description => "Collaboration DSIUN SCD".to_owned(),
     }).await?;
 
     let res = my_ldap::modify_direct_members_or_rights(ldp, "collab.DSIUN_SCD", btreemap!{
-        Mright::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn(&ldp.config, "aanli"))] },
+        Mright::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.people_id_to_dn("aanli"))] },
     }).await?;
 
-    my_ldap::create(ldp, GroupKind::STEM, "applications", btreemap!{ 
+    my_ldap::create_sgroup(ldp, GroupKind::STEM, "applications", btreemap!{ 
         Attr::Ou => "Applications".to_owned(),
         Attr::Description => "Applications".to_owned(),
     }).await?;
 
-    my_ldap::create(ldp, GroupKind::STEM, "applications.grouper", btreemap!{ 
+    my_ldap::create_sgroup(ldp, GroupKind::STEM, "applications.grouper", btreemap!{ 
         Attr::Ou => "Grouper".to_owned(),
         Attr::Description => "Grouper".to_owned(),
     }).await?;
 
-    my_ldap::create(ldp, GroupKind::GROUP, "applications.grouper.super-admins", btreemap!{
+    my_ldap::create_sgroup(ldp, GroupKind::GROUP, "applications.grouper.super-admins", btreemap!{
         Attr::Ou => "Grouper super admins".to_owned(),
         Attr::Description => "Grouper admins de toute l'arborescence".to_owned(),
     }).await?;
     my_ldap::modify_direct_members_or_rights(ldp, "applications.grouper.super-admins", btreemap!{
-        Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&people_id_to_dn(&ldp.config, "prigaux"))] },
+        Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.people_id_to_dn("prigaux"))] },
     }).await?;
     my_ldap::modify_direct_members_or_rights(ldp, "ROOT", btreemap!{
         Mright::ADMIN => btreemap!{ 
-            MyMod::DELETE => hashset![dn_to_url(&people_id_to_dn(&ldp.config, "prigaux"))],
-            MyMod::ADD => hashset![dn_to_url(&sgroup_id_to_dn(&ldp.config, "applications.grouper.super-admins"))],
+            MyMod::DELETE => hashset![dn_to_url(&ldp.config.people_id_to_dn("prigaux"))],
+            MyMod::ADD => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"))],
         },
     }).await?;
 

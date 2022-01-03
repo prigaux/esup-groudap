@@ -26,4 +26,3 @@ pub fn member(dn: &str) -> String {
 pub fn sgroup_children(id: &str) -> String {
     format!("(cn={}.*)", ldap_escape(id))
 }
-

@@ -11,7 +11,7 @@ use ldap3::result::Result;
 
 use super::my_types::{Attrs, GroupKind, MyMods, Config, LoggedUser};
 use super::api;
-use super::ldap_wrapper;
+use super::ldap_wrapper::LdapW;
 use super::test_data;
 use super::cas_auth;
 
@@ -63,15 +63,15 @@ async fn login(ticket: String, jar: &CookieJar<'_>, config: &State<Config>) -> J
 
 #[get("/set_test_data")]
 async fn set_test_data(config: &State<Config>, user: LoggedUser) -> Json<bool> {
-    to_json(async { test_data::set(&mut ldap_wrapper::open(&config.ldap, &user).await?).await }.await)
+    to_json(async { test_data::set(&mut LdapW::open(&config.ldap, &user).await?).await }.await)
 }
 #[get("/clear_test_data")]
 async fn clear_test_data(config: &State<Config>, user: LoggedUser) -> Json<bool> {
-    to_json(async { test_data::clear(&mut ldap_wrapper::open(&config.ldap, &user).await?).await }.await)
+    to_json(async { test_data::clear(&mut LdapW::open(&config.ldap, &user).await?).await }.await)
 }
 #[get("/add_test_data")]
 async fn add_test_data(config: &State<Config>, user: LoggedUser) -> Json<bool> {
-    to_json(async { test_data::add(&mut ldap_wrapper::open(&config.ldap, &user).await?).await }.await)
+    to_json(async { test_data::add(&mut LdapW::open(&config.ldap, &user).await?).await }.await)
 }
 
 #[post("/create?<id>&<kind>", data = "<attrs>")]
@@ -81,14 +81,14 @@ async fn create(id: String, kind: Option<&str>, attrs: Json<Attrs>, config: &Sta
         _ => GroupKind::GROUP
     };
     to_json(async {
-        api::create(&mut ldap_wrapper::open(&config.ldap, &user).await?, kind, &id, attrs.into_inner()).await
+        api::create(&mut LdapW::open(&config.ldap, &user).await?, kind, &id, attrs.into_inner()).await
     }.await)
 }
 
 #[post("/delete?<id>")]
 async fn delete(id: String, config: &State<Config>, user: LoggedUser) -> Json<bool> {
     to_json(async {
-        api::delete(&mut ldap_wrapper::open(&config.ldap, &user).await?, &id).await
+        api::delete(&mut LdapW::open(&config.ldap, &user).await?, &id).await
     }.await)
 }
 
@@ -96,7 +96,7 @@ async fn delete(id: String, config: &State<Config>, user: LoggedUser) -> Json<bo
 #[post("/modify_members_or_rights?<id>", data = "<mods>")]
 async fn modify_members_or_rights(id: String, mods: Json<MyMods>, config: &State<Config>, user: LoggedUser) -> Json<bool> {
     to_json(async {
-        api::modify_members_or_rights(&mut ldap_wrapper::open(&config.ldap, &user).await?, &id, mods.into_inner()).await
+        api::modify_members_or_rights(&mut LdapW::open(&config.ldap, &user).await?, &id, mods.into_inner()).await
     }.await)
 }
 
