@@ -9,22 +9,26 @@ use super::my_ldap;
 use super::my_ldap::{dn_to_url, url_to_dn};
 use super::ldap_filter;
 
+fn is_disjoint(vals: &Vec<String>, set: &HashSet<String>) -> bool {
+    !vals.iter().any(|val| set.contains(val))
+}
+
 // true if at least one LDAP entry value is in "set"
-fn has_value(entry: SearchEntry, set: HashSet<String>) -> bool {
+fn has_value(entry: SearchEntry, set: &HashSet<String>) -> bool {
     for vals in entry.attrs.into_values() {
-        if vals.iter().any(|url| set.contains(url)) {
+        if !is_disjoint(&vals, &set) {
             return true
         }
     }
     false
 }
 
-async fn user_has_right_on_stem(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {
-    if let Some(group) = {
-        let attrs = right.to_allowed_rights().iter().map(|r| r.to_attr()).collect();
-        ldp.read_sgroup(id, attrs).await?
-     } {
-        let user_urls = ldp.user_groups_and_user(user).await?.iter().map(|dn| dn_to_url(&dn)).collect();
+async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
+    Ok(ldp.user_groups_and_user(user).await?.iter().map(|dn| dn_to_url(&dn)).collect())
+}
+
+async fn user_has_right_on_sgroup(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str, right: &Right) -> Result<bool> {
+    if let Some(group) = ldp.read_sgroup(id, right.to_allowed_attrs()).await? {
         Ok(has_value(group, user_urls))
     } else if id == ldp.config.stem.root_id {
         Ok(false)
@@ -33,7 +37,25 @@ async fn user_has_right_on_stem(ldp: &mut LdapW<'_>, user: &str, id: &str, right
     }
 }
 
-async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {    
+async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str) -> Result<Option<Right>> {
+    if let Some(group) = ldp.read_sgroup(id, Right::READER.to_allowed_attrs()).await? {
+        for right in Right::READER.to_allowed_rights() {
+            if let Some(vals) = group.attrs.get(&right.to_attr()) {
+                if !is_disjoint(vals, &user_urls) {
+                    return Ok(Some(right))
+                }
+            }
+        }
+        Ok(None)
+    } else if id == ldp.config.stem.root_id {
+        Ok(None)
+    } else {
+        Err(LdapError::AdapterInit(format!("stem {} does not exist", id)))
+    }
+}
+
+
+/*async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {    
     fn user_has_right_filter(user_dn: &str, right: &Right) -> String {
         ldap_filter::or(right.to_allowed_rights().iter().map(|r| 
             ldap_filter::eq(r.to_indirect_attr(), user_dn)
@@ -41,14 +63,16 @@ async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, righ
     }
     let filter = user_has_right_filter(&ldp.config.people_id_to_dn(user), right);
     ldp.is_sgroup_matching_filter(id, &filter).await
-}
+}*/
 
-async fn user_has_right(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {
-    if ldp.is_group(id).await? {
-        user_has_right_on_group(ldp, user, id, right).await
-    } else {
-        user_has_right_on_stem(ldp, user, id, right).await
+async fn check_user_right_on_any_parents(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str, right: Right) -> Result<()> {
+    let parents = ldp.config.stem.parent_stems(id);
+    for parent in parents {
+        if user_has_right_on_sgroup(ldp, &user_urls, parent, &right).await? {
+            return Ok(())
+        }
     }
+    Err(LdapError::AdapterInit("not enough right".to_owned()))
 }
 
 async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right) -> Result<()> {
@@ -62,13 +86,10 @@ async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right)
             Ok(())
         },
         LoggedUser::User(user) => {
-            let parents = ldp.config.stem.parent_stems(id);
-            for parent in parents {
-                if user_has_right_on_stem(ldp, user, parent, &right).await? {
-                    return Ok(())
-                }
-            }
-            Err(LdapError::AdapterInit("not enough right".to_owned()))
+            dbg!("check_right_on_any_parents");
+            let user_urls = user_urls(ldp, user).await?;
+            dbg!(&user_urls);
+            check_user_right_on_any_parents(ldp, &user_urls, id, right).await
         }
     }
 }
@@ -79,23 +100,51 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
             Ok(())
         },
         LoggedUser::User(user) => {
-            if user_has_right(ldp, user, id, &right).await? {
+            let user_urls = user_urls(ldp, user).await?;
+            dbg!(&user_urls);
+            if user_has_right_on_sgroup(ldp, &user_urls, id, &right).await? {
                 return Ok(())
             }
-            check_right_on_any_parents(ldp, id, right).await
+            check_user_right_on_any_parents(ldp, &user_urls, id, right).await
         }
     }
 }
 
+async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Result<Option<Right>> {
+    match ldp.logged_user {
+        LoggedUser::TrustedAdmin => {
+            Ok(Some(Right::ADMIN))
+        },
+        LoggedUser::User(user) => {
+            dbg!("best_right_on_self_or_any_parents()");
+            let user_urls = user_urls(ldp, user).await?;
+            dbg!(&user_urls);
+            let self_and_parents = [ ldp.config.stem.parent_stems(id), vec![id] ].concat();
+            let mut best = None;
+            for id in self_and_parents {
+                let right = user_highest_right_on_stem(ldp, &user_urls, id).await?;
+                dbg!(id); dbg!(&right); 
+                if right > best {
+                    best = right;
+                    dbg!(&best);
+                }
+            }
+            Ok(best)
+        }
+    }
+}
+
+
 pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
-    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    dbg!(id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::ADMIN).await?;
     my_ldap::create_sgroup(ldp, kind, id, attrs).await
 }
 
 pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<LdapResult> {
-    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     // are we allowed?
     check_right_on_self_or_any_parents(ldp, id, Right::ADMIN).await?;
@@ -140,7 +189,8 @@ fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
 }
 
 pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
-    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    dbg!(id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     // is logged user allowed to do the modifications?
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
@@ -173,17 +223,16 @@ fn get_sgroups_attrs(attrs: HashMap<String, Vec<String>>) -> Attrs {
 }
 
 pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndRight> {
-    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
-    // is logged user allowed to do the modifications?
-    check_right_on_self_or_any_parents(ldp, id, Right::READER).await?;
 
-    let wanted_attrs = Attr::list_as_string().into_iter().collect(); //, &vec![ "objectClass" ] ]
+    let wanted_attrs = [ Attr::list_as_string(), vec![ "objectClass" ] ].concat();
     if let Some(entry) = ldp.read_sgroup(id, wanted_attrs).await? {
         let kind = if is_stem(&entry) { GroupKind::STEM } else { GroupKind::GROUP };
         let attrs = get_sgroups_attrs(entry.attrs);
         let sgroup = SgroupOut { attrs, kind };
-        let right = Right::UPDATER;
+        let right = best_right_on_self_or_any_parents(ldp, id).await?
+                .ok_or_else(|| LdapError::AdapterInit("not enough right".to_owned()))?;
         Ok(SgroupAndRight { sgroup, right })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))

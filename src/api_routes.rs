@@ -28,7 +28,11 @@ impl<'r> FromRequest<'r> for CfgAndLU<'r> {
         let bearer = request.headers().get_one("Authorization")
                         .and_then(|auth| auth.strip_prefix("Bearer "));
         if bearer.is_some() && bearer == cfg.trusted_auth_bearer.as_deref() {
-            return Outcome::Success(CfgAndLU { cfg, user: LoggedUser::TrustedAdmin });
+            let user = match request.headers().get_one("X-Impersonate-User") {
+                Some(u) => LoggedUser::User(u.to_owned()),
+                _ => LoggedUser::TrustedAdmin,
+            };
+            return Outcome::Success(CfgAndLU { cfg, user });
         }
         if let Some(cookie) = request.cookies().get_private("user_id") {
             return Outcome::Success(CfgAndLU { cfg, user: LoggedUser::User(cookie.value().to_owned()) });
@@ -64,6 +68,10 @@ fn ldp_err_to_json(err: LdapError) -> MyJson {
     MyJson::new(Status::InternalServerError, body.to_string())
 }
 
+fn to_json<T>(r: Result<T, LdapError>) -> Result<Json<T>, MyJson> {
+    r.map(Json).map_err(ldp_err_to_json)
+}
+
 fn action_result(r : Result<LdapResult, LdapError>) -> MyJson {
     match r {
         Err(err) => ldp_err_to_json(err),
@@ -97,7 +105,7 @@ async fn set_test_data<'a>(cfg_and_lu : CfgAndLU<'a>) -> MyJson {
 }
 #[get("/clear_test_data")]
 async fn clear_test_data<'a>(cfg_and_lu : CfgAndLU<'a>) -> MyJson {
-    action_result(test_data::clear(cfg_and_lu).await)
+    action_result(test_data::clear(&cfg_and_lu).await)
 }
 #[get("/add_test_data")]
 async fn add_test_data<'a>(cfg_and_lu : CfgAndLU<'a>) -> MyJson {
@@ -126,9 +134,9 @@ async fn modify_members_or_rights<'a>(id: String, mods: Json<MyMods>, cfg_and_lu
     action_result(api::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner()).await)
 }
 
-#[post("/sgroup?<id>")]
+#[get("/sgroup?<id>")]
 async fn sgroup<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupAndRight>, MyJson> {
-    (api::get_sgroup(cfg_and_lu, &id).await).map(Json).map_err(ldp_err_to_json)
+    to_json(api::get_sgroup(cfg_and_lu, &id).await)
 }
 
 pub fn routes() -> Vec<Route> {

@@ -37,7 +37,7 @@ pub struct Config {
 #[serde(rename_all = "lowercase")]
 pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
 
-#[derive(Serialize)]
+#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Right { READER, UPDATER, ADMIN }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
@@ -47,22 +47,22 @@ pub enum MyMod { ADD, DELETE, REPLACE }
 pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
 
 
-#[derive(PartialEq, Eq, Deserialize, Serialize, Copy, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Serialize, Copy, Clone, Debug)]
 pub enum GroupKind { GROUP, STEM }
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum Attr { Ou, Description }
 pub type Attrs = BTreeMap<Attr, String>;
 
-#[derive(Serialize)]
+#[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupOut {
     #[serde(flatten)]
     pub attrs: Attrs,
     pub kind: GroupKind,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupAndRight {
     #[serde(flatten)]
     pub sgroup: SgroupOut,
@@ -103,6 +103,7 @@ impl Mright {
     pub fn to_attr(&self) -> String {
         format!("memberURL;x-{}", self.to_string())
     }
+    /*
     pub fn to_indirect_attr(&self) -> &'static str {
         match self {
             Self::MEMBER => "member",
@@ -111,14 +112,19 @@ impl Mright {
             Self::ADMIN => "owner",
         }
     }
+    */
 }
 impl Right {
+    // NB: best right first
     pub fn to_allowed_rights(&self) -> Vec<Self> {
         match self {
-            Self::READER => vec![Self::READER, Self::UPDATER, Self::ADMIN],
-            Self::UPDATER => vec![Self::UPDATER, Self::ADMIN],
+            Self::READER => vec![Self::ADMIN, Self::UPDATER, Self::READER],
+            Self::UPDATER => vec![Self::ADMIN, Self::UPDATER],
             Self::ADMIN => vec![Self::ADMIN],
         }
+    }
+    pub fn to_allowed_attrs(&self) -> Vec<String> {
+        self.to_allowed_rights().iter().map(|r| r.to_attr()).collect()        
     }
     pub fn to_mright(&self) -> Mright {
         match self {
@@ -130,9 +136,11 @@ impl Right {
     pub fn to_attr(&self) -> String {
         self.to_mright().to_attr()
     }
+    /*
     pub fn to_indirect_attr(&self) -> &'static str {
         self.to_mright().to_indirect_attr()
     }
+    */
 }
 
 #[derive(Debug)]

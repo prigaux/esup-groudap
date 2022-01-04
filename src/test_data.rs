@@ -3,10 +3,11 @@ use ldap3::{Scope, SearchEntry, SearchOptions, Ldap};
 use ldap3::result::{Result, LdapResult};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use super::my_types::{GroupKind, Mright, MyMod, Attr, CfgAndLU};
+use super::my_types::*;
 use super::ldap_wrapper::LdapW;
 use super::my_ldap;
 use super::my_ldap::{dn_to_url};
+use super::api;
 
 async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str) -> Result<LdapResult> {
     let dn = format!("ou={},dc=nodomain", ou);
@@ -25,18 +26,24 @@ async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: LdapAttrs<'_>) -> Re
     ldap.add(&dn, all_attrs).await
 }
 
-async fn clear_(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+pub async fn clear<'a>(cfg_and_lu: &CfgAndLU<'a>) -> Result<LdapResult> {
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     let _res = ldp.ldap.delete("uid=aanli,ou=people,dc=nodomain").await;
     let _res = ldp.ldap.delete("uid=prigaux,ou=people,dc=nodomain").await;
     let _res = ldp.ldap.delete("ou=people,dc=nodomain").await;
     let _res = ldp.ldap.delete("cn=collab.DSIUN_SCD,ou=groups,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=collab.DSIUN,ou=groups,dc=nodomain").await;
     let _res = ldp.ldap.delete("cn=collab,ou=groups,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=applications.grouper.super-admins,ou=groups,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=applications.grouper,ou=groups,dc=nodomain").await;
+    let _res = ldp.ldap.delete("cn=applications,ou=groups,dc=nodomain").await;
     let _res = ldp.ldap.delete("cn=ROOT,ou=groups,dc=nodomain").await;
     ldp.ldap.delete("ou=groups,dc=nodomain").await
     //ldap.delete("dc=nodomain").await
 }
 
-async fn add_(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     ldp.ldap.add("dc=nodomain", vec![
         ("objectClass", hashset!{"dcObject", "organization"}),
         ("dc", hashset!{"nodomain"}),
@@ -63,63 +70,72 @@ async fn add_(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
         Mright::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.people_id_to_dn("prigaux"))] },
     }).await?;
 
-    my_ldap::create_sgroup(ldp, GroupKind::STEM, "collab", btreemap!{ 
+    let cfg_and_prigaux = || CfgAndLU { user: LoggedUser::User("prigaux".to_owned()), ..cfg_and_lu };
+    let cfg_and_aanli   = || CfgAndLU { user: LoggedUser::User("aanli".to_owned()), ..cfg_and_lu };
+
+    let collab_attrs = || btreemap!{ 
         Attr::Ou => "Collaboration".to_owned(),
         Attr::Description => "Collaboration".to_owned(),
-    }).await?;
+    };
+    api::create(cfg_and_prigaux(), GroupKind::STEM, "collab", collab_attrs()).await?;
+    let collab_dsiun_attrs = || btreemap!{
+        Attr::Ou => "Collaboration DSIUN".to_owned(),
+        Attr::Description => "Collaboration DSIUN".to_owned(),
+    };
+    api::create(cfg_and_prigaux(), GroupKind::GROUP, "collab.DSIUN", collab_dsiun_attrs()).await?;
 
-    my_ldap::create_sgroup(ldp, GroupKind::GROUP, "collab.DSIUN_SCD", btreemap!{
-        Attr::Ou => "Collaboration DSIUN SCD".to_owned(),
-        Attr::Description => "Collaboration DSIUN SCD".to_owned(),
-    }).await?;
+    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab").await?, 
+               SgroupAndRight { right: Right::ADMIN, sgroup: SgroupOut { kind: GroupKind::STEM, attrs: collab_attrs() } });
+    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.DSIUN").await?, 
+               SgroupAndRight { right: Right::ADMIN, sgroup: SgroupOut { kind: GroupKind::GROUP, attrs: collab_dsiun_attrs() } });
+    assert!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
 
-    let res = my_ldap::modify_direct_members_or_rights(ldp, "collab.DSIUN_SCD", btreemap!{
+    let res = api::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
         Mright::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.people_id_to_dn("aanli"))] },
     }).await?;
 
-    my_ldap::create_sgroup(ldp, GroupKind::STEM, "applications", btreemap!{ 
+    assert_eq!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
+               SgroupAndRight { right: Right::UPDATER, sgroup: SgroupOut { kind: GroupKind::GROUP, attrs: collab_dsiun_attrs() } });
+
+    api::create(cfg_and_prigaux(), GroupKind::STEM, "applications", btreemap!{ 
         Attr::Ou => "Applications".to_owned(),
         Attr::Description => "Applications".to_owned(),
     }).await?;
 
-    my_ldap::create_sgroup(ldp, GroupKind::STEM, "applications.grouper", btreemap!{ 
+    api::create(cfg_and_prigaux(), GroupKind::STEM, "applications.grouper", btreemap!{ 
         Attr::Ou => "Grouper".to_owned(),
         Attr::Description => "Grouper".to_owned(),
     }).await?;
 
-    my_ldap::create_sgroup(ldp, GroupKind::GROUP, "applications.grouper.super-admins", btreemap!{
+    api::create(cfg_and_prigaux(), GroupKind::GROUP, "applications.grouper.super-admins", btreemap!{
         Attr::Ou => "Grouper super admins".to_owned(),
         Attr::Description => "Grouper admins de toute l'arborescence".to_owned(),
     }).await?;
-    my_ldap::modify_direct_members_or_rights(ldp, "applications.grouper.super-admins", btreemap!{
+    api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.people_id_to_dn("prigaux"))] },
     }).await?;
-    my_ldap::modify_direct_members_or_rights(ldp, "ROOT", btreemap!{
+    api::modify_members_or_rights(cfg_and_prigaux(), "ROOT", btreemap!{
         Mright::ADMIN => btreemap!{ 
             MyMod::DELETE => hashset![dn_to_url(&ldp.config.people_id_to_dn("prigaux"))],
             MyMod::ADD => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"))],
         },
     }).await?;
 
+    //assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab").await?, 
+    //    SgroupAndRight { right: Right::ADMIN, sgroup: SgroupOut { kind: GroupKind::STEM, attrs: collab_attrs() } });
+
+    //api::create(cfg_and_prigaux(), GroupKind::GROUP, "collab.foo", btreemap!{
+    //    Attr::Ou => "Collab Foo".to_owned(),
+    //    Attr::Description => "Collab Foo".to_owned(),
+    //}).await?;
+
     Ok(res)
 }
 
 pub async fn set<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
-    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
-    let _res = clear_(ldp).await;
-    add_(ldp).await
+    clear(&cfg_and_lu).await?;
+    add(cfg_and_lu).await
 }
-
-pub async fn clear<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
-    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
-    clear_(ldp).await
-}
-
-pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
-    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
-    add_(ldp).await
-}
-
 
 pub async fn _test_search(ldap: &mut Ldap) -> Result<String> {
     let opts = SearchOptions::new().sizelimit(1);

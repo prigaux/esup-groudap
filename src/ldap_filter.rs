@@ -20,7 +20,7 @@ pub fn or(l : Vec<String>) -> String {
 }
 
 pub fn member(dn: &str) -> String {
-    format!("(member={})", dn)
+    eq("member", dn)
 }
 
 pub fn sgroup_children(id: &str) -> String {

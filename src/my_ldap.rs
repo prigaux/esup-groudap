@@ -24,11 +24,21 @@ impl StemConfig {
     // "a.b.c" => ["a.b", "a", "ROOT"]
     pub fn parent_stems<'a>(self: &'a Self, id: &'a str) -> Vec<&'a str> {
         let mut stems : Vec<&str> = Vec::new();
-        while let Some(id) = self.parent_stem(id) {
-            stems.push(id);
+        let mut id = id;
+        while let Some(parent) = self.parent_stem(id) {
+            id = parent;
+            stems.push(parent);
         }
         return stems;
     }
+    pub fn validate_sgroup_id(self: &Self, id: &str) -> Result<()> {
+        for one in id.split(&self.separator) {
+            if one == "" || one.contains(|c: char| !c.is_alphanumeric() && c != '_' && c != '-') {
+                return Err(LdapError::AdapterInit(format!("invalid sgroup id")))
+            }
+        }
+        Ok(())
+    }   
 }
 
 impl LdapConfig {
@@ -38,14 +48,6 @@ impl LdapConfig {
     pub fn people_id_to_dn(self: &Self, cn: &str) -> String {
         format!("uid={},ou=people,{}", cn, self.base_dn)
     }
-    pub fn validate_sgroup_id(self: &Self, id: &str) -> Result<()> {
-        for one in id.split(&self.stem.separator) {
-            if one == "" || one.contains(|c: char| !c.is_alphanumeric()) {
-                return Err(LdapError::AdapterInit(format!("invalid sgroup id")))
-            }
-        }
-        Ok(())
-    }   
 }
 
 pub fn dn_to_url(dn: &str) -> String {
@@ -157,3 +159,34 @@ pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_m
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stem_config() -> StemConfig {
+        StemConfig { separator: ".".to_owned(), root_id: "ROOT".to_owned() }    
+    }
+
+    #[test]
+    fn parent_stem() {
+        let cfg = stem_config();
+        assert_eq!(cfg.parent_stem("a.b.c"), Some("a.b"));
+        assert_eq!(cfg.parent_stem("a"), Some("ROOT"));
+        assert_eq!(cfg.parent_stem("ROOT"), None);
+
+        assert_eq!(cfg.parent_stems("a.b.c"), ["a.b", "a", "ROOT"]);
+    }
+
+    #[test]
+    fn validate_sgroup_id() {
+        let cfg = stem_config();
+        assert!(cfg.validate_sgroup_id("a.b.c").is_ok());
+        assert!(cfg.validate_sgroup_id("ROOT").is_ok());
+        assert!(cfg.validate_sgroup_id("a.b-c_D").is_ok());
+
+        assert!(cfg.validate_sgroup_id("a.").is_err());
+        assert!(cfg.validate_sgroup_id(".").is_err());
+        assert!(cfg.validate_sgroup_id("a[").is_err());
+        assert!(cfg.validate_sgroup_id("a,").is_err());
+    }
+}
