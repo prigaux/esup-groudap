@@ -33,11 +33,11 @@ pub struct Config {
     pub ldap: LdapConfig,
 }
 
-#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
 
-#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
 pub enum Right { READER, UPDATER, ADMIN }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
@@ -103,7 +103,7 @@ impl Mright {
     pub fn to_attr(&self) -> String {
         format!("memberURL;x-{}", self.to_string())
     }
-    /*
+    pub fn list() -> Vec<Self> { vec![Self::MEMBER, Self::READER, Self::UPDATER, Self::ADMIN] }  
     pub fn to_indirect_attr(&self) -> &'static str {
         match self {
             Self::MEMBER => "member",
@@ -112,7 +112,7 @@ impl Mright {
             Self::ADMIN => "owner",
         }
     }
-    */
+    
 }
 impl Right {
     // NB: best right first

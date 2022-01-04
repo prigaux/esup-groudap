@@ -65,7 +65,6 @@ fn hashset_as_deref(elts : &HashSet<String>) -> HashSet<&str> {
     set
 }
 
-
 impl LdapW<'_> {
     pub async fn is_sgroup_matching_filter(self: &mut Self, id: &str, filter: &str) -> Result<bool> {
         self.is_dn_matching_filter(&self.config.sgroup_id_to_dn(id), filter).await
@@ -109,7 +108,13 @@ impl LdapW<'_> {
         self.read(&dn, attrs).await
     }
 
-    pub async fn user_groups(self: &mut Self, user_dn: &str) -> Result<HashSet<String>> {
+    // returns group ids
+    pub async fn search_groups(self: &mut Self, filter: &str) -> Result<Vec<String>> {
+        self.search_one_attr(&self.config.groups_dn, &filter, "cn").await
+    }
+
+    // returns DNs
+    async fn user_groups(self: &mut Self, user_dn: &str) -> Result<HashSet<String>> {
         let (rs, _res) = {
             let filter = ldap_filter::member(user_dn);
             self.ldap.search(&self.config.groups_dn, Scope::Subtree, &filter, vec![""]).await?.success()?
@@ -117,6 +122,7 @@ impl LdapW<'_> {
         Ok(rs.into_iter().map(|r| SearchEntry::construct(r).dn).collect())
     }
 
+    // returns DNs
     pub async fn user_groups_and_user(self: &mut Self, user: &str) -> Result<HashSet<String>> {
         let user_dn = self.config.people_id_to_dn(user);
         let mut user_groups = self.user_groups(&user_dn).await?;

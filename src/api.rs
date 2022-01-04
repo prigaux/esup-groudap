@@ -188,6 +188,34 @@ fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
     Ok(())
 }
 
+#[derive(Eq, PartialEq)]
+enum UpResult { Modified, Unchanged }
+
+async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: &str) -> Result<Vec<(String, Mright)>> {
+    let mut r = vec![];
+    let group_dn = ldp.config.sgroup_id_to_dn(id);
+    for mright in Mright::list() {
+        for id in ldp.search_groups(&ldap_filter::eq(mright.to_indirect_attr(), &group_dn)).await? {
+            r.push((id, mright));
+        }
+    }
+    Ok(r)
+}
+
+async fn may_update_indirect_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mright) -> Result<UpResult> {
+    Ok(UpResult::Unchanged)
+}
+
+async fn may_update_indirect_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
+    while let Some((id, mright)) = todo.pop() {
+        let result = may_update_indirect_mrights(ldp, &id, &mright).await?;
+        if let (Mright::MEMBER, UpResult::Modified) = (mright, &result) {
+            todo.append(&mut search_groups_mrights_depending_on_this_group(ldp, &id).await?);
+        }    
+    }
+    Ok(())
+}
+
 pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
     dbg!(id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
@@ -195,11 +223,19 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     // is logged user allowed to do the modifications?
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
     // are the modifications valid?
-    check_mods(ldp.is_stem(id).await?, &my_mods)?;
-    // ok, let's do it:
-    my_ldap::modify_direct_members_or_rights(ldp, id, my_mods).await
+    let is_stem = ldp.is_stem(id).await?;
+    check_mods(is_stem, &my_mods)?;
 
-    // TODO update indirect + propagate indirect
+    let todo_indirect = if is_stem { vec![] } else {
+        my_mods.keys().map(|mright| (id.to_owned(), mright.clone())).collect()
+    };
+
+    // ok, let's do update direct mrights:
+    let res = my_ldap::modify_direct_members_or_rights(ldp, id, my_mods).await?;
+    // then update indirect groups mrights
+    may_update_indirect_mrights_rec(ldp, todo_indirect).await?;
+
+    Ok(res)
 }
 
 fn contains_ref(l: &Vec<String>, s: &str) -> bool {

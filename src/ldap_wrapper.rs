@@ -44,4 +44,14 @@ impl LdapW<'_> {
         };
         Ok(!rs.is_empty())
     }
+
+    pub async fn search_one_attr(self: &mut Self, base: &str, filter: &str, attr: &str) -> Result<Vec<String>> {
+        let (rs, _res) = self.ldap.search(base, Scope::Subtree, filter, vec![attr]).await?.success()?;
+        Ok(rs.into_iter().filter_map(|r| result_entry_to_attr(r, attr)).collect())
+    }
+}
+
+fn result_entry_to_attr(r: ldap3::ResultEntry, attr: &str) -> Option<String> {
+    let attrs = &mut SearchEntry::construct(r).attrs;
+    attrs.remove(attr)?.pop()
 }
