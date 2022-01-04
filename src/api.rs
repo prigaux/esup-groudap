@@ -188,9 +188,6 @@ fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
     Ok(())
 }
 
-#[derive(Eq, PartialEq)]
-enum UpResult { Modified, Unchanged }
-
 async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: &str) -> Result<Vec<(String, Mright)>> {
     let mut r = vec![];
     let group_dn = ldp.config.sgroup_id_to_dn(id);
@@ -201,6 +198,8 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
     }
     Ok(r)
 }
+
+enum UpResult { Modified, Unchanged }
 
 async fn may_update_indirect_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mright) -> Result<UpResult> {
     Ok(UpResult::Unchanged)
