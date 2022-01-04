@@ -1,9 +1,9 @@
-use std::collections::{HashSet};
+use std::collections::{HashSet, HashMap};
 
 use ldap3::{LdapResult, SearchEntry};
 use ldap3::result::{Result, LdapError};
 
-use super::my_types::{Attrs, GroupKind, MyMod, MyMods, Mright, Right, LoggedUser};
+use super::my_types::*;
 use super::ldap_wrapper::LdapW;
 use super::my_ldap;
 use super::my_ldap::{dn_to_url, url_to_dn};
@@ -44,10 +44,10 @@ async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, righ
 }
 
 async fn user_has_right(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {
-    if ldp.is_stem(id).await? {
-        user_has_right_on_stem(ldp, user, id, right).await
-    } else {
+    if ldp.is_group(id).await? {
         user_has_right_on_group(ldp, user, id, right).await
+    } else {
+        user_has_right_on_stem(ldp, user, id, right).await
     }
 }
 
@@ -87,14 +87,16 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
     }
 }
 
-pub async fn create(ldp: &mut LdapW<'_>, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
-    ldp.config.validate_group_id(id)?;
+pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
+    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::ADMIN).await?;
     my_ldap::create_sgroup(ldp, kind, id, attrs).await
 }
 
-pub async fn delete(ldp: &mut LdapW<'_>, id: &str) -> Result<LdapResult> {
-    ldp.config.validate_group_id(id)?;
+pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<LdapResult> {
+    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     // are we allowed?
     check_right_on_self_or_any_parents(ldp, id, Right::ADMIN).await?;
     // is it possible?
@@ -137,8 +139,9 @@ fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
     Ok(())
 }
 
-pub async fn modify_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
-    ldp.config.validate_group_id(id)?;
+pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
+    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     // is logged user allowed to do the modifications?
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
     // are the modifications valid?
@@ -149,3 +152,45 @@ pub async fn modify_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: My
     // TODO update indirect + propagate indirect
 }
 
+fn contains_ref(l: &Vec<String>, s: &str) -> bool {
+    l.iter().any(|e| e == s)
+}
+
+fn is_stem(entry: &SearchEntry) -> bool {
+    if let Some(vals) = entry.attrs.get("objectClass") {
+        !contains_ref(vals, "groupOfNames")
+    } else {
+        false
+    }
+}
+
+fn get_sgroups_attrs(attrs: HashMap<String, Vec<String>>) -> Attrs {
+    attrs.into_iter().filter_map(|(attr, val)| {
+        let attr = Attr::from_string(&attr)?;
+        let one = val.into_iter().next()?;
+        Some((attr, one))
+    }).collect()
+}
+
+pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndRight> {
+    cfg_and_lu.cfg.ldap.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    // is logged user allowed to do the modifications?
+    check_right_on_self_or_any_parents(ldp, id, Right::READER).await?;
+
+    let wanted_attrs = Attr::list_as_string().into_iter().collect(); //, &vec![ "objectClass" ] ]
+    if let Some(entry) = ldp.read_sgroup(id, wanted_attrs).await? {
+        let kind = if is_stem(&entry) { GroupKind::STEM } else { GroupKind::GROUP };
+        let attrs = get_sgroups_attrs(entry.attrs);
+        let sgroup = SgroupOut { attrs, kind };
+        let right = Right::UPDATER;
+        Ok(SgroupAndRight { sgroup, right })
+    } else {
+        Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
+    }
+}
+
+pub async fn get_children<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<()> {
+    // Vec<Attrs + "kind">
+    Ok(())
+}

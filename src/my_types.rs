@@ -21,6 +21,7 @@ pub struct LdapConfig {
     pub bind_password: String,
     pub base_dn: String,
     pub groups_dn: String,
+    pub stem_object_class: String,
     pub stem_object_classes: HashSet<String>,
     pub group_object_classes: HashSet<String>,
     pub stem: StemConfig,
@@ -32,33 +33,61 @@ pub struct Config {
     pub ldap: LdapConfig,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
 
+#[derive(Serialize)]
 pub enum Right { READER, UPDATER, ADMIN }
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum MyMod { ADD, DELETE, REPLACE }
 
 pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
 
 
-#[derive(PartialEq, Eq, Deserialize, Serialize)]
+#[derive(PartialEq, Eq, Deserialize, Serialize, Copy, Clone)]
 pub enum GroupKind { GROUP, STEM }
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Attr { Ou, Description }
 pub type Attrs = BTreeMap<Attr, String>;
 
+#[derive(Serialize)]
+pub struct SgroupOut {
+    #[serde(flatten)]
+    pub attrs: Attrs,
+    pub kind: GroupKind,
+}
+
+#[derive(Serialize)]
+pub struct SgroupAndRight {
+    #[serde(flatten)]
+    pub sgroup: SgroupOut,
+    pub right: Right,
+}
+
+
+const ATTR_LIST: [Attr; 2] = [Attr::Ou, Attr::Description];
 impl Attr {
     pub fn to_string(&self) -> &'static str {
         match self {
             Self::Ou => "ou",
             Self::Description => "description",
         }
+    }
+    pub fn from_string(attr: &str) -> Option<Self> {
+        match attr {
+            "ou" => Some(Self::Ou),
+            "description" => Some(Self::Description),
+            _ => None,
+        }
+    }
+    pub fn list<'a>() -> std::slice::Iter<'a, Attr> { ATTR_LIST.iter() }
+    pub fn list_as_string() -> Vec<&'static str> {
+        Self::list().map(|attr| attr.to_string()).collect()
     }
 }
 
@@ -110,4 +139,9 @@ impl Right {
 pub enum LoggedUser {
     TrustedAdmin,
     User(String),
+}
+
+pub struct CfgAndLU<'a> {
+    pub cfg: &'a Config,
+    pub user: LoggedUser,
 }

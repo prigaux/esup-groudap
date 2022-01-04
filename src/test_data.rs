@@ -3,7 +3,7 @@ use ldap3::{Scope, SearchEntry, SearchOptions, Ldap};
 use ldap3::result::{Result, LdapResult};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use super::my_types::{GroupKind, Mright, MyMod, Attr};
+use super::my_types::{GroupKind, Mright, MyMod, Attr, CfgAndLU};
 use super::ldap_wrapper::LdapW;
 use super::my_ldap;
 use super::my_ldap::{dn_to_url};
@@ -25,7 +25,7 @@ async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: LdapAttrs<'_>) -> Re
     ldap.add(&dn, all_attrs).await
 }
 
-pub async fn clear(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+async fn clear_(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
     let _res = ldp.ldap.delete("uid=aanli,ou=people,dc=nodomain").await;
     let _res = ldp.ldap.delete("uid=prigaux,ou=people,dc=nodomain").await;
     let _res = ldp.ldap.delete("ou=people,dc=nodomain").await;
@@ -36,7 +36,7 @@ pub async fn clear(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
     //ldap.delete("dc=nodomain").await
 }
 
-pub async fn add(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
+async fn add_(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
     ldp.ldap.add("dc=nodomain", vec![
         ("objectClass", hashset!{"dcObject", "organization"}),
         ("dc", hashset!{"nodomain"}),
@@ -104,10 +104,22 @@ pub async fn add(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
     Ok(res)
 }
 
-pub async fn set(ldp : &mut LdapW<'_>) -> Result<LdapResult> {
-    let _res = clear(ldp).await;
-    add(ldp).await
+pub async fn set<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    let _res = clear_(ldp).await;
+    add_(ldp).await
 }
+
+pub async fn clear<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    clear_(ldp).await
+}
+
+pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    add_(ldp).await
+}
+
 
 pub async fn _test_search(ldap: &mut Ldap) -> Result<String> {
     let opts = SearchOptions::new().sizelimit(1);

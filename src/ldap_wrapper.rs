@@ -11,6 +11,10 @@ pub struct LdapW<'a> {
 }
 
 impl LdapW<'_> {
+    pub async fn open_<'a>(cfg_and_lu: &'a CfgAndLU<'a>) -> Result<LdapW<'a>> {
+        Self::open(&cfg_and_lu.cfg.ldap, &cfg_and_lu.user).await
+    }
+
     pub async fn open<'a>(config: &'a LdapConfig, logged_user: &'a LoggedUser) -> Result<LdapW<'a>> {
         let (conn, mut ldap) = LdapConnAsync::new(&config.url).await?;
         ldap3::drive!(conn);
@@ -18,7 +22,7 @@ impl LdapW<'_> {
         Ok(LdapW { ldap, config, logged_user })
     }
     
-    pub async fn read(self: &mut Self, dn: &str, attrs: Vec<String>) -> Result<Option<SearchEntry>> {
+    pub async fn read<'a, S: AsRef<str> + Send + Sync + 'a>(self: &mut Self, dn: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
         let (mut rs, _res) = self.ldap.search(dn, Scope::Base, ldap_filter::true_(), attrs).await?.success()?;
         Ok(rs.pop().map(SearchEntry::construct))
     }

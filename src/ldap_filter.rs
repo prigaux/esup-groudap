@@ -4,7 +4,7 @@ pub fn true_() -> &'static str {
     "(objectClass=*)"
 }
 
-pub fn stem() -> &'static str {
+pub fn group() -> &'static str {
     "(objectClass=groupOfNames)"
 }
 

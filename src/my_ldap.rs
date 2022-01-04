@@ -32,13 +32,13 @@ impl StemConfig {
 }
 
 impl LdapConfig {
-    pub fn sgroup_id_to_dn(self: &Self, cn: &str) -> String {
-        format!("cn={},{}", cn, self.groups_dn)
+    pub fn sgroup_id_to_dn<S : AsRef<str>>(self: &Self, cn: S) -> String {
+        format!("cn={},{}", cn.as_ref(), self.groups_dn)
     }
     pub fn people_id_to_dn(self: &Self, cn: &str) -> String {
         format!("uid={},ou=people,{}", cn, self.base_dn)
     }
-    pub fn validate_group_id(self: &Self, id: &str) -> Result<()> {
+    pub fn validate_sgroup_id(self: &Self, id: &str) -> Result<()> {
         for one in id.split(&self.stem.separator) {
             if one == "" || one.contains(|c: char| !c.is_alphanumeric()) {
                 return Err(LdapError::AdapterInit(format!("invalid sgroup id")))
@@ -72,8 +72,11 @@ impl LdapW<'_> {
         self.is_sgroup_matching_filter(id, ldap_filter::true_()).await
     }
     
+    pub async fn is_group(self: &mut Self, id: &str) -> Result<bool> {
+        self.is_sgroup_matching_filter(id, ldap_filter::group()).await
+    }
     pub async fn is_stem(self: &mut Self, id: &str) -> Result<bool> {
-        self.is_sgroup_matching_filter(id, ldap_filter::stem()).await
+        Ok(!self.is_group(id).await?)
     }
 
     pub async fn ldap_add_group(self: &mut Self, kind: GroupKind, cn: &str, attrs: LdapAttrs<'_>) -> Result<LdapResult> {
@@ -99,7 +102,7 @@ impl LdapW<'_> {
         self.ldap.delete(&self.config.sgroup_id_to_dn(id)).await
     }
  
-    pub async fn read_sgroup(self: &mut Self, id: &str, attrs: Vec<String>) -> Result<Option<SearchEntry>> {
+    pub async fn read_sgroup<'a, S: AsRef<str> + Send + Sync + 'a>(self: &mut Self, id: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
         let dn = self.config.sgroup_id_to_dn(id);
         self.read(&dn, attrs).await
     }
