@@ -305,7 +305,7 @@ pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<Sgroup
         let attrs = get_sgroups_attrs(entry.attrs);
         let sgroup = SgroupOut { attrs, kind };
         let right = best_right_on_self_or_any_parents(ldp, id).await?
-                .ok_or_else(|| LdapError::AdapterInit(format!("not right to read {}", id)))?;
+                .ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
         Ok(SgroupAndRight { sgroup, right })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
