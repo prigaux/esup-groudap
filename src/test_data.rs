@@ -125,7 +125,7 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
     api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&prigaux_dn())] },
     }).await?;
-    assert_eq!(ldp.read_one_multi_attr__or_err(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), "member").await?, vec![prigaux_dn()]);
+    assert_eq!(ldp.read_indirect_members(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins")).await?, vec![prigaux_dn()]);
 
     api::modify_members_or_rights(cfg_and_prigaux(), "ROOT", btreemap!{
         Mright::ADMIN => btreemap!{ 
@@ -155,6 +155,8 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
     api::modify_members_or_rights(cfg_and_trusted(), "applications.grouper.super-admins", btreemap!{
         Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
     }).await?;
+    assert_eq!(HashSet::from_iter(ldp.read_indirect_members(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins")).await?), 
+               hashset![ prigaux_dn(), ldp.config.sgroup_id_to_dn("collab.DSIUN") ]);
     // prigaux shoud be admin via ROOT via applications.grouper.super-admins via collab.DSIUN
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab").await?, 
         SgroupAndRight { right: Right::ADMIN, sgroup: SgroupOut { kind: GroupKind::STEM, attrs: collab_attrs() } });

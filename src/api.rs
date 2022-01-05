@@ -219,6 +219,14 @@ async fn may_update_indirect_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mr
     }
 }
 
+async fn get_indirect_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
+    let mut r = direct_dns.clone();
+    for dn in direct_dns {
+        r.extend(ldp.read_indirect_members(&dn).await?);
+    }
+    Ok(r)
+}
+
 // read group direct URLs
 // diff with group indirect DNs
 // if needed, update group indirect DNs
@@ -226,15 +234,16 @@ async fn may_update_indirect_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mri
     eprintln!("  may_update_indirect_mrights({}, {:?})", id, mright);
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     let direct_urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
-    if let Some(mut direct_dns) = direct_urls.into_iter().map(|url| url_to_dn_(url)).collect::<Option<HashSet<_>>>() {
-        if direct_dns.is_empty() && mright == &Mright::MEMBER {
-            direct_dns.insert("".to_owned());
+    if let Some(direct_dns) = direct_urls.into_iter().map(|url| url_to_dn_(url)).collect::<Option<HashSet<_>>>() {
+        let mut indirect_dns = get_indirect_dns(ldp, &direct_dns).await?;
+        if indirect_dns.is_empty() && mright == &Mright::MEMBER {
+            indirect_dns.insert("".to_owned());
         }
-        let indirect_dns = HashSet::from_iter(
+        let current_indirect_dns = HashSet::from_iter(
             ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_indirect_attr()).await?
         );
-        let to_add = direct_dns.difference(&indirect_dns).map(|s| s.as_str()).collect();
-        let to_remove = indirect_dns.difference(&direct_dns).map(|s| s.as_str()).collect();
+        let to_add = indirect_dns.difference(&current_indirect_dns).map(|s| s.as_str()).collect();
+        let to_remove = current_indirect_dns.difference(&indirect_dns).map(|s| s.as_str()).collect();
         may_update_indirect_mrights_(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
     } else {
         // TODO: non DN URL
