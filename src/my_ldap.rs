@@ -58,6 +58,10 @@ pub fn url_to_dn(url: &str) -> Option<&str> {
     url.strip_prefix("ldap:///").filter(|dn| !dn.contains("?"))
 }
 
+pub fn url_to_dn_(url: String) -> Option<String> {
+    url_to_dn(&url).map(String::from)
+}
+
 // wow, it is complex...
 fn hashset_as_deref(elts : &HashSet<String>) -> HashSet<&str> {
     let mut set: HashSet<&str> = HashSet::new();
@@ -110,7 +114,7 @@ impl LdapW<'_> {
 
     // returns group ids
     pub async fn search_groups(self: &mut Self, filter: &str) -> Result<Vec<String>> {
-        self.search_one_attr(&self.config.groups_dn, &filter, "cn").await
+        self.search_one_mono_attr(&self.config.groups_dn, &filter, "cn").await
     }
 
     // returns DNs

@@ -1,5 +1,7 @@
+use std::collections::{HashMap};
+
 use ldap3::{Scope, LdapConnAsync, SearchEntry, SearchOptions, Ldap};
-use ldap3::result::{Result};
+use ldap3::result::{Result, LdapError};
 
 use super::my_types::*;
 use super::ldap_filter;
@@ -27,12 +29,24 @@ impl LdapW<'_> {
         Ok(rs.pop().map(SearchEntry::construct))
     }
 
+    pub async fn read_one_multi_attr(self: &mut Self, dn: &str, attr: &str) -> Result<Option<Vec<String>>> {
+        let entry = self.read(dn, vec![attr]).await?;
+        Ok(entry.map(|e| get_consume(e.attrs, attr)))
+    }
+
+    #[allow(non_snake_case)]
+    pub async fn read_one_multi_attr__or_err(self: &mut Self, dn: &str, attr: &str) -> Result<Vec<String>> {
+        self.read_one_multi_attr(dn, attr).await?.ok_or_else(
+            || LdapError::AdapterInit(format!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
+        )
+    }
+
     pub async fn is_dn_matching_filter(self: &mut Self, dn: &str, filter: &str) -> Result<bool> {
         let (rs, _res) = self.ldap.search(dn, Scope::Base, filter, vec![""]).await?.success()?;
         Ok(!rs.is_empty())
     }
 
-    pub async fn _is_dn_existing(self: &mut Self, dn: &str) -> Result<bool> {
+    pub async fn is_dn_existing(self: &mut Self, dn: &str) -> Result<bool> {
         self.is_dn_matching_filter(dn, ldap_filter::true_()).await
     }
 
@@ -45,13 +59,18 @@ impl LdapW<'_> {
         Ok(!rs.is_empty())
     }
 
-    pub async fn search_one_attr(self: &mut Self, base: &str, filter: &str, attr: &str) -> Result<Vec<String>> {
+    pub async fn search_one_mono_attr(self: &mut Self, base: &str, filter: &str, attr: &str) -> Result<Vec<String>> {
         let (rs, _res) = self.ldap.search(base, Scope::Subtree, filter, vec![attr]).await?.success()?;
-        Ok(rs.into_iter().filter_map(|r| result_entry_to_attr(r, attr)).collect())
+        Ok(rs.into_iter().filter_map(|r| result_entry_to_mono_attr(r, attr)).collect())
     }
 }
 
-fn result_entry_to_attr(r: ldap3::ResultEntry, attr: &str) -> Option<String> {
+fn result_entry_to_mono_attr(r: ldap3::ResultEntry, attr: &str) -> Option<String> {
     let attrs = &mut SearchEntry::construct(r).attrs;
     attrs.remove(attr)?.pop()
 }
+
+fn get_consume<T>(mut map: HashMap<String, Vec<T>>, key: &str) -> Vec<T> {
+    map.remove(key).unwrap_or_default()
+}
+

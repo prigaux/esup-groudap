@@ -1,12 +1,12 @@
 use std::collections::{HashSet, HashMap};
 
-use ldap3::{LdapResult, SearchEntry};
+use ldap3::{LdapResult, SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
 
 use super::my_types::*;
 use super::ldap_wrapper::LdapW;
 use super::my_ldap;
-use super::my_ldap::{dn_to_url, url_to_dn};
+use super::my_ldap::{dn_to_url, url_to_dn, url_to_dn_};
 use super::ldap_filter;
 
 fn is_disjoint(vals: &Vec<String>, set: &HashSet<String>) -> bool {
@@ -24,7 +24,9 @@ fn has_value(entry: SearchEntry, set: &HashSet<String>) -> bool {
 }
 
 async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
-    Ok(ldp.user_groups_and_user(user).await?.iter().map(|dn| dn_to_url(&dn)).collect())
+    let r = Ok(ldp.user_groups_and_user(user).await?.iter().map(|dn| dn_to_url(&dn)).collect());
+    eprintln!("    user_urls({}) => {:?}", user, r);
+    r
 }
 
 async fn user_has_right_on_sgroup(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str, right: &Right) -> Result<bool> {
@@ -72,7 +74,7 @@ async fn check_user_right_on_any_parents(ldp: &mut LdapW<'_>, user_urls: &HashSe
             return Ok(())
         }
     }
-    Err(LdapError::AdapterInit("not enough right".to_owned()))
+    Err(LdapError::AdapterInit(format!("no right on {} parents", id)))
 }
 
 async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right) -> Result<()> {
@@ -86,9 +88,8 @@ async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right)
             Ok(())
         },
         LoggedUser::User(user) => {
-            dbg!("check_right_on_any_parents");
+            eprintln!("  check_right_on_any_parents({}, {:?})", id, right);
             let user_urls = user_urls(ldp, user).await?;
-            dbg!(&user_urls);
             check_user_right_on_any_parents(ldp, &user_urls, id, right).await
         }
     }
@@ -100,8 +101,8 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
             Ok(())
         },
         LoggedUser::User(user) => {
+            eprintln!("  check_right_on_self_or_any_parents({}, {:?})", id, right);
             let user_urls = user_urls(ldp, user).await?;
-            dbg!(&user_urls);
             if user_has_right_on_sgroup(ldp, &user_urls, id, &right).await? {
                 return Ok(())
             }
@@ -116,19 +117,18 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
             Ok(Some(Right::ADMIN))
         },
         LoggedUser::User(user) => {
-            dbg!("best_right_on_self_or_any_parents()");
+            eprintln!("  best_right_on_self_or_any_parents({}, {})", id, user);
             let user_urls = user_urls(ldp, user).await?;
-            dbg!(&user_urls);
             let self_and_parents = [ ldp.config.stem.parent_stems(id), vec![id] ].concat();
             let mut best = None;
             for id in self_and_parents {
                 let right = user_highest_right_on_stem(ldp, &user_urls, id).await?;
-                dbg!(id); dbg!(&right); 
+                eprintln!("    best_right_on_self_or_any_parents: {} => {:?}", id, right);
                 if right > best {
                     best = right;
-                    dbg!(&best);
                 }
             }
+            eprintln!("  best_right_on_self_or_any_parents({}, {}) => {:?}", id, user, best);
             Ok(best)
         }
     }
@@ -136,7 +136,7 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
 
 
 pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
-    dbg!(id);
+    eprintln!("create({:?}, {}, _)", kind, id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::ADMIN).await?;
@@ -188,6 +188,7 @@ fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
     Ok(())
 }
 
+// Search for groups having this group DN in their member/supannGroupeLecteurDN/supannAdminDN/owner
 async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: &str) -> Result<Vec<(String, Mright)>> {
     let mut r = vec![];
     let group_dn = ldp.config.sgroup_id_to_dn(id);
@@ -201,8 +202,44 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
 
 enum UpResult { Modified, Unchanged }
 
+async fn may_update_indirect_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
+    let attr = mright.to_indirect_attr();
+    let mods = [
+        if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, to_add) ] },
+        if to_remove.is_empty() { vec![] } else { vec![ Mod::Delete(attr, to_remove) ] },
+    ].concat();
+    if mods.is_empty() {
+        return Ok(UpResult::Unchanged)
+    }
+    let res = dbg!(ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), dbg!(mods)).await?);
+    if res.rc != 0 {
+        Err(LdapError::AdapterInit(format!("update_indirect_mright failed on {}: {}", id, res)))
+    } else {
+        Ok(UpResult::Modified)
+    }
+}
+
+// read group direct URLs
+// diff with group indirect DNs
+// if needed, update group indirect DNs
 async fn may_update_indirect_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mright) -> Result<UpResult> {
-    Ok(UpResult::Unchanged)
+    eprintln!("  may_update_indirect_mrights({}, {:?})", id, mright);
+    let group_dn = ldp.config.sgroup_id_to_dn(id);
+    let direct_urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
+    if let Some(mut direct_dns) = direct_urls.into_iter().map(|url| url_to_dn_(url)).collect::<Option<HashSet<_>>>() {
+        if direct_dns.is_empty() && mright == &Mright::MEMBER {
+            direct_dns.insert("".to_owned());
+        }
+        let indirect_dns = HashSet::from_iter(
+            ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_indirect_attr()).await?
+        );
+        let to_add = direct_dns.difference(&indirect_dns).map(|s| s.as_str()).collect();
+        let to_remove = indirect_dns.difference(&direct_dns).map(|s| s.as_str()).collect();
+        may_update_indirect_mrights_(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
+    } else {
+        // TODO: non DN URL
+        Ok(UpResult::Unchanged)
+    }
 }
 
 async fn may_update_indirect_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
@@ -216,7 +253,7 @@ async fn may_update_indirect_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(Str
 }
 
 pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
-    dbg!(id);
+    eprintln!("modify_members_or_rights({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     // is logged user allowed to do the modifications?
@@ -258,6 +295,7 @@ fn get_sgroups_attrs(attrs: HashMap<String, Vec<String>>) -> Attrs {
 }
 
 pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndRight> {
+    eprintln!("get_sgroup({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
@@ -267,14 +305,16 @@ pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<Sgroup
         let attrs = get_sgroups_attrs(entry.attrs);
         let sgroup = SgroupOut { attrs, kind };
         let right = best_right_on_self_or_any_parents(ldp, id).await?
-                .ok_or_else(|| LdapError::AdapterInit("not enough right".to_owned()))?;
+                .ok_or_else(|| LdapError::AdapterInit(format!("not right to read {}", id)))?;
         Ok(SgroupAndRight { sgroup, right })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
     }
 }
 
+/*
 pub async fn get_children<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<()> {
     // Vec<Attrs + "kind">
     Ok(())
 }
+*/

@@ -86,7 +86,7 @@ fn action_result(r : Result<LdapResult, LdapError>) -> MyJson {
         },
         Ok(_) => {
             let body = json!({ "ok": true });
-            MyJson::new(Status::InternalServerError, body.to_string())
+            MyJson::new(Status::Ok, body.to_string())
         },
     }
 }

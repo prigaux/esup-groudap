@@ -33,7 +33,7 @@ pub struct Config {
     pub ldap: LdapConfig,
 }
 
-#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
 

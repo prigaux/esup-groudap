@@ -12,7 +12,7 @@ pub fn eq(attr: &str, val: &str) -> String {
     format!("({}={})", attr, ldap_escape(val))
 }
 
-pub fn or(l : Vec<String>) -> String {
+pub fn _or(l : Vec<String>) -> String {
     match &l[..] {
         [filter] => filter.to_owned(),
         _ => format!("(|{})", l.concat()),
