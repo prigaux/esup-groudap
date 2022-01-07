@@ -13,7 +13,7 @@ use rocket::{Route, State};
 use ldap3::{LdapResult};
 use ldap3::result::LdapError;
 
-use super::my_types::{Attrs, GroupKind, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndRight};
+use super::my_types::{Attrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut};
 use super::api;
 use super::test_data;
 use super::cas_auth;
@@ -112,14 +112,10 @@ async fn add_test_data<'a>(cfg_and_lu : CfgAndLU<'a>) -> MyJson {
     action_result(test_data::add(cfg_and_lu).await)
 }
 
-#[post("/create?<id>&<kind>", data = "<attrs>")]
-async fn create<'a>(id: String, kind: Option<&str>, attrs: Json<Attrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
-    let kind = match kind { 
-        Some("stem") => GroupKind::STEM,
-        _ => GroupKind::GROUP
-    };
+#[post("/create?<id>", data = "<attrs>")]
+async fn create<'a>(id: String, attrs: Json<Attrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
     action_result(
-        api::create(cfg_and_lu, kind, &id, attrs.into_inner()).await
+        api::create(cfg_and_lu, &id, attrs.into_inner()).await
     )
 }
 
@@ -135,7 +131,7 @@ async fn modify_members_or_rights<'a>(id: String, mods: Json<MyMods>, cfg_and_lu
 }
 
 #[get("/sgroup?<id>")]
-async fn sgroup<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupAndRight>, MyJson> {
+async fn sgroup<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupAndMoreOut>, MyJson> {
     to_json(api::get_sgroup(cfg_and_lu, &id).await)
 }
 

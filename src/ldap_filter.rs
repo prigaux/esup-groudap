@@ -4,9 +4,9 @@ pub fn true_() -> &'static str {
     "(objectClass=*)"
 }
 
-pub fn group() -> &'static str {
+/*pub fn group() -> &'static str {
     "(objectClass=groupOfNames)"
-}
+}*/
 
 pub fn eq(attr: &str, val: &str) -> String {
     format!("({}={})", attr, ldap_escape(val))

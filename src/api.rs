@@ -24,7 +24,7 @@ fn has_value(entry: SearchEntry, set: &HashSet<String>) -> bool {
 }
 
 async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
-    let r = Ok(ldp.user_groups_and_user(user).await?.iter().map(|dn| dn_to_url(&dn)).collect());
+    let r = Ok(ldp.user_groups_and_user_dn(user).await?.iter().map(|dn| dn_to_url(&dn)).collect());
     eprintln!("    user_urls({}) => {:?}", user, r);
     r
 }
@@ -117,7 +117,7 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
             Ok(Some(Right::ADMIN))
         },
         LoggedUser::User(user) => {
-            eprintln!("  best_right_on_self_or_any_parents({}, {})", id, user);
+            eprintln!("  best_right_on_self_or_any_parents({}) with user {}", id, user);
             let user_urls = user_urls(ldp, user).await?;
             let self_and_parents = [ ldp.config.stem.parent_stems(id), vec![id] ].concat();
             let mut best = None;
@@ -128,19 +128,19 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
                     best = right;
                 }
             }
-            eprintln!("  best_right_on_self_or_any_parents({}, {}) => {:?}", id, user, best);
+            eprintln!("  best_right_on_self_or_any_parents({}) with user {} => {:?}", id, user, best);
             Ok(best)
         }
     }
 }
 
 
-pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, kind: GroupKind, id: &str, attrs: Attrs) -> Result<LdapResult> {
-    eprintln!("create({:?}, {}, _)", kind, id);
+pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: Attrs) -> Result<LdapResult> {
+    eprintln!("create({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::ADMIN).await?;
-    my_ldap::create_sgroup(ldp, kind, id, attrs).await
+    my_ldap::create_sgroup(ldp, id, attrs).await
 }
 
 pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<LdapResult> {
@@ -268,7 +268,7 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     // is logged user allowed to do the modifications?
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
     // are the modifications valid?
-    let is_stem = ldp.is_stem(id).await?;
+    let is_stem = ldp.config.stem.is_stem(id);
     check_mods(is_stem, &my_mods)?;
 
     let todo_indirect = if is_stem { vec![] } else {
@@ -283,17 +283,9 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     Ok(res)
 }
 
-fn contains_ref(l: &Vec<String>, s: &str) -> bool {
+/*fn contains_ref(l: &Vec<String>, s: &str) -> bool {
     l.iter().any(|e| e == s)
-}
-
-fn is_stem(entry: &SearchEntry) -> bool {
-    if let Some(vals) = entry.attrs.get("objectClass") {
-        !contains_ref(vals, "groupOfNames")
-    } else {
-        false
-    }
-}
+}*/
 
 fn get_sgroups_attrs(attrs: HashMap<String, Vec<String>>) -> Attrs {
     attrs.into_iter().filter_map(|(attr, val)| {
@@ -303,19 +295,26 @@ fn get_sgroups_attrs(attrs: HashMap<String, Vec<String>>) -> Attrs {
     }).collect()
 }
 
-pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndRight> {
+pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndMoreOut> {
     eprintln!("get_sgroup({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
     let wanted_attrs = [ Attr::list_as_string(), vec![ "objectClass" ] ].concat();
     if let Some(entry) = ldp.read_sgroup(id, wanted_attrs).await? {
-        let kind = if is_stem(&entry) { GroupKind::STEM } else { GroupKind::GROUP };
+        //eprintln!("      read sgroup {} => {:?}", id, entry);
+        let is_stem = ldp.config.stem.is_stem(id);
         let attrs = get_sgroups_attrs(entry.attrs);
-        let sgroup = SgroupOut { attrs, kind };
         let right = best_right_on_self_or_any_parents(ldp, id).await?
                 .ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
-        Ok(SgroupAndRight { sgroup, right })
+        let more = if is_stem { 
+            let children = btreemap![];
+            SgroupOutMore::Stem { children }
+        } else { 
+            let direct_members = btreemap![];
+            SgroupOutMore::Group { direct_members }
+        };
+        Ok(SgroupAndMoreOut { attrs, right, more })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
     }

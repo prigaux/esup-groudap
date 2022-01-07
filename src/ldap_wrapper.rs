@@ -1,6 +1,6 @@
 use std::collections::{HashMap};
 
-use ldap3::{Scope, LdapConnAsync, SearchEntry, SearchOptions, Ldap};
+use ldap3::{Scope, LdapConnAsync, ResultEntry, SearchResult, SearchEntry, SearchOptions, Ldap};
 use ldap3::result::{Result, LdapError};
 
 use super::my_types::*;
@@ -10,6 +10,17 @@ pub struct LdapW<'a> {
     pub ldap: Ldap,
     pub config: &'a LdapConfig,
     pub logged_user: &'a LoggedUser,
+}
+
+fn handle_read_one_search_result(res : SearchResult) -> Result<Option<ResultEntry>> {
+    if res.1.rc == 0 {
+        let mut l = res.0;
+        Ok(l.pop())
+    } else if res.1.rc == 32 /* NoSuchObject */ {
+        Ok(None)
+    } else {
+        Err(LdapError::from(res.1))
+    }
 }
 
 impl LdapW<'_> {
@@ -25,8 +36,9 @@ impl LdapW<'_> {
     }
     
     pub async fn read<'a, S: AsRef<str> + Send + Sync + 'a>(self: &mut Self, dn: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
-        let (mut rs, _res) = self.ldap.search(dn, Scope::Base, ldap_filter::true_(), attrs).await?.success()?;
-        Ok(rs.pop().map(SearchEntry::construct))
+        let res = self.ldap.search(dn, Scope::Base, ldap_filter::true_(), attrs).await?;
+        let res = handle_read_one_search_result(res)?;
+        Ok(res.map(SearchEntry::construct))
     }
 
     pub async fn read_one_multi_attr(self: &mut Self, dn: &str, attr: &str) -> Result<Option<Vec<String>>> {
@@ -68,16 +80,16 @@ impl LdapW<'_> {
         Ok(!rs.is_empty())
     }
 
-    pub async fn search_one_mono_attr(self: &mut Self, base: &str, filter: &str, attr: &str) -> Result<Vec<String>> {
+    /*pub async fn search_one_mono_attr(self: &mut Self, base: &str, filter: &str, attr: &str) -> Result<Vec<String>> {
         let (rs, _res) = self.ldap.search(base, Scope::Subtree, filter, vec![attr]).await?.success()?;
         Ok(rs.into_iter().filter_map(|r| result_entry_to_mono_attr(r, attr)).collect())
-    }
+    }*/
 }
 
-fn result_entry_to_mono_attr(r: ldap3::ResultEntry, attr: &str) -> Option<String> {
+/*fn result_entry_to_mono_attr(r: ldap3::ResultEntry, attr: &str) -> Option<String> {
     let attrs = &mut SearchEntry::construct(r).attrs;
     attrs.remove(attr)?.pop()
-}
+}*/
 
 fn get_consume<T>(mut map: HashMap<String, Vec<T>>, key: &str) -> Vec<T> {
     map.remove(key).unwrap_or_default()

@@ -6,7 +6,7 @@ pub struct CasConfig {
     pub prefix_url: String,
 }
 fn default_separator() -> String { ".".to_owned() }
-fn default_root_id() -> String { "ROOT".to_owned() }
+fn default_root_id() -> String { "".to_owned() }
 #[derive(Deserialize)]
 pub struct StemConfig {
     #[serde(default = "default_separator")]
@@ -63,9 +63,19 @@ pub struct SgroupOut {
 }
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
-pub struct SgroupAndRight {
+#[serde(rename_all = "lowercase")]
+pub enum SgroupOutMore {
+    Stem { children: BTreeMap<String, Attrs> },
+    Group { direct_members: BTreeMap<String, Attrs> },
+}
+
+#[derive(Serialize, PartialEq, Eq, Debug)]
+pub struct SgroupAndMoreOut {
     #[serde(flatten)]
-    pub sgroup: SgroupOut,
+    pub attrs: Attrs,
+    #[serde(flatten)]
+    pub more: SgroupOutMore,
+
     pub right: Right,
 }
 

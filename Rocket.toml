@@ -12,8 +12,7 @@ base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
 stem_object_class = "groupOfNames"
 group_object_classes = [ "supannGroupe", "up1SyncGroup", "groupOfNames" ]
-stem_object_classes = [ "supannGroupe", "up1SyncGroup", "organizationalRole" ]
+stem_object_classes = [ "up1SyncGroup", "organizationalRole" ]
 
 [default.ldap.stem]
 #default_separator = "."
-#default_root_id = "ROOT"
