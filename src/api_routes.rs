@@ -10,7 +10,6 @@ use rocket::outcome::{Outcome, try_outcome};
 use rocket::serde::{json::Json};
 use rocket::{Route, State};
 
-use ldap3::{LdapResult};
 use ldap3::result::LdapError;
 
 use super::my_types::{Attrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut};
@@ -72,18 +71,9 @@ fn to_json<T>(r: Result<T, LdapError>) -> Result<Json<T>, MyJson> {
     r.map(Json).map_err(ldp_err_to_json)
 }
 
-fn action_result(r : Result<LdapResult, LdapError>) -> MyJson {
+fn action_result(r : Result<(), LdapError>) -> MyJson {
     match r {
         Err(err) => ldp_err_to_json(err),
-        Ok(res) if res.rc != 0 => { 
-            dbg!(&res);
-            let body = json!({
-                "error": true,
-                "rc": res.rc,
-                "msg": res.text,
-            });
-            MyJson::new(Status::InternalServerError, body.to_string())
-        },
         Ok(_) => {
             let body = json!({ "ok": true });
             MyJson::new(Status::Ok, body.to_string())

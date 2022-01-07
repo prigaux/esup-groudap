@@ -1,6 +1,6 @@
 use std::collections::{HashSet};
 use ldap3::{Scope, SearchEntry, Mod};
-use ldap3::result::{Result, LdapResult, LdapError};
+use ldap3::result::{Result, LdapError};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use super::ldap_wrapper::LdapW;
@@ -74,6 +74,9 @@ impl LdapConfig {
             Some(cn.strip_suffix(&self.groups_dn)?.strip_suffix(",")?.strip_prefix("cn=")?.to_owned())
         }
     }
+    pub fn dn_is_sgroup(self: &Self, dn: &str) -> bool {
+        dn.ends_with(&self.groups_dn)
+    }
 }
 
 pub fn dn_to_url(dn: &str) -> String {
@@ -103,7 +106,7 @@ impl LdapW<'_> {
         self.is_sgroup_matching_filter(id, ldap_filter::true_()).await
     }
     
-    pub async fn ldap_add_group(self: &mut Self, cn: &str, attrs: LdapAttrs<'_>) -> Result<LdapResult> {
+    pub async fn ldap_add_group(self: &mut Self, cn: &str, attrs: LdapAttrs<'_>) -> Result<()> {
         let is_stem = self.config.stem.is_stem(cn);
         let base_attrs = {
             let object_classes = if is_stem {
@@ -122,11 +125,13 @@ impl LdapW<'_> {
             vec![("member", hashset!{""})]  // "member" is requested...
         };
         let all_attrs = [ base_attrs, attrs, member_attr ].concat();
-        self.ldap.add(&self.config.sgroup_id_to_dn(cn), all_attrs).await
+        self.ldap.add(&self.config.sgroup_id_to_dn(cn), all_attrs).await?.success()?;
+        Ok(())
     }
 
-    pub async fn delete_sgroup(self: &mut Self, id: &str) -> Result<LdapResult> {
-        self.ldap.delete(&self.config.sgroup_id_to_dn(id)).await
+    pub async fn delete_sgroup(self: &mut Self, id: &str) -> Result<()> {
+        self.ldap.delete(&self.config.sgroup_id_to_dn(id)).await?.success()?;
+        Ok(())
     }
  
     pub async fn read_sgroup<'a, S: AsRef<str> + Send + Sync + 'a>(self: &mut Self, id: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
@@ -168,7 +173,7 @@ fn to_ldap_attrs<'a>(attrs: &'a Attrs) -> LdapAttrs<'a> {
     ).collect()
 }
 
-pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: Attrs) -> Result<LdapResult> {    
+pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: Attrs) -> Result<()> {    
     ldp.ldap_add_group(id, to_ldap_attrs(&attrs)).await
 }
 
@@ -185,12 +190,13 @@ fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
     r
 }
 
-pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
+pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: MyMods) -> Result<()> {
     if ldp.config.stem.is_stem(id) && my_mods.contains_key(&Mright::MEMBER) { 
         Err(LdapError::AdapterInit("MEMBER not allowed for stems".to_owned()))
     } else {
         let mods = to_ldap_mods(my_mods);
-        ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await
+        ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
+        Ok(())
     }
 }
 

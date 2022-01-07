@@ -1,6 +1,6 @@
 use std::collections::{HashSet, HashMap};
 
-use ldap3::{LdapResult, SearchEntry, Mod};
+use ldap3::{SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
 
 use super::my_types::*;
@@ -135,7 +135,7 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
 }
 
 
-pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: Attrs) -> Result<LdapResult> {
+pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: Attrs) -> Result<()> {
     eprintln!("create({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -143,7 +143,7 @@ pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: Attrs) -> Res
     my_ldap::create_sgroup(ldp, id, attrs).await
 }
 
-pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<LdapResult> {
+pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<()> {
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     // are we allowed?
@@ -153,7 +153,8 @@ pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<LdapResult
         return Err(LdapError::AdapterInit("can not remove stem with existing children".to_owned()))
     }
     // ok, do it:
-    ldp.delete_sgroup(id).await
+    ldp.delete_sgroup(id).await?;
+    Ok(())
 }
 
 // which Right is needed for these modifications?
@@ -211,7 +212,7 @@ async fn may_update_indirect_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mr
     if mods.is_empty() {
         return Ok(UpResult::Unchanged)
     }
-    let res = dbg!(ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), dbg!(mods)).await?);
+    let res = dbg!(ldp.ldap.modify(dbg!(&ldp.config.sgroup_id_to_dn(id)), dbg!(mods)).await?);
     if res.rc != 0 {
         Err(LdapError::AdapterInit(format!("update_indirect_mright failed on {}: {}", id, res)))
     } else {
@@ -222,7 +223,9 @@ async fn may_update_indirect_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mr
 async fn get_indirect_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
     let mut r = direct_dns.clone();
     for dn in direct_dns {
-        r.extend(ldp.read_indirect_members(&dn).await?);
+        if ldp.config.dn_is_sgroup(dn) {
+            r.extend(ldp.read_indirect_members(&dn).await?);
+        }
     }
     Ok(r)
 }
@@ -261,7 +264,7 @@ async fn may_update_indirect_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(Str
     Ok(())
 }
 
-pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my_mods: MyMods) -> Result<LdapResult> {
+pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my_mods: MyMods) -> Result<()> {
     eprintln!("modify_members_or_rights({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -276,11 +279,11 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     };
 
     // ok, let's do update direct mrights:
-    let res = my_ldap::modify_direct_members_or_rights(ldp, id, my_mods).await?;
+    my_ldap::modify_direct_members_or_rights(ldp, id, my_mods).await?;
     // then update indirect groups mrights
     may_update_indirect_mrights_rec(ldp, todo_indirect).await?;
 
-    Ok(res)
+    Ok(())
 }
 
 /*fn contains_ref(l: &Vec<String>, s: &str) -> bool {

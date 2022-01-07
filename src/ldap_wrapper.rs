@@ -49,7 +49,7 @@ impl LdapW<'_> {
     #[allow(non_snake_case)]
     pub async fn read_one_multi_attr__or_err(self: &mut Self, dn: &str, attr: &str) -> Result<Vec<String>> {
         self.read_one_multi_attr(dn, attr).await?.ok_or_else(
-            || LdapError::AdapterInit(format!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
+            || LdapError::AdapterInit(panic!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
         )
     }
 
@@ -63,8 +63,9 @@ impl LdapW<'_> {
     }
 
     pub async fn is_dn_matching_filter(self: &mut Self, dn: &str, filter: &str) -> Result<bool> {
-        let (rs, _res) = self.ldap.search(dn, Scope::Base, filter, vec![""]).await?.success()?;
-        Ok(!rs.is_empty())
+        let res = self.ldap.search(dn, Scope::Base, filter, vec![""]).await?;
+        let res = handle_read_one_search_result(res)?;
+        Ok(res.is_some())
     }
 
     pub async fn is_dn_existing(self: &mut Self, dn: &str) -> Result<bool> {

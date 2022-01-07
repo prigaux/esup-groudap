@@ -28,28 +28,30 @@ async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: LdapAttrs<'_>) -> Re
     ldap.add(&dn, all_attrs).await
 }
 
-pub async fn clear<'a>(cfg_and_lu: &CfgAndLU<'a>) -> Result<LdapResult> {
+pub async fn clear<'a>(cfg_and_lu: &CfgAndLU<'a>) -> Result<()> {
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
     for user in [ "aanli", "prigaux" ] {
         let _res = ldp.ldap.delete(&ldp.config.people_id_to_dn(user)).await; // ignore error
     }
-    let res = ldp.ldap.delete("ou=people,dc=nodomain").await; // ignore error
+    let _res = ldp.ldap.delete("ou=people,dc=nodomain").await; // ignore error
 
     if ldp.is_dn_existing("ou=groups,dc=nodomain").await? {
         eprintln!("deleting ou=groups entries");
         for id in ldp.search_groups(ldap_filter::true_()).await? {
-            ldp.delete_sgroup(&id).await?;
+            if id != "" {
+                ldp.delete_sgroup(&id).await?;
+            }
         }   
         eprintln!("deleting ou=groups");
         ldp.ldap.delete("ou=groups,dc=nodomain").await?;
     }
-    res
+    Ok(())
     // not deleting the root dc since it causes havoc in openldap...
     //ldap.delete("dc=nodomain").await
 }
 
-pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
+pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     ldp.ldap.add("dc=nodomain", vec![
         ("objectClass", hashset!{"dcObject", "organization"}),
@@ -101,7 +103,7 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
                SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Group { direct_members: btreemap![] }, attrs: collab_dsiun_attrs() });
     assert!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
 
-    let res = api::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
+    api::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
         Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&prigaux_dn())] },
         Mright::UPDATER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&aanli_dn())] },
     }).await?;
@@ -162,11 +164,11 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
         SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Stem { children: btreemap![] }, attrs: collab_attrs() });
 
-    Ok(res)
+    Ok(())
 }
 
-pub async fn set<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<LdapResult> {
-    let _ = clear(&cfg_and_lu).await; // ignore error
+pub async fn set<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
+    clear(&cfg_and_lu).await?;
     add(cfg_and_lu).await
 }
 
