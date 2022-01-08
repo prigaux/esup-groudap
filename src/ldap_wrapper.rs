@@ -53,7 +53,7 @@ impl LdapW<'_> {
         )
     }
 
-    pub async fn read_indirect_members(self: &mut Self, dn: &str) -> Result<Vec<String>> {
+    pub async fn read_flattened_members(self: &mut Self, dn: &str) -> Result<Vec<String>> {
         let l = self.read_one_multi_attr__or_err(&dn, "member").await?;
         // turn [""] into []
         Ok(match l.get(0) {

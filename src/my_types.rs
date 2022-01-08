@@ -114,7 +114,7 @@ impl Mright {
         format!("memberURL;x-{}", self.to_string())
     }
     pub fn list() -> Vec<Self> { vec![Self::MEMBER, Self::READER, Self::UPDATER, Self::ADMIN] }  
-    pub fn to_indirect_attr(&self) -> &'static str {
+    pub fn to_flattened_attr(&self) -> &'static str {
         match self {
             Self::MEMBER => "member",
             Self::READER => "supannGroupeLecteurDN",
@@ -147,8 +147,8 @@ impl Right {
         self.to_mright().to_attr()
     }
     /*
-    pub fn to_indirect_attr(&self) -> &'static str {
-        self.to_mright().to_indirect_attr()
+    pub fn to_flattened_attr(&self) -> &'static str {
+        self.to_mright().to_flattened_attr()
     }
     */
 }

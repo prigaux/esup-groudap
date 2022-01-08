@@ -60,7 +60,7 @@ async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<Str
 /*async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {    
     fn user_has_right_filter(user_dn: &str, right: &Right) -> String {
         ldap_filter::or(right.to_allowed_rights().iter().map(|r| 
-            ldap_filter::eq(r.to_indirect_attr(), user_dn)
+            ldap_filter::eq(r.to_flattened_attr(), user_dn)
         ).collect())
     }
     let filter = user_has_right_filter(&ldp.config.people_id_to_dn(user), right);
@@ -194,7 +194,7 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
     let mut r = vec![];
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     for mright in Mright::list() {
-        for id in ldp.search_groups(&ldap_filter::eq(mright.to_indirect_attr(), &group_dn)).await? {
+        for id in ldp.search_groups(&ldap_filter::eq(mright.to_flattened_attr(), &group_dn)).await? {
             r.push((id, mright));
         }
     }
@@ -203,8 +203,8 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
 
 enum UpResult { Modified, Unchanged }
 
-async fn may_update_indirect_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
-    let attr = mright.to_indirect_attr();
+async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
+    let attr = mright.to_flattened_attr();
     let mods = [
         if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, to_add) ] },
         if to_remove.is_empty() { vec![] } else { vec![ Mod::Delete(attr, to_remove) ] },
@@ -214,49 +214,49 @@ async fn may_update_indirect_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mr
     }
     let res = dbg!(ldp.ldap.modify(dbg!(&ldp.config.sgroup_id_to_dn(id)), dbg!(mods)).await?);
     if res.rc != 0 {
-        Err(LdapError::AdapterInit(format!("update_indirect_mright failed on {}: {}", id, res)))
+        Err(LdapError::AdapterInit(format!("update_flattened_mright failed on {}: {}", id, res)))
     } else {
         Ok(UpResult::Modified)
     }
 }
 
-async fn get_indirect_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
+async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
     let mut r = direct_dns.clone();
     for dn in direct_dns {
         if ldp.config.dn_is_sgroup(dn) {
-            r.extend(ldp.read_indirect_members(&dn).await?);
+            r.extend(ldp.read_flattened_members(&dn).await?);
         }
     }
     Ok(r)
 }
 
 // read group direct URLs
-// diff with group indirect DNs
-// if needed, update group indirect DNs
-async fn may_update_indirect_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mright) -> Result<UpResult> {
-    eprintln!("  may_update_indirect_mrights({}, {:?})", id, mright);
+// diff with group flattened DNs
+// if needed, update group flattened DNs
+async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mright) -> Result<UpResult> {
+    eprintln!("  may_update_flattened_mrights({}, {:?})", id, mright);
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     let direct_urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
     if let Some(direct_dns) = direct_urls.into_iter().map(|url| url_to_dn_(url)).collect::<Option<HashSet<_>>>() {
-        let mut indirect_dns = get_indirect_dns(ldp, &direct_dns).await?;
-        if indirect_dns.is_empty() && mright == &Mright::MEMBER {
-            indirect_dns.insert("".to_owned());
+        let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
+        if flattened_dns.is_empty() && mright == &Mright::MEMBER {
+            flattened_dns.insert("".to_owned());
         }
-        let current_indirect_dns = HashSet::from_iter(
-            ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_indirect_attr()).await?
+        let current_flattened_dns = HashSet::from_iter(
+            ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_flattened_attr()).await?
         );
-        let to_add = indirect_dns.difference(&current_indirect_dns).map(|s| s.as_str()).collect();
-        let to_remove = current_indirect_dns.difference(&indirect_dns).map(|s| s.as_str()).collect();
-        may_update_indirect_mrights_(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
+        let to_add = flattened_dns.difference(&current_flattened_dns).map(|s| s.as_str()).collect();
+        let to_remove = current_flattened_dns.difference(&flattened_dns).map(|s| s.as_str()).collect();
+        may_update_flattened_mrights_(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
     } else {
         // TODO: non DN URL
         Ok(UpResult::Unchanged)
     }
 }
 
-async fn may_update_indirect_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
+async fn may_update_flattened_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
     while let Some((id, mright)) = todo.pop() {
-        let result = may_update_indirect_mrights(ldp, &id, &mright).await?;
+        let result = may_update_flattened_mrights(ldp, &id, &mright).await?;
         if let (Mright::MEMBER, UpResult::Modified) = (mright, &result) {
             todo.append(&mut search_groups_mrights_depending_on_this_group(ldp, &id).await?);
         }    
@@ -274,14 +274,14 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     let is_stem = ldp.config.stem.is_stem(id);
     check_mods(is_stem, &my_mods)?;
 
-    let todo_indirect = if is_stem { vec![] } else {
+    let todo_flattened = if is_stem { vec![] } else {
         my_mods.keys().map(|mright| (id.to_owned(), mright.clone())).collect()
     };
 
     // ok, let's do update direct mrights:
     my_ldap::modify_direct_members_or_rights(ldp, id, my_mods).await?;
-    // then update indirect groups mrights
-    may_update_indirect_mrights_rec(ldp, todo_indirect).await?;
+    // then update flattened groups mrights
+    may_update_flattened_mrights_rec(ldp, todo_flattened).await?;
 
     Ok(())
 }
