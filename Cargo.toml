@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 maplit = "1.x"
+chrono = "0.4.x"
 reqwest = { version = "0.11" }
 tokio = { version = "1.x", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1.0", features = ["derive"] }

@@ -49,7 +49,7 @@ impl LdapW<'_> {
     #[allow(non_snake_case)]
     pub async fn read_one_multi_attr__or_err(self: &mut Self, dn: &str, attr: &str) -> Result<Vec<String>> {
         self.read_one_multi_attr(dn, attr).await?.ok_or_else(
-            || LdapError::AdapterInit(panic!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
+            || LdapError::AdapterInit(format!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
         )
     }
 

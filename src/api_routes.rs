@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::result::Result;
 
 use rocket::request::{self, FromRequest, Request};
@@ -12,7 +13,7 @@ use rocket::{Route, State};
 
 use ldap3::result::LdapError;
 
-use super::my_types::{Attrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut};
+use super::my_types::{Attrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig};
 use super::api;
 use super::test_data;
 use super::cas_auth;
@@ -125,11 +126,22 @@ async fn sgroup<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Sgroup
     to_json(api::get_sgroup(cfg_and_lu, &id).await)
 }
 
+#[get("/config/subject_sources")]
+fn config_subject_sources<'a>(cfg_and_lu : CfgAndLU<'a>) -> Json<&Vec<SubjectSourceConfig>> {
+    Json(&cfg_and_lu.cfg.ldap.subject_sources)
+}
+#[get("/config/remotes")]
+fn config_remotes<'a>(cfg_and_lu : CfgAndLU<'a>) -> Json<&BTreeMap<String, RemoteConfig>> {
+    Json(&cfg_and_lu.cfg.remotes)
+}
+
 pub fn routes() -> Vec<Route> {
     routes![
         login,
         clear_test_data, add_test_data, set_test_data, 
         sgroup,
+        config_subject_sources,
+        config_remotes,
         create, delete, modify_members_or_rights,
     ]
 }

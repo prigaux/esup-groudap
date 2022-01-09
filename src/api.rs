@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet};
 
 use ldap3::{SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
@@ -290,13 +290,15 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     l.iter().any(|e| e == s)
 }*/
 
-fn get_sgroups_attrs(attrs: HashMap<String, Vec<String>>) -> Attrs {
-    attrs.into_iter().filter_map(|(attr, val)| {
+fn sgroup_search_entry_to_attrs(entry: SearchEntry) -> Attrs {
+    entry.attrs.into_iter().filter_map(|(attr, val)| {
         let attr = Attr::from_string(&attr)?;
         let one = val.into_iter().next()?;
         Some((attr, one))
     }).collect()
 }
+
+//fn sgroup_search_entry_to_attrs(cfg_and_lu: CfgAndLU<'a>, dn: &str)
 
 pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndMoreOut> {
     eprintln!("get_sgroup({})", id);
@@ -307,7 +309,7 @@ pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<Sgroup
     if let Some(entry) = ldp.read_sgroup(id, wanted_attrs).await? {
         //eprintln!("      read sgroup {} => {:?}", id, entry);
         let is_stem = ldp.config.stem.is_stem(id);
-        let attrs = get_sgroups_attrs(entry.attrs);
+        let attrs = sgroup_search_entry_to_attrs(entry);
         let right = best_right_on_self_or_any_parents(ldp, id).await?
                 .ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
         let more = if is_stem { 

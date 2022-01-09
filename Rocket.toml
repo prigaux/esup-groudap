@@ -14,5 +14,43 @@ stem_object_class = "groupOfNames"
 group_object_classes = [ "supannGroupe", "up1SyncGroup", "groupOfNames" ]
 stem_object_classes = [ "up1SyncGroup", "organizationalRole" ]
 
+[[default.ldap.subject_sources]]
+dn = "ou=people,dc=nodomain"
+name = "Personnes"
+search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)) (!(accountStatus=disabled)) )"
+display_attrs = ["displayName", "uid"]
+vue_template = "${displayName}"
+vue_template_if_ambiguous = "${displayName} (${uid})"
+
+[[default.ldap.subject_sources]]
+dn = "ou=admin,dc=nodomain"
+name = "Applications"
+search_filter = "(|(cn=%TERM%)(displayName=*%TERM%*))"
+display_attrs = ["displayName", "description", "cn"]
+# default template is "display first non empty attr value"
+
+[[default.ldap.subject_sources]]
+dn = "ou=groups,dc=nodomain"
+name = "Groupe"
+flatten_using = { attr = "member" }
+search_filter = "(|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*))"
+display_attrs = ["ou", "description", "cn"]
+# default template is "display first non empty attr value"
+
 [default.ldap.stem]
 #default_separator = "."
+
+[default.remotes.g2t]
+periodicity = "12:00"
+driver = "mysql"
+host = "apogee.univ.fr"
+#port = 3306
+user = "user"
+password = "xxx"
+
+[default.remotes.foo]
+periodicity = "hourly"
+driver = "mysql"
+host = "apogee.univ.fr"
+user = "user"
+password = "xxx"

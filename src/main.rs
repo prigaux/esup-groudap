@@ -4,6 +4,7 @@ extern crate maplit;
 #[macro_use] 
 extern crate rocket;
 
+mod systemd_calendar_events;
 mod my_types;
 mod ldap_filter;
 mod ldap_wrapper;

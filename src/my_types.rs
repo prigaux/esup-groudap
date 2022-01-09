@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
-use rocket::serde::{Deserialize, Serialize};
+use rocket::serde::{Deserialize, Serialize, de};
+
+use super::systemd_calendar_events;
 
 #[derive(Deserialize)]
 pub struct CasConfig {
@@ -7,6 +9,26 @@ pub struct CasConfig {
 }
 fn default_separator() -> String { ".".to_owned() }
 fn default_root_id() -> String { "".to_owned() }
+
+fn remotes_periodicity_checker<'de, D>(d: D) -> Result<BTreeMap<String, RemoteConfig>, D::Error>
+    where D: de::Deserializer<'de>
+{
+    let remotes : BTreeMap<String, RemoteConfig> = BTreeMap::deserialize(d)?;
+    
+    if let Err(_) = systemd_calendar_events::next_elapse(
+            remotes.values().map(|cfg| &cfg.periodicity).collect()
+        ) {
+        // there has been an error, retry one by one to know which one failed
+        for (remote_id, cfg) in &remotes {
+            if let Err(_) = systemd_calendar_events::next_elapse(vec![&cfg.periodicity]) {
+                let msg = format!("a valid periodicity for remote {}. Hint: validate it with ''systemd-analyze calendar ....''", remote_id);
+                return Err(de::Error::invalid_value(de::Unexpected::Str(cfg.periodicity.as_str()), &msg.as_str()));
+            }
+        }
+    }
+    Ok(remotes)
+}
+
 #[derive(Deserialize)]
 pub struct StemConfig {
     #[serde(default = "default_separator")]
@@ -14,6 +36,29 @@ pub struct StemConfig {
     #[serde(default = "default_root_id")]
     pub root_id: String,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct SubjectSourceFlattenConfig {
+    pub attr: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SubjectSourceConfig {
+    pub dn : String,
+    pub name : String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub vue_template : Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub vue_template_if_ambiguous : Option<String>,    
+
+    #[serde(skip_serializing)]
+    pub search_filter : String,
+    #[serde(skip_serializing)]
+    pub display_attrs : Vec<String>,
+    #[serde(skip_serializing)]
+    pub flatten_using : Option<SubjectSourceFlattenConfig>,
+}
+
 #[derive(Deserialize)]
 pub struct LdapConfig {
     pub url: String,
@@ -25,12 +70,34 @@ pub struct LdapConfig {
     pub stem_object_classes: HashSet<String>,
     pub group_object_classes: HashSet<String>,
     pub stem: StemConfig,
+    pub subject_sources: Vec<SubjectSourceConfig>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum RemoteDriver { Mysql }
+
+#[derive(Deserialize, Serialize)]
+pub struct RemoteConfig {
+    pub host: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub port: Option<u16>,
+    pub driver: RemoteDriver,
+
+    #[serde(skip_serializing)]
+    pub user: String,
+    #[serde(skip_serializing)]
+    pub password: String,    
+    
+    pub periodicity: String, // NB: checked by "remotes_periodicity_checker" below
 }
 #[derive(Deserialize)]
 pub struct Config {
     pub trusted_auth_bearer: Option<String>,
     pub cas: CasConfig,
     pub ldap: LdapConfig,
+    #[serde(deserialize_with = "remotes_periodicity_checker")] 
+    pub remotes: BTreeMap<String, RemoteConfig>,
 }
 
 #[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
@@ -62,11 +129,13 @@ pub struct SgroupOut {
     pub kind: GroupKind,
 }
 
+type GroupsWithAttrs = BTreeMap<String, Attrs>;
+
 #[derive(Serialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SgroupOutMore {
-    Stem { children: BTreeMap<String, Attrs> },
-    Group { direct_members: BTreeMap<String, Attrs> },
+    Stem { children: GroupsWithAttrs },
+    Group { direct_members: GroupsWithAttrs },
 }
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
