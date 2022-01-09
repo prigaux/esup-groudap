@@ -9,11 +9,11 @@ use rocket::serde::json::json;
 
 use rocket::outcome::{Outcome, try_outcome};
 use rocket::serde::{json::Json};
-use rocket::{Route, State};
+use rocket::{Route, State, serde};
 
 use ldap3::result::LdapError;
 
-use super::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig};
+use super::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects};
 use super::api;
 use super::test_data;
 use super::cas_auth;
@@ -59,7 +59,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for MyJson {
     }
 }
 
-fn ldp_err_to_json(err: LdapError) -> MyJson {
+fn err_to_json(err: impl ToString + std::fmt::Debug) -> MyJson {
     dbg!(&err); 
     let body = json!({
         "error": true,
@@ -69,12 +69,12 @@ fn ldp_err_to_json(err: LdapError) -> MyJson {
 }
 
 fn to_json<T>(r: Result<T, LdapError>) -> Result<Json<T>, MyJson> {
-    r.map(Json).map_err(ldp_err_to_json)
+    r.map(Json).map_err(err_to_json)
 }
 
 fn action_result(r : Result<(), LdapError>) -> MyJson {
     match r {
-        Err(err) => ldp_err_to_json(err),
+        Err(err) => err_to_json(err),
         Ok(_) => {
             let body = json!({ "ok": true });
             MyJson::new(Status::Ok, body.to_string())
@@ -126,6 +126,17 @@ async fn sgroup<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Sgroup
     to_json(api::get_sgroup(cfg_and_lu, &id).await)
 }
 
+#[get("/sgroup_direct_rights?<id>")]
+async fn sgroup_direct_rights<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<BTreeMap<Right, Subjects>>, MyJson> {
+    to_json(api::get_sgroup_direct_rights(cfg_and_lu, &id).await)
+}
+
+#[get("/sgroup_indirect_mright?<id>&<mright>")]
+async fn sgroup_indirect_mright<'a>(id: String, mright: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
+    let mright = serde::json::from_str(&format!(r#""{}""#, &mright)).map_err(|e| err_to_json(e.to_string()))?;
+    to_json(api::get_sgroup_indirect_mright(cfg_and_lu, &id, mright).await)
+}
+
 #[get("/config/subject_sources")]
 fn config_subject_sources<'a>(cfg_and_lu : CfgAndLU<'a>) -> Json<&Vec<SubjectSourceConfig>> {
     Json(&cfg_and_lu.cfg.ldap.subject_sources)
@@ -139,7 +150,7 @@ pub fn routes() -> Vec<Route> {
     routes![
         login,
         clear_test_data, add_test_data, set_test_data, 
-        sgroup,
+        sgroup, sgroup_direct_rights, sgroup_indirect_mright,
         config_subject_sources,
         config_remotes,
         create, delete, modify_members_or_rights,

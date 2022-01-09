@@ -42,8 +42,8 @@ async fn user_has_right_on_sgroup(ldp: &mut LdapW<'_>, user_urls: &HashSet<Strin
 async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str) -> Result<Option<Right>> {
     if let Some(group) = ldp.read_sgroup(id, Right::READER.to_allowed_attrs()).await? {
         for right in Right::READER.to_allowed_rights() {
-            if let Some(vals) = group.attrs.get(&right.to_attr()) {
-                if !is_disjoint(vals, &user_urls) {
+            if let Some(urls) = group.attrs.get(&right.to_attr()) {
+                if !is_disjoint(urls, &user_urls) {
                     return Ok(Some(right))
                 }
             }
@@ -203,7 +203,7 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
 
 enum UpResult { Modified, Unchanged }
 
-async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
+async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
     let attr = mright.to_flattened_attr();
     let mods = [
         if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, to_add) ] },
@@ -220,11 +220,11 @@ async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: &M
     }
 }
 
-async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
+async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>, mright: Mright) -> Result<HashSet<String>> {
     let mut r = direct_dns.clone();
     for dn in direct_dns {
         if ldp.config.dn_is_sgroup(dn) {
-            r.extend(ldp.read_flattened_members(&dn).await?);
+            r.extend(ldp.read_flattened_mright(&dn, mright).await?);
         }
     }
     Ok(r)
@@ -233,13 +233,13 @@ async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) ->
 // read group direct URLs
 // diff with group flattened DNs
 // if needed, update group flattened DNs
-async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mright) -> Result<UpResult> {
+async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mright) -> Result<UpResult> {
     eprintln!("  may_update_flattened_mrights({}, {:?})", id, mright);
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     let direct_urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
     if let Some(direct_dns) = direct_urls.into_iter().map(|url| url_to_dn_(url)).collect::<Option<HashSet<_>>>() {
-        let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
-        if flattened_dns.is_empty() && mright == &Mright::MEMBER {
+        let mut flattened_dns = get_flattened_dns(ldp, &direct_dns, mright).await?;
+        if flattened_dns.is_empty() && mright == Mright::MEMBER {
             flattened_dns.insert("".to_owned());
         }
         let current_flattened_dns = HashSet::from_iter(
@@ -256,7 +256,7 @@ async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: &Mr
 
 async fn may_update_flattened_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
     while let Some((id, mright)) = todo.pop() {
-        let result = may_update_flattened_mrights(ldp, &id, &mright).await?;
+        let result = may_update_flattened_mrights(ldp, &id, mright).await?;
         if let (Mright::MEMBER, UpResult::Modified) = (mright, &result) {
             todo.append(&mut search_groups_mrights_depending_on_this_group(ldp, &id).await?);
         }    
@@ -313,13 +313,15 @@ async fn subject_to_attrs<'a>(ldp: &mut LdapW<'_>, dn: &str) -> Result<SubjectAt
     }).collect())
 }
 
-async fn get_subjects<'a>(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
+async fn get_subjects_from_urls<'a>(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
+    get_subjects(ldp, urls.into_iter().filter_map(url_to_dn_).collect()).await
+}
+
+async fn get_subjects<'a>(ldp: &mut LdapW<'_>, dns: Vec<String>) -> Result<Subjects> {
     let mut r = BTreeMap::new();
-    for url in urls {
-        if let Some(dn) = url_to_dn(&url) {
-            let subject_attrs = subject_to_attrs(ldp, dn).await?;
-            r.insert(dn.to_owned(), subject_attrs);
-        }
+    for dn in dns {
+        let subject_attrs = subject_to_attrs(ldp, &dn).await?;
+        r.insert(dn.to_owned(), subject_attrs);
     }
     Ok(r)
 }
@@ -360,11 +362,43 @@ pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<Sgroup
             let children = get_children(ldp, id).await?;
             SgroupOutMore::Stem { children }
         } else { 
-            let direct_members = get_subjects(ldp, direct_members.unwrap_or(vec![])).await?;
+            let direct_members = get_subjects_from_urls(ldp, direct_members.unwrap_or(vec![])).await?;
             SgroupOutMore::Group { direct_members }
         };
         Ok(SgroupAndMoreOut { attrs, right, more })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
     }
+}
+
+pub async fn get_sgroup_direct_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<BTreeMap<Right, Subjects>> {
+    eprintln!("get_sgroup_direct_rights({})", id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+
+    if let Some(group) = ldp.read_sgroup(id, Right::READER.to_allowed_attrs()).await? {
+        let mut attrs = group.attrs;
+        let mut r = btreemap![];
+        for right in Right::READER.to_allowed_rights() {
+            if let Some(urls) = attrs.remove(&right.to_attr()) {
+                let subjects = get_subjects_from_urls(ldp, urls).await?;
+                r.insert(right, subjects);
+            }
+        }
+        Ok(r)
+    } else {
+        Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
+    }
+}
+
+pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, mright: Mright) -> Result<Subjects> {
+    eprintln!("get_sgroup_indirect_mright({})", id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+
+    let flattened_dns = {
+        let dn = ldp.config.sgroup_id_to_dn(id);
+        ldp.read_flattened_mright(&dn, mright).await?
+    };
+    get_subjects(ldp, flattened_dns).await
 }

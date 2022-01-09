@@ -53,8 +53,8 @@ impl LdapW<'_> {
         )
     }
 
-    pub async fn read_flattened_members(self: &mut Self, dn: &str) -> Result<Vec<String>> {
-        let l = self.read_one_multi_attr__or_err(&dn, "member").await?;
+    pub async fn read_flattened_mright(self: &mut Self, dn: &str, mright: Mright) -> Result<Vec<String>> {
+        let l = self.read_one_multi_attr__or_err(&dn, mright.to_flattened_attr()).await?;
         // turn [""] into []
         Ok(match l.get(0) {
             Some(s) if s.is_empty() => vec![],
