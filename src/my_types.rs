@@ -120,28 +120,30 @@ pub enum GroupKind { GROUP, STEM }
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum Attr { Ou, Description }
-pub type Attrs = BTreeMap<Attr, String>;
+pub type SgroupAttrs = BTreeMap<Attr, String>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupOut {
     #[serde(flatten)]
-    pub attrs: Attrs,
+    pub attrs: SgroupAttrs,
     pub kind: GroupKind,
 }
 
-type GroupsWithAttrs = BTreeMap<String, Attrs>;
+pub type SgroupsWithAttrs = BTreeMap<String, SgroupAttrs>;
+pub type SubjectAttrs = BTreeMap<String, String>;
+pub type Subjects = BTreeMap<String, SubjectAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SgroupOutMore {
-    Stem { children: GroupsWithAttrs },
-    Group { direct_members: GroupsWithAttrs },
+    Stem { children: SgroupsWithAttrs },
+    Group { direct_members: Subjects },
 }
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupAndMoreOut {
     #[serde(flatten)]
-    pub attrs: Attrs,
+    pub attrs: SgroupAttrs,
     #[serde(flatten)]
     pub more: SgroupOutMore,
 

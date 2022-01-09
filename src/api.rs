@@ -1,4 +1,4 @@
-use std::collections::{HashSet};
+use std::collections::{BTreeMap, HashSet, HashMap};
 
 use ldap3::{SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
@@ -135,7 +135,7 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
 }
 
 
-pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: Attrs) -> Result<()> {
+pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: SgroupAttrs) -> Result<()> {
     eprintln!("create({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -194,7 +194,7 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
     let mut r = vec![];
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     for mright in Mright::list() {
-        for id in ldp.search_groups(&ldap_filter::eq(mright.to_flattened_attr(), &group_dn)).await? {
+        for id in ldp.search_sgroups_id(&ldap_filter::eq(mright.to_flattened_attr(), &group_dn)).await? {
             r.push((id, mright));
         }
     }
@@ -290,33 +290,77 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     l.iter().any(|e| e == s)
 }*/
 
-fn sgroup_search_entry_to_attrs(entry: SearchEntry) -> Attrs {
-    entry.attrs.into_iter().filter_map(|(attr, val)| {
+fn attrs_to_sgroup_attrs(attrs: HashMap<String, Vec<String>>) -> SgroupAttrs {
+    attrs.into_iter().filter_map(|(attr, val)| {
         let attr = Attr::from_string(&attr)?;
         let one = val.into_iter().next()?;
         Some((attr, one))
     }).collect()
 }
 
-//fn sgroup_search_entry_to_attrs(cfg_and_lu: CfgAndLU<'a>, dn: &str)
+fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
+    v.iter().map(AsRef::as_ref).collect()
+}
+
+async fn subject_to_attrs<'a>(ldp: &mut LdapW<'_>, dn: &str) -> Result<SubjectAttrs> {
+    let sscfg = ldp.config.dn_to_subject_source_cfg(dn)
+            .ok_or_else(|| LdapError::AdapterInit(format!("DN {} has no corresponding subject source", dn)))?;
+    let entry = ldp.read(dn, shallow_copy_vec(&sscfg.display_attrs)).await?
+            .ok_or_else(|| LdapError::AdapterInit(format!("invalid DN {}", dn)))?;
+    Ok(entry.attrs.into_iter().filter_map(|(attr, val)| {
+        let one = val.into_iter().next()?;
+        Some((attr, one))
+    }).collect())
+}
+
+async fn get_subjects<'a>(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
+    let mut r = BTreeMap::new();
+    for url in urls {
+        if let Some(dn) = url_to_dn(&url) {
+            let subject_attrs = subject_to_attrs(ldp, dn).await?;
+            r.insert(dn.to_owned(), subject_attrs);
+        }
+    }
+    Ok(r)
+}
+
+pub async fn get_children(ldp: &mut LdapW<'_>, id: &str) -> Result<SgroupsWithAttrs> {
+    eprintln!("  get_children({})", id);
+    let wanted_attrs = Attr::list_as_string();
+    let filter = ldap_filter::sgroup_children(id);
+    let children = ldp.search_sgroups(&filter, wanted_attrs).await?.filter_map(|e| {
+        let child_id = ldp.config.dn_to_sgroup_id(&e.dn)?;
+        // ignore grandchildren
+        if ldp.config.stem.is_grandchild(id, &child_id) { return None }
+        let attrs: SgroupAttrs = e.attrs.into_iter().filter_map(|(attr, mut vals)| {
+            Some((Attr::from_string(&attr).unwrap(), vals.pop()?))
+        }).collect();
+        Some((child_id, attrs))
+    }).collect();
+    Ok(children)
+}
+
 
 pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<SgroupAndMoreOut> {
     eprintln!("get_sgroup({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
-    let wanted_attrs = [ Attr::list_as_string(), vec![ "objectClass" ] ].concat();
+    let direct_member_attr = Mright::MEMBER.to_attr();
+    let wanted_attrs = [ Attr::list_as_string(), vec![ &direct_member_attr ] ].concat();
     if let Some(entry) = ldp.read_sgroup(id, wanted_attrs).await? {
+        let mut attrs = entry.attrs;
+        let direct_members = attrs.remove(&direct_member_attr);
         //eprintln!("      read sgroup {} => {:?}", id, entry);
         let is_stem = ldp.config.stem.is_stem(id);
-        let attrs = sgroup_search_entry_to_attrs(entry);
+        let attrs = attrs_to_sgroup_attrs(attrs);
         let right = best_right_on_self_or_any_parents(ldp, id).await?
                 .ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
         let more = if is_stem { 
-            let children = btreemap![];
+            let children = get_children(ldp, id).await?;
             SgroupOutMore::Stem { children }
         } else { 
-            let direct_members = btreemap![];
+            let direct_members = get_subjects(ldp, direct_members.unwrap_or(vec![])).await?;
             SgroupOutMore::Group { direct_members }
         };
         Ok(SgroupAndMoreOut { attrs, right, more })
@@ -324,10 +368,3 @@ pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<Sgroup
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
     }
 }
-
-/*
-pub async fn get_children<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<()> {
-    // Vec<Attrs + "kind">
-    Ok(())
-}
-*/

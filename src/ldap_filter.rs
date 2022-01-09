@@ -12,6 +12,10 @@ pub fn eq(attr: &str, val: &str) -> String {
     format!("({}={})", attr, ldap_escape(val))
 }
 
+pub fn _not(filter: &str) -> String {
+    format!("(!{})", filter)
+}
+
 pub fn _or(l : Vec<String>) -> String {
     match &l[..] {
         [filter] => filter.to_owned(),
@@ -24,5 +28,6 @@ pub fn member(dn: &str) -> String {
 }
 
 pub fn sgroup_children(id: &str) -> String {
-    format!("(cn={}.*)", ldap_escape(id))
+    let id = ldap_escape(id);
+    format!("(&(cn={}*)(!(cn={})))", &id, &id)
 }

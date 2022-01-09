@@ -63,7 +63,7 @@ impl LdapW<'_> {
     }
 
     pub async fn is_dn_matching_filter(self: &mut Self, dn: &str, filter: &str) -> Result<bool> {
-        let res = self.ldap.search(dn, Scope::Base, filter, vec![""]).await?;
+        let res = self.ldap.search(dn, Scope::Base, dbg!(filter), vec![""]).await?;
         let res = handle_read_one_search_result(res)?;
         Ok(res.is_some())
     }
@@ -76,7 +76,7 @@ impl LdapW<'_> {
         let (rs, _res) = {
             let opts = SearchOptions::new().sizelimit(1);
             let ldap_ = self.ldap.with_search_options(opts);
-            ldap_.search(&self.config.groups_dn, Scope::Subtree, filter, vec![""]).await?.success()?
+            ldap_.search(&self.config.groups_dn, Scope::Subtree, dbg!(filter), vec![""]).await?.success()?
         };
         Ok(!rs.is_empty())
     }

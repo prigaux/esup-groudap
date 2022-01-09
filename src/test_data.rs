@@ -38,7 +38,8 @@ pub async fn clear<'a>(cfg_and_lu: &CfgAndLU<'a>) -> Result<()> {
 
     if ldp.is_dn_existing("ou=groups,dc=nodomain").await? {
         eprintln!("deleting ou=groups entries");
-        for id in ldp.search_groups(ldap_filter::true_()).await? {
+        let ids = ldp.search_sgroups_id(ldap_filter::true_()).await?;
+        for id in ids {
             if id != "" {
                 ldp.delete_sgroup(&id).await?;
             }
@@ -73,6 +74,7 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
 
     let prigaux_dn = || ldp.config.people_id_to_dn("prigaux");
     let aanli_dn = || ldp.config.people_id_to_dn("aanli");
+    let prigaux_subject = || btreemap!{ prigaux_dn() => btreemap!{"displayName".to_owned() => "Pascal Rigaux".to_owned(), "uid".to_owned() => "prigaux".to_owned()} };
 
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(""), vec![
         Mod::Add("objectClass", hashset!["up1SyncGroup"])
@@ -97,10 +99,12 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
     };
     api::create(cfg_and_prigaux(), "collab.DSIUN", collab_dsiun_attrs()).await?;
 
-    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
-               SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Stem { children: btreemap![] }, attrs: collab_attrs() });
+    let get_sgroup_collab = ||
+        SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()} }, right: Right::ADMIN };
+
+    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, get_sgroup_collab());
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.DSIUN").await?, 
-               SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Group { direct_members: btreemap![] }, attrs: collab_dsiun_attrs() });
+               SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Group { direct_members: btreemap!{} }, attrs: collab_dsiun_attrs() });
     assert!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
 
     api::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
@@ -109,7 +113,7 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
     }).await?;
 
     assert_eq!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
-               SgroupAndMoreOut { right: Right::UPDATER, more: SgroupOutMore::Group { direct_members: btreemap![] }, attrs: collab_dsiun_attrs() });
+               SgroupAndMoreOut { right: Right::UPDATER, more: SgroupOutMore::Group { direct_members: prigaux_subject() }, attrs: collab_dsiun_attrs() });
 
     api::create(cfg_and_prigaux(), "applications.", btreemap!{ 
         Attr::Ou => "Applications".to_owned(),
@@ -139,12 +143,13 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
 
     // prigaux is still admin... via group "super-admins"
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
-        SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Stem { children: btreemap![] }, attrs: collab_attrs() });
+        SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Stem { children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()} }, attrs: collab_attrs() });
 
-    api::create(cfg_and_prigaux(), "collab.foo", btreemap!{
+    let collab_foo_attrs = || btreemap!{
         Attr::Ou => "Collab Foo".to_owned(),
         Attr::Description => "Collab Foo".to_owned(),
-    }).await?;
+    };
+    api::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
 
     eprintln!(r#"remove last "member". Need to put an empty member back"#);
     api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
@@ -162,7 +167,11 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
                hashset![ prigaux_dn(), ldp.config.sgroup_id_to_dn("collab.DSIUN") ]);
     eprintln!(r#"prigaux shoud be admin via stem "" via applications.grouper.super-admins via collab.DSIUN"#);
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
-        SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Stem { children: btreemap![] }, attrs: collab_attrs() });
+        SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { children: btreemap!{
+            "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
+            "collab.foo".to_owned() => collab_foo_attrs(),
+        } }, right: Right::ADMIN }
+    );
 
     Ok(())
 }

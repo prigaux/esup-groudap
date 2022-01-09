@@ -53,6 +53,15 @@ impl StemConfig {
         id == self.root_id || id.ends_with(".")
     }    
     
+    pub fn is_grandchild(self: &Self, parent: &str, gchild: &str) -> bool {
+        if let Some(sub) = gchild.strip_prefix(parent) {
+            let sub = sub.strip_suffix(&self.separator).unwrap_or(sub);
+            sub.contains(&self.separator)
+        } else {
+            // weird? should panic?
+            false
+        }
+    }
 }
 
 impl LdapConfig {
@@ -67,16 +76,22 @@ impl LdapConfig {
     pub fn people_id_to_dn(self: &Self, cn: &str) -> String {
         format!("uid={},ou=people,{}", cn, self.base_dn)
     }
-    pub fn dn_to_sgroup_id(self: &Self, cn: &str) -> Option<String> {
-        if cn == self.groups_dn {
+    pub fn dn_to_sgroup_id(self: &Self, dn: &str) -> Option<String> {
+        if dn == self.groups_dn {
             Some("".to_owned())
         } else {
-            Some(cn.strip_suffix(&self.groups_dn)?.strip_suffix(",")?.strip_prefix("cn=")?.to_owned())
+            Some(dn.strip_suffix(&self.groups_dn)?.strip_suffix(",")?.strip_prefix("cn=")?.to_owned())
         }
     }
     pub fn dn_is_sgroup(self: &Self, dn: &str) -> bool {
         dn.ends_with(&self.groups_dn)
     }
+
+    pub fn dn_to_subject_source_cfg(self: &Self, dn: &str) -> Option<&SubjectSourceConfig> {
+        self.subject_sources.iter().find(|sscfg| dn.ends_with(&sscfg.dn))
+    }
+    
+    
 }
 
 pub fn dn_to_url(dn: &str) -> String {
@@ -139,27 +154,32 @@ impl LdapW<'_> {
         self.read(&dn, attrs).await
     }
 
-    pub async fn search_groups_dn(self: &mut Self, filter: &str) -> Result<HashSet<String>> {
-        let (rs, _res) = self.ldap.search(&self.config.groups_dn, Scope::Subtree, filter, vec![""]).await?.success()?;
-        Ok(rs.into_iter().map(|r| { SearchEntry::construct(r).dn }).collect())
+    pub async fn search_sgroups<'f>(self: &mut Self, filter: &'f str, attrs: Vec<&str>) -> Result<impl Iterator<Item = SearchEntry> + 'f> {
+        let (rs, _res) = self.ldap.search(&self.config.groups_dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
+        let z = rs.into_iter().map(|r| { SearchEntry::construct(r) });
+        Ok(z)
+    }   
+
+    pub async fn search_sgroups_dn<'f>(self: &mut Self, filter: &'f str) -> Result<impl Iterator<Item = String> + 'f> {
+        Ok(self.search_sgroups(dbg!(filter), vec![""]).await?.map(|e| { e.dn }))
     }
     
-    // returns group ids
-    pub async fn search_groups(self: &mut Self, filter: &str) -> Result<Vec<String>> {
-        Ok(self.search_groups_dn(&filter).await?.into_iter().map(|dn| {
+    pub async fn search_sgroups_id<'f>(self: &mut Self, filter: &'f str) -> Result<HashSet<String>> {
+        Ok(self.search_sgroups_dn(&filter).await?.map(|dn| {
             self.config.dn_to_sgroup_id(&dn).unwrap_or_else(|| panic!("weird DN {}", dn))
         }).collect())
     }
 
     async fn user_groups_dn(self: &mut Self, user_dn: &str) -> Result<HashSet<String>> {
         let filter = ldap_filter::member(user_dn);
-        self.search_groups_dn(&filter).await
+        let l = self.search_sgroups_dn(&filter).await?.collect();
+        Ok(l)
     }
 
     // returns DNs
     pub async fn user_groups_and_user_dn(self: &mut Self, user: &str) -> Result<HashSet<String>> {
         let user_dn = self.config.people_id_to_dn(user);
-        let mut user_groups = self.user_groups_dn(&user_dn).await?;
+        let mut user_groups: HashSet<_> = self.user_groups_dn(&user_dn).await?;
         user_groups.insert(user_dn);
         Ok(user_groups)
     }
@@ -167,13 +187,13 @@ impl LdapW<'_> {
 
 
 // re-format: vector of (string key, hashset value)
-fn to_ldap_attrs<'a>(attrs: &'a Attrs) -> LdapAttrs<'a> {
+fn to_ldap_attrs<'a>(attrs: &'a SgroupAttrs) -> LdapAttrs<'a> {
     attrs.iter().map(|(name, value)|
         (name.to_string(), hashset![&value as &str])
     ).collect()
 }
 
-pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: Attrs) -> Result<()> {    
+pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: SgroupAttrs) -> Result<()> {    
     ldp.ldap_add_group(id, to_ldap_attrs(&attrs)).await
 }
 
@@ -219,7 +239,7 @@ mod tests {
 
         assert_eq!(cfg.parent_stems("a.b.c"), ["a.b.", "a.", ""]);
         assert_eq!(cfg.parent_stems("a."), [""]);
-        assert_eq!(cfg.parent_stems(""), []);
+        assert_eq!(cfg.parent_stems(""), [] as [&str; 0]);
     }
 
     #[test]
@@ -238,6 +258,24 @@ mod tests {
         assert!(cfg.validate_sgroup_id("a,").is_err());
     }
 
+    #[test]
+    fn is_grandchild() {
+        let cfg = stem_config();
+        assert!(cfg.is_grandchild("a.", "a.b.c"));
+        assert!(cfg.is_grandchild("a.", "a.b.c."));
+        assert!(cfg.is_grandchild("a.", "a.b.c.d"));
+        assert!(!cfg.is_grandchild("a.", "a."));
+        assert!(!cfg.is_grandchild("a.", "a.b"));
+        assert!(!cfg.is_grandchild("a.", "a.b."));
+
+        assert!(cfg.is_grandchild("", "a.b"));
+        assert!(cfg.is_grandchild("", "a.b."));
+        assert!(cfg.is_grandchild("", "a.b.c"));
+        assert!(!cfg.is_grandchild("", ""));
+        assert!(!cfg.is_grandchild("", "b"));
+        assert!(!cfg.is_grandchild("", "b."));
+    }
+
     fn ldap_config() -> LdapConfig {
         LdapConfig { 
             url: "".to_owned(),
@@ -249,6 +287,7 @@ mod tests {
             stem_object_classes: hashset![],
             group_object_classes: hashset![],
             stem: stem_config(),
+            subject_sources: vec![],
         }
     }
 

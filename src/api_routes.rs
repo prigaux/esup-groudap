@@ -13,7 +13,7 @@ use rocket::{Route, State};
 
 use ldap3::result::LdapError;
 
-use super::my_types::{Attrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig};
+use super::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig};
 use super::api;
 use super::test_data;
 use super::cas_auth;
@@ -104,7 +104,7 @@ async fn add_test_data<'a>(cfg_and_lu : CfgAndLU<'a>) -> MyJson {
 }
 
 #[post("/create?<id>", data = "<attrs>")]
-async fn create<'a>(id: String, attrs: Json<Attrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
+async fn create<'a>(id: String, attrs: Json<SgroupAttrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
     action_result(
         api::create(cfg_and_lu, &id, attrs.into_inner()).await
     )
