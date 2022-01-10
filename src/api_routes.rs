@@ -137,6 +137,11 @@ async fn sgroup_indirect_mright<'a>(id: String, mright: String, search_token: Op
     to_json(api::get_sgroup_indirect_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
 
+#[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
+async fn search_subjects<'a>(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
+    to_json(api::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
+}
+
 #[get("/config/subject_sources")]
 fn config_subject_sources<'a>(cfg_and_lu : CfgAndLU<'a>) -> Json<&Vec<SubjectSourceConfig>> {
     Json(&cfg_and_lu.cfg.ldap.subject_sources)
@@ -150,7 +155,7 @@ pub fn routes() -> Vec<Route> {
     routes![
         login,
         clear_test_data, add_test_data, set_test_data, 
-        sgroup, sgroup_direct_rights, sgroup_indirect_mright,
+        sgroup, sgroup_direct_rights, sgroup_indirect_mright, search_subjects,
         config_subject_sources,
         config_remotes,
         create, delete, modify_members_or_rights,

@@ -35,6 +35,7 @@ pub async fn clear<'a>(cfg_and_lu: &CfgAndLU<'a>) -> Result<()> {
         let _res = ldp.ldap.delete(&ldp.config.people_id_to_dn(user)).await; // ignore error
     }
     let _res = ldp.ldap.delete("ou=people,dc=nodomain").await; // ignore error
+    let _res = ldp.ldap.delete("ou=admin,dc=nodomain").await; // ignore error
 
     if ldp.is_dn_existing("ou=groups,dc=nodomain").await? {
         eprintln!("deleting ou=groups entries");
@@ -60,6 +61,7 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
         ("o", hashset!{"nodomain"}),
     ]).await?;
     ldap_add_ou_branch(&mut ldp.ldap, "people", "Users").await?;
+    ldap_add_ou_branch(&mut ldp.ldap, "admin", "Applications").await?;
     ldap_add_ou_branch(&mut ldp.ldap, "groups", "Groups. Droits sur l'arborescence entière").await?;
     ldap_add_people(&mut ldp.ldap, "prigaux", vec![
         ("cn", hashset!{"Rigaux Pascal"}),

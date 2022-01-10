@@ -1,5 +1,5 @@
 use std::collections::{HashSet};
-use ldap3::{Scope, SearchEntry, Mod};
+use ldap3::{Scope, SearchEntry, Mod, SearchOptions};
 use ldap3::result::{Result, LdapError};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
@@ -119,6 +119,11 @@ pub fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
     v.iter().map(AsRef::as_ref).collect()
 }
 
+fn search_options(sizelimit: Option<i32>) -> SearchOptions {
+    let opts = SearchOptions::new();
+    if let Some(limit) = sizelimit { opts.sizelimit(limit) } else { opts }
+}
+
 impl LdapW<'_> {
     pub async fn is_sgroup_matching_filter(self: &mut Self, id: &str, filter: &str) -> Result<bool> {
         self.is_dn_matching_filter(&self.config.sgroup_id_to_dn(id), filter).await
@@ -190,9 +195,10 @@ impl LdapW<'_> {
         Ok(user_groups)
     }
 
-    pub async fn search_subjects<'f>(self: &mut Self, sscfg: &SubjectSourceConfig, filter: &'f str) -> Result<Subjects> {
+    pub async fn search_subjects<'f>(self: &mut Self, sscfg: &SubjectSourceConfig, filter: &'f str, sizelimit: Option<i32>) -> Result<Subjects> {
         let attrs = shallow_copy_vec(&sscfg.display_attrs);
-        let (rs, _res) = self.ldap.search(&sscfg.dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
+        let (rs, _res) = self.ldap.with_search_options(search_options(sizelimit))
+            .search(dbg!(&sscfg.dn), Scope::Subtree, dbg!(filter), attrs).await?.success()?;
         Ok(rs.into_iter().map(|r| { 
             let entry = SearchEntry::construct(r);
             (entry.dn, mono_attrs(entry.attrs))
@@ -238,7 +244,7 @@ pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_m
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use super::*;
 
     fn stem_config() -> StemConfig {
         StemConfig { separator: ".".to_owned(), root_id: "".to_owned() }    

@@ -316,15 +316,20 @@ async fn subject_to_attrs_<'a>(ldp: &mut LdapW<'_>, dn: &str, sscfg: &SubjectSou
 }
 */
 
+impl SubjectSourceConfig {
+    fn search_filter_(self: &Self, term: &String) -> String {
+        self.search_filter.replace("%TERM%", term).replace(" ", "")
+    }
+}
+
 async fn get_subjects_from_same_source<'a>(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, dns: &[String], search_token: &Option<String>) -> Result<Subjects> {
     let dns_filter = ldap_filter::or(dns.iter().map(|dn| ldap_filter::dn(dn.as_str())).collect());
     let filter = if let Some(term) = search_token {
-        let term_filter = sscfg.search_filter.replace("%TERM%", term).replace(" ", "");
-        ldap_filter::and2(&dns_filter,&term_filter)
+        ldap_filter::and2(&dns_filter,&sscfg.search_filter_(term))
     } else {
         dns_filter
     };
-    ldp.search_subjects(sscfg, dbg!(&filter)).await
+    ldp.search_subjects(sscfg, dbg!(&filter), None).await
 }
 
 
@@ -438,4 +443,21 @@ pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, 
         ldp.read_flattened_mright(&dn, mright).await?
     };
     get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await
+}
+
+pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<Subjects> {
+    eprintln!("search_subjects({}, {:?})", search_token, source_dn);
+
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    let mut r = btreemap![];
+    for sscfg in &cfg_and_lu.cfg.ldap.subject_sources {
+        match &source_dn {
+            Some(dn) if *dn != sscfg.dn => {},
+            _ => {
+                let filter = sscfg.search_filter_(&search_token);
+                r.append(&mut ldp.search_subjects(&sscfg, dbg!(&filter), Some(sizelimit)).await?)
+            },
+        }
+    }
+    Ok(r)
 }
