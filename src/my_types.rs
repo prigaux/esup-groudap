@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use rocket::serde::{Deserialize, Serialize, de};
 
-use super::systemd_calendar_events;
+use crate::systemd_calendar_events;
 
 #[derive(Deserialize)]
 pub struct CasConfig {
@@ -37,12 +37,12 @@ pub struct StemConfig {
     pub root_id: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct SubjectSourceFlattenConfig {
     pub attr: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct SubjectSourceConfig {
     pub dn : String,
     pub name : String,

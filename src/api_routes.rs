@@ -13,10 +13,10 @@ use rocket::{Route, State, serde};
 
 use ldap3::result::LdapError;
 
-use super::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects};
-use super::api;
-use super::test_data;
-use super::cas_auth;
+use crate::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects};
+use crate::api;
+use crate::test_data;
+use crate::cas_auth;
 
 
 #[rocket::async_trait]
@@ -131,10 +131,10 @@ async fn sgroup_direct_rights<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Resu
     to_json(api::get_sgroup_direct_rights(cfg_and_lu, &id).await)
 }
 
-#[get("/sgroup_indirect_mright?<id>&<mright>")]
-async fn sgroup_indirect_mright<'a>(id: String, mright: String, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
+#[get("/sgroup_indirect_mright?<id>&<mright>&<search_token>&<sizelimit>")]
+async fn sgroup_indirect_mright<'a>(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
     let mright = serde::json::from_str(&format!(r#""{}""#, &mright)).map_err(|e| err_to_json(e.to_string()))?;
-    to_json(api::get_sgroup_indirect_mright(cfg_and_lu, &id, mright).await)
+    to_json(api::get_sgroup_indirect_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
 
 #[get("/config/subject_sources")]

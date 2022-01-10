@@ -3,11 +3,11 @@ use std::collections::{BTreeMap, HashSet, HashMap};
 use ldap3::{SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
 
-use super::my_types::*;
-use super::ldap_wrapper::LdapW;
-use super::my_ldap;
-use super::my_ldap::{dn_to_url, url_to_dn, url_to_dn_};
-use super::ldap_filter;
+use crate::my_types::*;
+use crate::ldap_wrapper::LdapW;
+use crate::my_ldap;
+use crate::my_ldap::{dn_to_url, url_to_dn, url_to_dn_};
+use crate::ldap_filter;
 
 fn is_disjoint(vals: &Vec<String>, set: &HashSet<String>) -> bool {
     !vals.iter().any(|val| set.contains(val))
@@ -298,6 +298,7 @@ fn attrs_to_sgroup_attrs(attrs: HashMap<String, Vec<String>>) -> SgroupAttrs {
     }).collect()
 }
 
+/*
 fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
     v.iter().map(AsRef::as_ref).collect()
 }
@@ -305,24 +306,60 @@ fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
 async fn subject_to_attrs<'a>(ldp: &mut LdapW<'_>, dn: &str) -> Result<SubjectAttrs> {
     let sscfg = ldp.config.dn_to_subject_source_cfg(dn)
             .ok_or_else(|| LdapError::AdapterInit(format!("DN {} has no corresponding subject source", dn)))?;
+    subject_to_attrs_(ldp, dn, sscfg).await
+}
+
+async fn subject_to_attrs_<'a>(ldp: &mut LdapW<'_>, dn: &str, sscfg: &SubjectSourceConfig) -> Result<SubjectAttrs> {
     let entry = ldp.read(dn, shallow_copy_vec(&sscfg.display_attrs)).await?
             .ok_or_else(|| LdapError::AdapterInit(format!("invalid DN {}", dn)))?;
-    Ok(entry.attrs.into_iter().filter_map(|(attr, val)| {
-        let one = val.into_iter().next()?;
-        Some((attr, one))
-    }).collect())
+    Ok(mono_attrs(entry.attrs))
 }
+*/
+
+async fn get_subjects_from_same_source<'a>(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, dns: &[String], search_token: &Option<String>) -> Result<Subjects> {
+    let dns_filter = ldap_filter::or(dns.iter().map(|dn| ldap_filter::dn(dn.as_str())).collect());
+    let filter = if let Some(term) = search_token {
+        let term_filter = sscfg.search_filter.replace("%TERM%", term).replace(" ", "");
+        ldap_filter::and2(&dns_filter,&term_filter)
+    } else {
+        dns_filter
+    };
+    ldp.search_subjects(sscfg, dbg!(&filter)).await
+}
+
+
+
 
 async fn get_subjects_from_urls<'a>(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
-    get_subjects(ldp, urls.into_iter().filter_map(url_to_dn_).collect()).await
+    get_subjects(ldp, urls.into_iter().filter_map(url_to_dn_).collect(), &None, &None).await
 }
 
-async fn get_subjects<'a>(ldp: &mut LdapW<'_>, dns: Vec<String>) -> Result<Subjects> {
+fn into_group_map<K: Eq + std::hash::Hash, V, I: Iterator<Item = (K, V)>>(iter: I) -> HashMap<K, Vec<V>> {
+    iter.fold(HashMap::new(), |mut map, (k, v)| {
+        map.entry(k).or_insert_with(|| Vec::new()).push(v);
+        map
+    })
+}
+async fn get_subjects<'a>(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
     let mut r = BTreeMap::new();
-    for dn in dns {
-        let subject_attrs = subject_to_attrs(ldp, &dn).await?;
-        r.insert(dn.to_owned(), subject_attrs);
+
+    let sscfg2dns = into_group_map(dns.into_iter().filter_map(|dn| {
+        let sscfg = ldp.config.dn_to_subject_source_cfg(&dn)?;
+        Some((sscfg, dn))
+    }));
+        
+    for (sscfg, dns) in sscfg2dns {
+        let mut count = 0;
+        for dns_ in dns.chunks(10) {
+            let subjects = &mut get_subjects_from_same_source(ldp, sscfg, dns_, search_token).await?;
+            count += subjects.len();
+            r.append(subjects);
+            if let Some(limit) = sizelimit {
+                if count > *limit { break; }
+            }
+        }    
     }
+
     Ok(r)
 }
 
@@ -391,7 +428,7 @@ pub async fn get_sgroup_direct_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) ->
     }
 }
 
-pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, mright: Mright) -> Result<Subjects> {
+pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, mright: Mright, search_token: Option<String>, sizelimit: Option<usize>) -> Result<Subjects> {
     eprintln!("get_sgroup_indirect_mright({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -400,5 +437,5 @@ pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, 
         let dn = ldp.config.sgroup_id_to_dn(id);
         ldp.read_flattened_mright(&dn, mright).await?
     };
-    get_subjects(ldp, flattened_dns).await
+    get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await
 }

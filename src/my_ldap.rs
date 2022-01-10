@@ -3,9 +3,11 @@ use ldap3::{Scope, SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use super::ldap_wrapper::LdapW;
-use super::my_types::*;
-use super::ldap_filter;
+use crate::ldap_wrapper::mono_attrs;
+
+use crate::ldap_wrapper::LdapW;
+use crate::my_types::*;
+use crate::ldap_filter;
 
 // ("a.b.c", ".") => Some("a.b.")
 // ("a", ".") => None
@@ -113,6 +115,10 @@ fn hashset_as_deref(elts : &HashSet<String>) -> HashSet<&str> {
     set
 }
 
+pub fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
+    v.iter().map(AsRef::as_ref).collect()
+}
+
 impl LdapW<'_> {
     pub async fn is_sgroup_matching_filter(self: &mut Self, id: &str, filter: &str) -> Result<bool> {
         self.is_dn_matching_filter(&self.config.sgroup_id_to_dn(id), filter).await
@@ -183,6 +189,16 @@ impl LdapW<'_> {
         user_groups.insert(user_dn);
         Ok(user_groups)
     }
+
+    pub async fn search_subjects<'f>(self: &mut Self, sscfg: &SubjectSourceConfig, filter: &'f str) -> Result<Subjects> {
+        let attrs = shallow_copy_vec(&sscfg.display_attrs);
+        let (rs, _res) = self.ldap.search(&sscfg.dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
+        Ok(rs.into_iter().map(|r| { 
+            let entry = SearchEntry::construct(r);
+            (entry.dn, mono_attrs(entry.attrs))
+        }).collect())
+    }   
+
 }
 
 
@@ -222,7 +238,7 @@ pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_m
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::*;
 
     fn stem_config() -> StemConfig {
         StemConfig { separator: ".".to_owned(), root_id: "".to_owned() }    

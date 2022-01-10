@@ -1,10 +1,10 @@
-use std::collections::{HashMap};
+use std::collections::{HashMap, BTreeMap};
 
 use ldap3::{Scope, LdapConnAsync, ResultEntry, SearchResult, SearchEntry, SearchOptions, Ldap};
 use ldap3::result::{Result, LdapError};
 
-use super::my_types::*;
-use super::ldap_filter;
+use crate::my_types::*;
+use crate::ldap_filter;
 
 pub struct LdapW<'a> {
     pub ldap: Ldap,
@@ -96,3 +96,9 @@ fn get_consume<T>(mut map: HashMap<String, Vec<T>>, key: &str) -> Vec<T> {
     map.remove(key).unwrap_or_default()
 }
 
+pub fn mono_attrs(attrs: HashMap<String, Vec<String>>) -> BTreeMap<String, String> {
+    attrs.into_iter().filter_map(|(attr, val)| {
+        let one = val.into_iter().next()?;
+        Some((attr, one))
+    }).collect()
+}

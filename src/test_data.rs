@@ -3,12 +3,12 @@ use ldap3::{Scope, SearchEntry, SearchOptions, Ldap, Mod};
 use ldap3::result::{Result, LdapResult};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use super::my_types::*;
-use super::ldap_wrapper::LdapW;
-use super::ldap_filter;
-use super::my_ldap;
-use super::my_ldap::{dn_to_url};
-use super::api;
+use crate::my_types::*;
+use crate::ldap_wrapper::LdapW;
+use crate::ldap_filter;
+use crate::my_ldap;
+use crate::my_ldap::{dn_to_url};
+use crate::api;
 
 async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str, description: &str) -> Result<LdapResult> {
     let dn = format!("ou={},dc=nodomain", ou);
