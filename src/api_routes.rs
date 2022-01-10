@@ -138,7 +138,7 @@ async fn sgroup_indirect_mright<'a>(id: String, mright: String, search_token: Op
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
-async fn search_subjects<'a>(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
+async fn search_subjects<'a>(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<BTreeMap<&String, Subjects>>, MyJson> {
     to_json(api::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
 }
 

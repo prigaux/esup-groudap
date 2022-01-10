@@ -445,7 +445,7 @@ pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, 
     get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await
 }
 
-pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<Subjects> {
+pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<BTreeMap<&String, Subjects>> {
     eprintln!("search_subjects({}, {:?})", search_token, source_dn);
 
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -455,7 +455,7 @@ pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String,
             Some(dn) if *dn != sscfg.dn => {},
             _ => {
                 let filter = sscfg.search_filter_(&search_token);
-                r.append(&mut ldp.search_subjects(&sscfg, dbg!(&filter), Some(sizelimit)).await?)
+                r.insert(&sscfg.dn, ldp.search_subjects(&sscfg, dbg!(&filter), Some(sizelimit)).await?);
             },
         }
     }
