@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use rocket::serde;
 use rocket::serde::{Deserialize, Serialize, de};
 
 use crate::systemd_calendar_events;
@@ -66,11 +67,11 @@ pub struct LdapConfig {
     pub bind_password: String,
     pub base_dn: String,
     pub groups_dn: String,
-    pub stem_object_class: String,
     pub stem_object_classes: HashSet<String>,
     pub group_object_classes: HashSet<String>,
     pub stem: StemConfig,
     pub subject_sources: Vec<SubjectSourceConfig>,
+    pub groups_flattened_attr: BTreeMap<Mright, String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -173,6 +174,9 @@ impl Attr {
 }
 
 impl Mright {
+    pub fn from_string(mright: &str) -> Result<Self, String> {
+        serde::json::from_str(&format!(r#""{}""#, mright)).map_err(|_| format!("invalid mright {}", mright))
+    }
     fn to_string(&self) -> &'static str {
         match self {
             Self::MEMBER => "member",
@@ -184,16 +188,7 @@ impl Mright {
     pub fn to_attr(&self) -> String {
         format!("memberURL;x-{}", self.to_string())
     }
-    pub fn list() -> Vec<Self> { vec![Self::MEMBER, Self::READER, Self::UPDATER, Self::ADMIN] }  
-    pub fn to_flattened_attr(&self) -> &'static str {
-        match self {
-            Self::MEMBER => "member",
-            Self::READER => "supannGroupeLecteurDN",
-            Self::UPDATER => "supannGroupeAdminDN",
-            Self::ADMIN => "owner",
-        }
-    }
-    
+    pub fn list() -> Vec<Self> { vec![Self::MEMBER, Self::READER, Self::UPDATER, Self::ADMIN] }     
 }
 impl Right {
     // NB: best right first

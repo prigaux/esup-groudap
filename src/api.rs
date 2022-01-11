@@ -194,7 +194,7 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
     let mut r = vec![];
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     for mright in Mright::list() {
-        for id in ldp.search_sgroups_id(&ldap_filter::eq(mright.to_flattened_attr(), &group_dn)).await? {
+        for id in ldp.search_sgroups_id(&ldap_filter::eq(ldp.config.to_flattened_attr(mright), &group_dn)).await? {
             r.push((id, mright));
         }
     }
@@ -204,7 +204,7 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
 enum UpResult { Modified, Unchanged }
 
 async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
-    let attr = mright.to_flattened_attr();
+    let attr = ldp.config.to_flattened_attr(mright);
     let mods = [
         if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, to_add) ] },
         if to_remove.is_empty() { vec![] } else { vec![ Mod::Delete(attr, to_remove) ] },
@@ -243,7 +243,7 @@ async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mri
             flattened_dns.insert("".to_owned());
         }
         let current_flattened_dns = HashSet::from_iter(
-            ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_flattened_attr()).await?
+            ldp.read_one_multi_attr__or_err(&group_dn, &ldp.config.to_flattened_attr(mright)).await?
         );
         let to_add = flattened_dns.difference(&current_flattened_dns).map(|s| s.as_str()).collect();
         let to_remove = current_flattened_dns.difference(&flattened_dns).map(|s| s.as_str()).collect();
@@ -463,4 +463,8 @@ pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String,
         }
     }
     Ok(r)
+}
+
+pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, mright: Mright, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
+    todo!();
 }

@@ -9,11 +9,11 @@ use rocket::serde::json::json;
 
 use rocket::outcome::{Outcome, try_outcome};
 use rocket::serde::{json::Json};
-use rocket::{Route, State, serde};
+use rocket::{Route, State};
 
 use ldap3::result::LdapError;
 
-use crate::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects};
+use crate::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs};
 use crate::api;
 use crate::test_data;
 use crate::cas_auth;
@@ -133,8 +133,14 @@ async fn sgroup_direct_rights<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Resu
 
 #[get("/sgroup_indirect_mright?<id>&<mright>&<search_token>&<sizelimit>")]
 async fn sgroup_indirect_mright<'a>(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
-    let mright = serde::json::from_str(&format!(r#""{}""#, &mright)).map_err(|e| err_to_json(e.to_string()))?;
+    let mright = Mright::from_string(&mright).map_err(err_to_json)?;
     to_json(api::get_sgroup_indirect_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
+}
+
+#[get("/search_sgroups?<mright>&<search_token>&<sizelimit>")]
+async fn search_sgroups<'a>(mright: String, search_token: String, sizelimit: i32, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
+    let mright = Mright::from_string(&mright).map_err(err_to_json)?;
+    to_json(api::search_sgroups(cfg_and_lu, mright, search_token, sizelimit).await)
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
@@ -155,7 +161,7 @@ pub fn routes() -> Vec<Route> {
     routes![
         login,
         clear_test_data, add_test_data, set_test_data, 
-        sgroup, sgroup_direct_rights, sgroup_indirect_mright, search_subjects,
+        sgroup, sgroup_direct_rights, sgroup_indirect_mright, search_sgroups, search_subjects,
         config_subject_sources,
         config_remotes,
         create, delete, modify_members_or_rights,

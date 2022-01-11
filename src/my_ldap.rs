@@ -94,7 +94,9 @@ impl LdapConfig {
         self.subject_sources.iter().find(|sscfg| dn.ends_with(&sscfg.dn))
     }
     
-    
+    pub fn to_flattened_attr(self: &Self, mright: Mright) -> &str {
+        self.groups_flattened_attr.get(&mright).unwrap()
+    }
 }
 
 pub fn dn_to_rdn_and_parent_dn(dn: &str) -> Option<(&str, &str)> {
@@ -310,11 +312,16 @@ mod tests {
             bind_password: "".to_owned(),
             base_dn: "dc=nodomain".to_owned(),
             groups_dn: "ou=groups,dc=nodomain".to_owned(),
-            stem_object_class: "".to_owned(),
             stem_object_classes: hashset![],
             group_object_classes: hashset![],
             stem: stem_config(),
             subject_sources: vec![],
+            groups_flattened_attr: btreemap![
+                Mright::MEMBER => "member".to_owned(),
+                Mright::READER => "supannGroupeLecteurDN".to_owned(),
+                Mright::UPDATER => "supannGroupeAdminDN".to_owned(),
+                Mright::ADMIN => "owner".to_owned(),
+            ],
         }
     }
 

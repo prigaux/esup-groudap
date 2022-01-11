@@ -10,9 +10,13 @@ bind_dn = "cn=admin,dc=nodomain"
 bind_password = "a"
 base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
-stem_object_class = "groupOfNames"
-group_object_classes = [ "supannGroupe", "up1SyncGroup", "groupOfNames" ]
 stem_object_classes = [ "up1SyncGroup", "organizationalRole" ]
+
+[default.ldap.groups_flattened_attr]
+member = "member"
+reader = "supannGroupeLecteurDN"
+updater = "supannGroupeAdminDN"
+admin = "owner"
 
 [[default.ldap.subject_sources]]
 dn = "ou=people,dc=nodomain"
@@ -25,7 +29,7 @@ vue_template_if_ambiguous = "${displayName} (${uid})"
 [[default.ldap.subject_sources]]
 dn = "ou=admin,dc=nodomain"
 name = "Applications"
-search_filter = "(|(cn=%TERM%)(displayName=*%TERM%*))"
+search_filter = "(& (|(cn=%TERM%)(displayName=*%TERM%*)) (objectClass=groupOfNames) )"
 display_attrs = ["displayName", "description", "cn"]
 # default template is "display first non empty attr value"
 
