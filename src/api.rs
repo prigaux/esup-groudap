@@ -5,7 +5,7 @@ use ldap3::result::{Result, LdapError};
 
 use crate::my_types::*;
 use crate::ldap_wrapper::LdapW;
-use crate::my_ldap;
+use crate::my_ldap::{self, dn_to_rdn_and_parent_dn};
 use crate::my_ldap::{dn_to_url, url_to_dn, url_to_dn_};
 use crate::ldap_filter;
 
@@ -322,14 +322,14 @@ impl SubjectSourceConfig {
     }
 }
 
-async fn get_subjects_from_same_source<'a>(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, dns: &[String], search_token: &Option<String>) -> Result<Subjects> {
-    let dns_filter = ldap_filter::or(dns.iter().map(|dn| ldap_filter::dn(dn.as_str())).collect());
+async fn get_subjects_from_same_branch<'a>(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, base_dn: &str, rdns: &[&str], search_token: &Option<String>) -> Result<Subjects> {
+    let rdns_filter = ldap_filter::or(rdns.iter().map(|rdn| ldap_filter::rdn(rdn)).collect());
     let filter = if let Some(term) = search_token {
-        ldap_filter::and2(&dns_filter,&sscfg.search_filter_(term))
+        ldap_filter::and2(&rdns_filter,&sscfg.search_filter_(term))
     } else {
-        dns_filter
+        rdns_filter
     };
-    ldp.search_subjects(sscfg, dbg!(&filter), None).await
+    ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await
 }
 
 
@@ -348,21 +348,24 @@ fn into_group_map<K: Eq + std::hash::Hash, V, I: Iterator<Item = (K, V)>>(iter: 
 async fn get_subjects<'a>(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
     let mut r = BTreeMap::new();
 
-    let sscfg2dns = into_group_map(dns.into_iter().filter_map(|dn| {
-        let sscfg = ldp.config.dn_to_subject_source_cfg(&dn)?;
-        Some((sscfg, dn))
+
+    let parent_dn_to_rdns = into_group_map(dns.iter().filter_map(|dn| {
+        let (rdn, parent_dn) = dn_to_rdn_and_parent_dn(&dn)?;
+        Some((parent_dn, rdn))
     }));
         
-    for (sscfg, dns) in sscfg2dns {
-        let mut count = 0;
-        for dns_ in dns.chunks(10) {
-            let subjects = &mut get_subjects_from_same_source(ldp, sscfg, dns_, search_token).await?;
-            count += subjects.len();
-            r.append(subjects);
-            if let Some(limit) = sizelimit {
-                if count > *limit { break; }
+    for (parent_dn, rdns) in parent_dn_to_rdns {
+        if let Some(sscfg) = ldp.config.dn_to_subject_source_cfg(parent_dn) {
+            let mut count = 0;
+            for rdns_ in rdns.chunks(10) {
+                let subjects = &mut get_subjects_from_same_branch(ldp, sscfg, parent_dn, rdns_, search_token).await?;
+                count += subjects.len();
+                r.append(subjects);
+                if let Some(limit) = sizelimit {
+                    if count > *limit { break; }
+                }
             }
-        }    
+        }
     }
 
     Ok(r)
@@ -455,7 +458,7 @@ pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String,
             Some(dn) if *dn != sscfg.dn => {},
             _ => {
                 let filter = sscfg.search_filter_(&search_token);
-                r.insert(&sscfg.dn, ldp.search_subjects(&sscfg, dbg!(&filter), Some(sizelimit)).await?);
+                r.insert(&sscfg.dn, ldp.search_subjects(&sscfg.dn, &sscfg.display_attrs, dbg!(&filter), Some(sizelimit)).await?);
             },
         }
     }

@@ -3,6 +3,7 @@ use ldap3::{Scope, SearchEntry, Mod, SearchOptions};
 use ldap3::result::{Result, LdapError};
 type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
+use crate::helpers::before_and_after;
 use crate::ldap_wrapper::mono_attrs;
 
 use crate::ldap_wrapper::LdapW;
@@ -94,6 +95,10 @@ impl LdapConfig {
     }
     
     
+}
+
+pub fn dn_to_rdn_and_parent_dn(dn: &str) -> Option<(&str, &str)> {
+    before_and_after(dn, ",")
 }
 
 pub fn dn_to_url(dn: &str) -> String {
@@ -195,10 +200,10 @@ impl LdapW<'_> {
         Ok(user_groups)
     }
 
-    pub async fn search_subjects<'f>(self: &mut Self, sscfg: &SubjectSourceConfig, filter: &'f str, sizelimit: Option<i32>) -> Result<Subjects> {
-        let attrs = shallow_copy_vec(&sscfg.display_attrs);
+    pub async fn search_subjects<'f>(self: &mut Self, base_dn: &str, attrs: &Vec<String>, filter: &'f str, sizelimit: Option<i32>) -> Result<Subjects> {
+        let attrs = shallow_copy_vec(attrs);
         let (rs, _res) = self.ldap.with_search_options(search_options(sizelimit))
-            .search(dbg!(&sscfg.dn), Scope::Subtree, dbg!(filter), attrs).await?.success()?;
+            .search(base_dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
         Ok(rs.into_iter().map(|r| { 
             let entry = SearchEntry::construct(r);
             (entry.dn, mono_attrs(entry.attrs))

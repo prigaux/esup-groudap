@@ -1,15 +1,4 @@
-fn after<'a>(s : &'a str, start: &'a str) -> Option<&'a str> {
-    let pos = s.find(start)?;
-    Some(&s[pos + start.len() ..])
-}
-
-fn before<'a>(s: &'a str, end: &'a str) -> Option<&'a str> {
-    Some(&s[..s.find(end)?])
-}
-
-fn between<'a>(s: &'a str, start: &'a str, end: &'a str) -> Option<&'a str> {
-    after(s, start).and_then(|s| before(s, end))
-}
+use crate::helpers::between;
 
 fn parse_cas_response(body: &str) -> Option<&str> {
     if body.contains("<cas:authenticationSuccess>") {

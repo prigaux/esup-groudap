@@ -1,9 +1,5 @@
 use ldap3::{ldap_escape};
 
-fn before<'a>(s: &'a str, end: &'a str) -> Option<&'a str> {
-    Some(&s[..s.find(end)?])
-}
-
 pub fn true_() -> &'static str {
     "(objectClass=*)"
 }
@@ -31,8 +27,7 @@ pub fn or(l : Vec<String>) -> String {
     }
 }
 
-pub fn dn(dn: &str) -> String {
-    let rdn = before(dn, ",").unwrap();
+pub fn rdn(rdn: &str) -> String {
     format!("({})", rdn)
 }
 
