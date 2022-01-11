@@ -1,7 +1,7 @@
 use std::collections::{HashSet};
 use ldap3::{Scope, SearchEntry, Mod, SearchOptions};
 use ldap3::result::{Result, LdapError};
-type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
+type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::helpers::before_and_after;
 use crate::ldap_wrapper::mono_attrs;
@@ -97,6 +97,15 @@ impl LdapConfig {
     pub fn to_flattened_attr(self: &Self, mright: Mright) -> &str {
         self.groups_flattened_attr.get(&mright).unwrap()
     }
+
+    pub fn validate_sgroups_attrs(self: &Self, attrs: &MonoAttrs) -> Result<()> {
+        for (attr, _) in attrs {
+            if !self.sgroup_attrs.contains_key(attr) {
+                return Err(LdapError::AdapterInit(format!("sgroup attr {} is not listed in conf [ldap.sgroup_attrs]", attr)))
+            }
+        }
+        Ok(())
+    }
 }
 
 pub fn dn_to_rdn_and_parent_dn(dn: &str) -> Option<(&str, &str)> {
@@ -139,7 +148,7 @@ impl LdapW<'_> {
         self.is_sgroup_matching_filter(id, ldap_filter::true_()).await
     }
     
-    pub async fn ldap_add_group(self: &mut Self, cn: &str, attrs: LdapAttrs<'_>) -> Result<()> {
+    pub async fn ldap_add_group(self: &mut Self, cn: &str, attrs: CreateLdapAttrs<'_>) -> Result<()> {
         let is_stem = self.config.stem.is_stem(cn);
         let base_attrs = {
             let object_classes = if is_stem {
@@ -172,14 +181,15 @@ impl LdapW<'_> {
         self.read(&dn, attrs).await
     }
 
-    pub async fn search_sgroups<'f>(self: &mut Self, filter: &'f str, attrs: Vec<&str>) -> Result<impl Iterator<Item = SearchEntry> + 'f> {
-        let (rs, _res) = self.ldap.search(&self.config.groups_dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
+    pub async fn search_sgroups<'f>(self: &mut Self, filter: &'f str, attrs: Vec<&String>, sizelimit: Option<i32>) -> Result<impl Iterator<Item = SearchEntry> + 'f> {
+        let (rs, _res) = self.ldap.with_search_options(search_options(sizelimit))
+            .search(&self.config.groups_dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
         let z = rs.into_iter().map(|r| { SearchEntry::construct(r) });
         Ok(z)
     }   
 
     pub async fn search_sgroups_dn<'f>(self: &mut Self, filter: &'f str) -> Result<impl Iterator<Item = String> + 'f> {
-        Ok(self.search_sgroups(dbg!(filter), vec![""]).await?.map(|e| { e.dn }))
+        Ok(self.search_sgroups(dbg!(filter), vec![&"".to_owned()], None).await?.map(|e| { e.dn }))
     }
     
     pub async fn search_sgroups_id<'f>(self: &mut Self, filter: &'f str) -> Result<HashSet<String>> {
@@ -216,16 +226,23 @@ impl LdapW<'_> {
 
 
 // re-format: vector of (string key, hashset value)
-fn to_ldap_attrs<'a>(attrs: &'a SgroupAttrs) -> LdapAttrs<'a> {
+fn mono_to_multi_attrs<'a>(attrs: &'a MonoAttrs) -> CreateLdapAttrs<'a> {
     attrs.iter().map(|(name, value)|
-        (name.to_string(), hashset![&value as &str])
+        (name.as_str(), hashset![&value as &str])
     ).collect()
 }
 
-pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: SgroupAttrs) -> Result<()> {    
-    ldp.ldap_add_group(id, to_ldap_attrs(&attrs)).await
+pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {    
+    ldp.ldap_add_group(id, mono_to_multi_attrs(&attrs)).await
 }
 
+pub async fn modify_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {    
+    let mods = attrs.into_iter().map(|(attr, val)| {
+        Mod::Replace(attr, hashset![val])
+    }).collect();
+    ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
+    Ok(())
+}
 
 fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
     let mut r = vec![];
@@ -316,6 +333,7 @@ mod tests {
             group_object_classes: hashset![],
             stem: stem_config(),
             subject_sources: vec![],
+            sgroup_attrs: btreemap![],
             groups_flattened_attr: btreemap![
                 Mright::MEMBER => "member".to_owned(),
                 Mright::READER => "supannGroupeLecteurDN".to_owned(),

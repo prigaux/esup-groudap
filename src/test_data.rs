@@ -1,7 +1,7 @@
 use std::collections::{HashSet};
 use ldap3::{Scope, SearchEntry, SearchOptions, Ldap, Mod};
 use ldap3::result::{Result, LdapResult};
-type LdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
+type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::my_types::*;
 use crate::ldap_wrapper::LdapW;
@@ -19,7 +19,7 @@ async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str, description: &str) -> Res
     ]).await
 }
 
-async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: LdapAttrs<'_>) -> Result<LdapResult> {
+async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: CreateLdapAttrs<'_>) -> Result<LdapResult> {
     let dn = format!("uid={},ou=people,dc=nodomain", uid);
     let all_attrs = [ vec![
         ("objectClass", hashset!{"inetOrgPerson", "shadowAccount"}),
@@ -91,13 +91,13 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
     let cfg_and_aanli   = || CfgAndLU { user: LoggedUser::User("aanli".to_owned()), ..cfg_and_lu };
 
     let collab_attrs = || btreemap!{ 
-        Attr::Ou => "Collaboration".to_owned(),
-        Attr::Description => "Collaboration".to_owned(),
+        "ou".to_owned() => "Collaboration".to_owned(),
+        "description".to_owned() => "Collaboration".to_owned(),
     };
     api::create(cfg_and_prigaux(), "collab.", collab_attrs()).await?;
     let collab_dsiun_attrs = || btreemap!{
-        Attr::Ou => "Collaboration DSIUN".to_owned(),
-        Attr::Description => "Collaboration DSIUN".to_owned(),
+        "ou".to_owned() => "Collaboration DSIUN".to_owned(),
+        "description".to_owned() => "Collaboration DSIUN".to_owned(),
     };
     api::create(cfg_and_prigaux(), "collab.DSIUN", collab_dsiun_attrs()).await?;
 
@@ -118,18 +118,18 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
                SgroupAndMoreOut { right: Right::UPDATER, more: SgroupOutMore::Group { direct_members: prigaux_subject() }, attrs: collab_dsiun_attrs() });
 
     api::create(cfg_and_prigaux(), "applications.", btreemap!{ 
-        Attr::Ou => "Applications".to_owned(),
-        Attr::Description => "Applications".to_owned(),
+        "ou".to_owned() => "Applications".to_owned(),
+        "description".to_owned() => "Applications".to_owned(),
     }).await?;
 
     api::create(cfg_and_prigaux(), "applications.grouper.", btreemap!{ 
-        Attr::Ou => "Grouper".to_owned(),
-        Attr::Description => "Grouper".to_owned(),
+        "ou".to_owned() => "Grouper".to_owned(),
+        "description".to_owned() => "Grouper".to_owned(),
     }).await?;
 
     api::create(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
-        Attr::Ou => "Grouper super admins".to_owned(),
-        Attr::Description => "Grouper admins de toute l'arborescence".to_owned(),
+        "ou".to_owned() => "Grouper super admins".to_owned(),
+        "description".to_owned() => "Grouper admins de toute l'arborescence".to_owned(),
     }).await?;
     api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::MEMBER => btreemap!{ MyMod::ADD => hashset![dn_to_url(&prigaux_dn())] },
@@ -148,8 +148,8 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
         SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Stem { children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()} }, attrs: collab_attrs() });
 
     let collab_foo_attrs = || btreemap!{
-        Attr::Ou => "Collab Foo".to_owned(),
-        Attr::Description => "Collab Foo".to_owned(),
+        "ou".to_owned() => "Collab Foo".to_owned(),
+        "description".to_owned() => "Collab Foo".to_owned(),
     };
     api::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
 

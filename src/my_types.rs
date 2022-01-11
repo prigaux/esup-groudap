@@ -23,11 +23,23 @@ fn remotes_periodicity_checker<'de, D>(d: D) -> Result<BTreeMap<String, RemoteCo
         for (remote_id, cfg) in &remotes {
             if let Err(_) = systemd_calendar_events::next_elapse(vec![&cfg.periodicity]) {
                 let msg = format!("a valid periodicity for remote {}. Hint: validate it with ''systemd-analyze calendar ....''", remote_id);
-                return Err(de::Error::invalid_value(de::Unexpected::Str(cfg.periodicity.as_str()), &msg.as_str()));
+                return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.periodicity), &msg.as_str()));
             }
         }
     }
     Ok(remotes)
+}
+
+fn ldap_config_checker<'de, D>(d: D) -> Result<LdapConfig, D::Error>
+    where D: de::Deserializer<'de>
+{
+    let cfg : LdapConfig = LdapConfig::deserialize(d)?;
+    
+    if cfg.sgroup_sscfg().is_none() {
+        let msg = format!("''ldap.groups_dn'' to be listed in ''ldap.subject_sources''");
+        return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.groups_dn), &msg.as_str()));
+    }
+    Ok(cfg)
 }
 
 #[derive(Deserialize)]
@@ -56,8 +68,12 @@ pub struct SubjectSourceConfig {
     pub search_filter : String,
     #[serde(skip_serializing)]
     pub display_attrs : Vec<String>,
-    #[serde(skip_serializing)]
-    pub flatten_using : Option<SubjectSourceFlattenConfig>,
+}
+
+#[derive(Deserialize)]
+pub struct AttrTexts {
+    pub label: String,
+    pub description: String,
 }
 
 #[derive(Deserialize)]
@@ -72,6 +88,13 @@ pub struct LdapConfig {
     pub stem: StemConfig,
     pub subject_sources: Vec<SubjectSourceConfig>,
     pub groups_flattened_attr: BTreeMap<Mright, String>,
+    pub sgroup_attrs: BTreeMap<String, AttrTexts>,
+}
+
+impl LdapConfig {
+    pub fn sgroup_sscfg(self: &Self) -> Option<&SubjectSourceConfig> {
+        self.subject_sources.iter().find(|sscfg| sscfg.dn == self.groups_dn)
+    }    
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -96,6 +119,7 @@ pub struct RemoteConfig {
 pub struct Config {
     pub trusted_auth_bearer: Option<String>,
     pub cas: CasConfig,
+    #[serde(deserialize_with = "ldap_config_checker")] 
     pub ldap: LdapConfig,
     #[serde(deserialize_with = "remotes_periodicity_checker")] 
     pub remotes: BTreeMap<String, RemoteConfig>,
@@ -118,21 +142,17 @@ pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
 #[derive(PartialEq, Eq, Deserialize, Serialize, Copy, Clone, Debug)]
 pub enum GroupKind { GROUP, STEM }
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum Attr { Ou, Description }
-pub type SgroupAttrs = BTreeMap<Attr, String>;
+pub type MonoAttrs = BTreeMap<String, String>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupOut {
     #[serde(flatten)]
-    pub attrs: SgroupAttrs,
+    pub attrs: MonoAttrs,
     pub kind: GroupKind,
 }
 
-pub type SgroupsWithAttrs = BTreeMap<String, SgroupAttrs>;
-pub type SubjectAttrs = BTreeMap<String, String>;
-pub type Subjects = BTreeMap<String, SubjectAttrs>;
+pub type SgroupsWithAttrs = BTreeMap<String, MonoAttrs>;
+pub type Subjects = BTreeMap<String, MonoAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -144,33 +164,11 @@ pub enum SgroupOutMore {
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupAndMoreOut {
     #[serde(flatten)]
-    pub attrs: SgroupAttrs,
+    pub attrs: MonoAttrs,
     #[serde(flatten)]
     pub more: SgroupOutMore,
 
     pub right: Right,
-}
-
-
-const ATTR_LIST: [Attr; 2] = [Attr::Ou, Attr::Description];
-impl Attr {
-    pub fn to_string(&self) -> &'static str {
-        match self {
-            Self::Ou => "ou",
-            Self::Description => "description",
-        }
-    }
-    pub fn from_string(attr: &str) -> Option<Self> {
-        match attr {
-            "ou" => Some(Self::Ou),
-            "description" => Some(Self::Description),
-            _ => None,
-        }
-    }
-    pub fn list<'a>() -> std::slice::Iter<'a, Attr> { ATTR_LIST.iter() }
-    pub fn list_as_string() -> Vec<&'static str> {
-        Self::list().map(|attr| attr.to_string()).collect()
-    }
 }
 
 impl Mright {

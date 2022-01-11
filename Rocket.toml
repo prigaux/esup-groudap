@@ -12,6 +12,11 @@ base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
 stem_object_classes = [ "up1SyncGroup", "organizationalRole" ]
 
+[default.ldap.sgroup_attrs]
+cn = { label = "ID du groupe", description = "l'ID est l'identifiant unique de ce groupe au sein du dossier. Il doit être simple et court, et peut avoir des restrictions de caractères. Une fois créé, il est déconseillé de le modifier." }
+ou = { label = "Nom du groupe", description = "Le nom du groupe, il peut être modifié ultérieurement." }
+description = { label = "Description", description = "La description contient des informations sur le groupe, par exemple : ce que le groupe représente, pourquoi il a été créé..." }
+
 [default.ldap.groups_flattened_attr]
 member = "member"
 reader = "supannGroupeLecteurDN"
@@ -36,7 +41,6 @@ display_attrs = ["displayName", "description", "cn"]
 [[default.ldap.subject_sources]]
 dn = "ou=groups,dc=nodomain"
 name = "Groupe"
-flatten_using = { attr = "member" }
 search_filter = "(|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*))"
 display_attrs = ["ou", "description", "cn"]
 # default template is "display first non empty attr value"

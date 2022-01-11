@@ -13,7 +13,7 @@ use rocket::{Route, State};
 
 use ldap3::result::LdapError;
 
-use crate::my_types::{SgroupAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs};
+use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs};
 use crate::api;
 use crate::test_data;
 use crate::cas_auth;
@@ -104,9 +104,16 @@ async fn add_test_data<'a>(cfg_and_lu : CfgAndLU<'a>) -> MyJson {
 }
 
 #[post("/create?<id>", data = "<attrs>")]
-async fn create<'a>(id: String, attrs: Json<SgroupAttrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
+async fn create<'a>(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
     action_result(
         api::create(cfg_and_lu, &id, attrs.into_inner()).await
+    )
+}
+
+#[post("/modify?<id>", data = "<attrs>")]
+async fn modify<'a>(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
+    action_result(
+        api::modify_sgroup_attrs(cfg_and_lu, &id, attrs.into_inner()).await
     )
 }
 
@@ -164,6 +171,6 @@ pub fn routes() -> Vec<Route> {
         sgroup, sgroup_direct_rights, sgroup_indirect_mright, search_sgroups, search_subjects,
         config_subject_sources,
         config_remotes,
-        create, delete, modify_members_or_rights,
+        create, modify, delete, modify_members_or_rights,
     ]
 }

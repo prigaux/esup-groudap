@@ -4,7 +4,7 @@ use ldap3::{SearchEntry, Mod};
 use ldap3::result::{Result, LdapError};
 
 use crate::my_types::*;
-use crate::ldap_wrapper::LdapW;
+use crate::ldap_wrapper::{LdapW, mono_attrs};
 use crate::my_ldap::{self, dn_to_rdn_and_parent_dn};
 use crate::my_ldap::{dn_to_url, url_to_dn, url_to_dn_};
 use crate::ldap_filter;
@@ -135,12 +135,22 @@ async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Res
 }
 
 
-pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: SgroupAttrs) -> Result<()> {
+pub async fn create<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: MonoAttrs) -> Result<()> {
     eprintln!("create({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    cfg_and_lu.cfg.ldap.validate_sgroups_attrs(&attrs)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::ADMIN).await?;
     my_ldap::create_sgroup(ldp, id, attrs).await
+}
+
+pub async fn modify_sgroup_attrs<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, attrs: MonoAttrs) -> Result<()> {
+    eprintln!("modify_attrs({}, _)", id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    cfg_and_lu.cfg.ldap.validate_sgroups_attrs(&attrs)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    check_right_on_self_or_any_parents(ldp, id, Right::ADMIN).await?;
+    my_ldap::modify_sgroup_attrs(ldp, id, attrs).await
 }
 
 pub async fn delete<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<()> {
@@ -290,26 +300,18 @@ pub async fn modify_members_or_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, my
     l.iter().any(|e| e == s)
 }*/
 
-fn attrs_to_sgroup_attrs(attrs: HashMap<String, Vec<String>>) -> SgroupAttrs {
-    attrs.into_iter().filter_map(|(attr, val)| {
-        let attr = Attr::from_string(&attr)?;
-        let one = val.into_iter().next()?;
-        Some((attr, one))
-    }).collect()
-}
-
 /*
 fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
     v.iter().map(AsRef::as_ref).collect()
 }
 
-async fn subject_to_attrs<'a>(ldp: &mut LdapW<'_>, dn: &str) -> Result<SubjectAttrs> {
+async fn subject_to_attrs<'a>(ldp: &mut LdapW<'_>, dn: &str) -> Result<MonoAttrs> {
     let sscfg = ldp.config.dn_to_subject_source_cfg(dn)
             .ok_or_else(|| LdapError::AdapterInit(format!("DN {} has no corresponding subject source", dn)))?;
     subject_to_attrs_(ldp, dn, sscfg).await
 }
 
-async fn subject_to_attrs_<'a>(ldp: &mut LdapW<'_>, dn: &str, sscfg: &SubjectSourceConfig) -> Result<SubjectAttrs> {
+async fn subject_to_attrs_<'a>(ldp: &mut LdapW<'_>, dn: &str, sscfg: &SubjectSourceConfig) -> Result<MonoAttrs> {
     let entry = ldp.read(dn, shallow_copy_vec(&sscfg.display_attrs)).await?
             .ok_or_else(|| LdapError::AdapterInit(format!("invalid DN {}", dn)))?;
     Ok(mono_attrs(entry.attrs))
@@ -373,15 +375,13 @@ async fn get_subjects<'a>(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &
 
 pub async fn get_children(ldp: &mut LdapW<'_>, id: &str) -> Result<SgroupsWithAttrs> {
     eprintln!("  get_children({})", id);
-    let wanted_attrs = Attr::list_as_string();
+    let wanted_attrs = ldp.config.sgroup_attrs.keys().collect();
     let filter = ldap_filter::sgroup_children(id);
-    let children = ldp.search_sgroups(&filter, wanted_attrs).await?.filter_map(|e| {
+    let children = ldp.search_sgroups(&filter, wanted_attrs, None).await?.filter_map(|e| {
         let child_id = ldp.config.dn_to_sgroup_id(&e.dn)?;
         // ignore grandchildren
         if ldp.config.stem.is_grandchild(id, &child_id) { return None }
-        let attrs: SgroupAttrs = e.attrs.into_iter().filter_map(|(attr, mut vals)| {
-            Some((Attr::from_string(&attr).unwrap(), vals.pop()?))
-        }).collect();
+        let attrs: MonoAttrs = mono_attrs(e.attrs);
         Some((child_id, attrs))
     }).collect();
     Ok(children)
@@ -394,13 +394,13 @@ pub async fn get_sgroup<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) -> Result<Sgroup
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
     let direct_member_attr = Mright::MEMBER.to_attr();
-    let wanted_attrs = [ Attr::list_as_string(), vec![ &direct_member_attr ] ].concat();
+    let wanted_attrs = [ ldp.config.sgroup_attrs.keys().collect(), vec![ &direct_member_attr ] ].concat();
     if let Some(entry) = ldp.read_sgroup(id, wanted_attrs).await? {
         let mut attrs = entry.attrs;
         let direct_members = attrs.remove(&direct_member_attr);
         //eprintln!("      read sgroup {} => {:?}", id, entry);
         let is_stem = ldp.config.stem.is_stem(id);
-        let attrs = attrs_to_sgroup_attrs(attrs);
+        let attrs = mono_attrs(attrs);
         let right = best_right_on_self_or_any_parents(ldp, id).await?
                 .ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
         let more = if is_stem { 
@@ -450,7 +450,6 @@ pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, 
 
 pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<BTreeMap<&String, Subjects>> {
     eprintln!("search_subjects({}, {:?})", search_token, source_dn);
-
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     let mut r = btreemap![];
     for sscfg in &cfg_and_lu.cfg.ldap.subject_sources {
@@ -466,5 +465,15 @@ pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String,
 }
 
 pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, mright: Mright, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
-    todo!();
+    eprintln!("search_sgroups({}, {:?})", search_token, mright);
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+
+    let wanted_attrs = ldp.config.sgroup_attrs.keys().collect();
+    let filter = ldp.config.sgroup_sscfg().unwrap().search_filter_(&search_token);
+    let sgroups = ldp.search_sgroups(&filter, wanted_attrs, Some(sizelimit)).await?.filter_map(|e| {
+        let id = ldp.config.dn_to_sgroup_id(&e.dn)?;
+        let attrs: MonoAttrs = mono_attrs(e.attrs);
+        Some((id, attrs))
+    }).collect();
+    Ok(sgroups)
 }
