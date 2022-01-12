@@ -152,6 +152,12 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
         "description".to_owned() => "Collab Foo".to_owned(),
     };
     api::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
+    api::modify_members_or_rights(cfg_and_prigaux(), "collab.foo", btreemap!{
+        Mright::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
+    }).await?;
+    assert_eq!(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::ADMIN).await?, vec![
+        ldp.config.sgroup_id_to_dn("collab.DSIUN"), prigaux_dn(),
+    ]);
 
     eprintln!(r#"remove last "member". Need to put an empty member back"#);
     api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
@@ -174,6 +180,12 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
             "collab.foo".to_owned() => collab_foo_attrs(),
         } }, right: Right::ADMIN }
     );
+    assert_eq!(api::mygroups(cfg_and_prigaux()).await?, btreemap![
+        "collab.foo".to_owned() => collab_foo_attrs(),
+    ]);
+    assert_eq!(api::mygroups(cfg_and_aanli()).await?, btreemap!{
+        "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
+    });
 
     Ok(())
 }

@@ -58,12 +58,7 @@ async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<Str
 
 
 /*async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {    
-    fn user_has_right_filter(user_dn: &str, right: &Right) -> String {
-        ldap_filter::or(right.to_allowed_rights().iter().map(|r| 
-            ldap_filter::eq(r.to_flattened_attr(), user_dn)
-        ).collect())
-    }
-    let filter = user_has_right_filter(&ldp.config.people_id_to_dn(user), right);
+    let filter = user_has_direct_right_on_group_filter(&ldp.config.people_id_to_dn(user), right);
     ldp.is_sgroup_matching_filter(id, &filter).await
 }*/
 
@@ -230,11 +225,11 @@ async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mr
     }
 }
 
-async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>, mright: Mright) -> Result<HashSet<String>> {
+async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
     let mut r = direct_dns.clone();
     for dn in direct_dns {
         if ldp.config.dn_is_sgroup(dn) {
-            r.extend(ldp.read_flattened_mright(&dn, mright).await?);
+            r.extend(ldp.read_flattened_mright(&dn, Mright::MEMBER).await?);
         }
     }
     Ok(r)
@@ -248,7 +243,7 @@ async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mri
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     let direct_urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
     if let Some(direct_dns) = direct_urls.into_iter().map(|url| url_to_dn_(url)).collect::<Option<HashSet<_>>>() {
-        let mut flattened_dns = get_flattened_dns(ldp, &direct_dns, mright).await?;
+        let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
         if flattened_dns.is_empty() && mright == Mright::MEMBER {
             flattened_dns.insert("".to_owned());
         }
@@ -436,8 +431,8 @@ pub async fn get_sgroup_direct_rights<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str) ->
     }
 }
 
-pub async fn get_sgroup_indirect_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, mright: Mright, search_token: Option<String>, sizelimit: Option<usize>) -> Result<Subjects> {
-    eprintln!("get_sgroup_indirect_mright({})", id);
+pub async fn get_group_flattened_mright<'a>(cfg_and_lu: CfgAndLU<'a>, id: &str, mright: Mright, search_token: Option<String>, sizelimit: Option<usize>) -> Result<Subjects> {
+    eprintln!("get_group_flattened_mright({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
@@ -464,16 +459,34 @@ pub async fn search_subjects<'a>(cfg_and_lu: CfgAndLU<'a>, search_token: String,
     Ok(r)
 }
 
-pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, mright: Mright, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
-    eprintln!("search_sgroups({}, {:?})", search_token, mright);
-    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
-
+async fn search_sgroups_with_attrs(ldp: &mut LdapW<'_>, filter: &str, sizelimit: Option<i32>) -> Result<SgroupsWithAttrs> {
     let wanted_attrs = ldp.config.sgroup_attrs.keys().collect();
-    let filter = ldp.config.sgroup_sscfg().unwrap().search_filter_(&search_token);
-    let sgroups = ldp.search_sgroups(&filter, wanted_attrs, Some(sizelimit)).await?.filter_map(|e| {
+    let groups = ldp.search_sgroups(&filter, wanted_attrs, sizelimit).await?.filter_map(|e| {
         let id = ldp.config.dn_to_sgroup_id(&e.dn)?;
         let attrs: MonoAttrs = mono_attrs(e.attrs);
         Some((id, attrs))
     }).collect();
-    Ok(sgroups)
+    Ok(groups)
+}
+
+// returns groups user has DIRECT right update|admin
+// (inherited rights via stems are not taken into account)
+pub async fn mygroups<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<SgroupsWithAttrs> {
+    eprintln!("mygroups()");
+    match &cfg_and_lu.user {
+        LoggedUser::TrustedAdmin => Err(LdapError::AdapterInit(format!("mygroups need a real user"))),
+        LoggedUser::User(user) => {
+            let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+            let filter = ldp.config.user_has_direct_right_on_group_filter(&ldp.config.people_id_to_dn(&user), &Right::UPDATER);
+            search_sgroups_with_attrs(ldp, &filter, None).await
+        },
+    }
+}
+
+pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, mright: Mright, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
+    eprintln!("search_sgroups({}, {:?})", search_token, mright);
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+
+    let filter = ldp.config.sgroup_sscfg().unwrap().search_filter_(&search_token);
+    search_sgroups_with_attrs(ldp, &filter, Some(sizelimit)).await
 }

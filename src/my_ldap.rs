@@ -106,6 +106,13 @@ impl LdapConfig {
         }
         Ok(())
     }
+
+    pub fn user_has_direct_right_on_group_filter(self: &Self, user_dn: &str, right: &Right) -> String {
+        ldap_filter::or(right.to_allowed_rights().iter().map(|r| 
+            ldap_filter::eq(self.to_flattened_attr(r.to_mright()), user_dn)
+        ).collect())
+    }    
+    
 }
 
 pub fn dn_to_rdn_and_parent_dn(dn: &str) -> Option<(&str, &str)> {

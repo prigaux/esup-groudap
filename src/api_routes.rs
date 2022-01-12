@@ -138,16 +138,21 @@ async fn sgroup_direct_rights<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> Resu
     to_json(api::get_sgroup_direct_rights(cfg_and_lu, &id).await)
 }
 
-#[get("/sgroup_indirect_mright?<id>&<mright>&<search_token>&<sizelimit>")]
-async fn sgroup_indirect_mright<'a>(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
+#[get("/group_flattened_mright?<id>&<mright>&<search_token>&<sizelimit>")]
+async fn group_flattened_mright<'a>(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<Subjects>, MyJson> {
     let mright = Mright::from_string(&mright).map_err(err_to_json)?;
-    to_json(api::get_sgroup_indirect_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
+    to_json(api::get_group_flattened_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
 
 #[get("/search_sgroups?<mright>&<search_token>&<sizelimit>")]
 async fn search_sgroups<'a>(mright: String, search_token: String, sizelimit: i32, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
     let mright = Mright::from_string(&mright).map_err(err_to_json)?;
     to_json(api::search_sgroups(cfg_and_lu, mright, search_token, sizelimit).await)
+}
+
+#[get("/mygroups")]
+async fn mygroups<'a>(cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
+    to_json(api::mygroups(cfg_and_lu).await)
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
@@ -168,7 +173,7 @@ pub fn routes() -> Vec<Route> {
     routes![
         login,
         clear_test_data, add_test_data, set_test_data, 
-        sgroup, sgroup_direct_rights, sgroup_indirect_mright, search_sgroups, search_subjects,
+        sgroup, sgroup_direct_rights, group_flattened_mright, search_sgroups, search_subjects, mygroups,
         config_subject_sources,
         config_remotes,
         create, modify, delete, modify_members_or_rights,
