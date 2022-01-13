@@ -131,6 +131,7 @@ pub struct Config {
 pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum Right { READER, UPDATER, ADMIN }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]

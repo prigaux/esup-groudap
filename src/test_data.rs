@@ -192,6 +192,21 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     });
 
+    assert_eq!(api::search_sgroups(cfg_and_prigaux(), Right::READER, "collaboration".to_owned(), 99).await?, btreemap![
+        "collab.".to_owned() => collab_attrs(),
+        "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
+    ]);
+    assert_eq!(api::search_sgroups(cfg_and_prigaux(), Right::ADMIN, "collaboration".to_owned(), 99).await?, btreemap![
+        "collab.".to_owned() => collab_attrs(),
+        "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
+    ]);
+    assert_eq!(api::search_sgroups(cfg_and_aanli(), Right::UPDATER, "collaboration".to_owned(), 99).await?, btreemap![
+        "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
+    ]);
+    assert_eq!(api::search_sgroups(cfg_and_aanli(), Right::ADMIN, "collaboration".to_owned(), 99).await?, btreemap![
+    ]);
+
+
     Ok(())
 }
 

@@ -108,10 +108,19 @@ impl LdapConfig {
     }
 
     pub fn user_has_direct_right_on_group_filter(self: &Self, user_dn: &str, right: &Right) -> String {
-        ldap_filter::or(right.to_allowed_rights().iter().map(|r| 
+        ldap_filter::or(right.to_allowed_rights().into_iter().map(|r| 
             ldap_filter::eq(self.to_flattened_attr(r.to_mright()), user_dn)
         ).collect())
     }    
+    
+    pub fn sgroup_filter(self: &Self, id: &str) -> String {
+        if id == "" {
+            "(objectClass=organizationalUnit)".to_owned()
+        } else {
+            ldap_filter::eq("cn", id)
+        }
+    }
+   
     
 }
 

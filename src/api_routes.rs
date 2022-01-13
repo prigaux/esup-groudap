@@ -84,7 +84,7 @@ fn action_result(r : Result<(), LdapError>) -> MyJson {
 
 #[get("/login?<ticket>")]
 async fn login(ticket: String, jar: &CookieJar<'_>, config: &State<Config>) -> Result<(), String> {
-    let service = "http://localhost"; // TODO
+    let service = "http://localhost:8000/login"; // TODO
     let user = cas_auth::validate_ticket(&config.cas.prefix_url, service, &ticket).await?;
     jar.add_private(Cookie::new("user_id", user));
     Ok(())

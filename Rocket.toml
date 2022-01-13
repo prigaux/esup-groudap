@@ -11,10 +11,10 @@ bind_password = "a"
 base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
 group_object_classes = [ "up1SyncGroup", "groupOfNames", "supannGroupe" ]
-stem_object_classes = [ "up1SyncGroup", "organizationalRole" ]
+stem_object_classes = [ "up1SyncGroup", "organizationalRole" ] # root stem will have up1SyncGroup & organizationalUnit
 
 [default.ldap.stem]
-filter = "(objectClass=organizationalRole)"
+filter = "(&(objectClass=up1SyncGroup)(!(objectClass=groupOfNames)))"
 #default_separator = "."
 
 [default.ldap.sgroup_attrs]

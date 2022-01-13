@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet, HashMap};
 
-use ldap3::{SearchEntry, Mod};
+use ldap3::{Mod};
 use ldap3::result::{Result, LdapError};
 
 use crate::my_types::*;
@@ -19,13 +19,23 @@ async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
     r
 }
 
-async fn user_has_right_on_sgroup(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str, right: &Right) -> Result<bool> {
-    let filter = ldap_filter::or(
+fn user_has_right_on_sgroup_filter(user_urls: &HashSet<String>, right: &Right) -> String {
+    ldap_filter::or(
         right.to_allowed_attrs().into_iter().flat_map(|attr| {
             user_urls.iter().map(|url| ldap_filter::eq(&attr,&url)).collect::<Vec<_>>()
         }).collect()
+    )
+}
+
+async fn user_has_right_on_at_least_one_sgroups(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, ids: Vec<&str>, right: &Right) -> Result<bool> {    
+    let ids_filter = ldap_filter::or(ids.into_iter().map(|id| ldp.config.sgroup_filter(id)).collect());
+    let filter = ldap_filter::and2(
+        &ids_filter,
+        &user_has_right_on_sgroup_filter(user_urls, right),
     );
-    Ok(ldp.is_sgroup_matching_filter(id, &filter).await?)
+    
+    //user_has_right_on_sgroup_filter(right);
+    Ok(ldp.one_group_matches_filter(&filter).await?)
 }
 
 async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str) -> Result<Option<Right>> {
@@ -51,16 +61,6 @@ async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<Str
     ldp.is_sgroup_matching_filter(id, &filter).await
 }*/
 
-async fn check_user_right_on_any_parents(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str, right: Right) -> Result<()> {
-    let parents = ldp.config.stem.parent_stems(id);
-    for parent in parents {
-        if user_has_right_on_sgroup(ldp, &user_urls, parent, &right).await? {
-            return Ok(())
-        }
-    }
-    Err(LdapError::AdapterInit(format!("no right on {} parents", id)))
-}
-
 async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right) -> Result<()> {
     match ldp.logged_user {
         LoggedUser::TrustedAdmin => {
@@ -74,7 +74,12 @@ async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right)
         LoggedUser::User(user) => {
             eprintln!("  check_right_on_any_parents({}, {:?})", id, right);
             let user_urls = user_urls(ldp, user).await?;
-            check_user_right_on_any_parents(ldp, &user_urls, id, right).await
+            let parents = ldp.config.stem.parent_stems(id);
+            if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, parents, &right).await? {
+                Ok(())
+            } else {
+                Err(LdapError::AdapterInit(format!("no right on {} parents", id)))
+            }
         }
     }
 }
@@ -87,10 +92,15 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
         LoggedUser::User(user) => {
             eprintln!("  check_right_on_self_or_any_parents({}, {:?})", id, right);
             let user_urls = user_urls(ldp, user).await?;
-            if user_has_right_on_sgroup(ldp, &user_urls, id, &right).await? {
-                return Ok(())
+            let self_and_parents = [
+                vec![id],
+                ldp.config.stem.parent_stems(id),
+            ].concat();
+            if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, self_and_parents, &right).await? {
+                Ok(())
+            } else {
+                Err(LdapError::AdapterInit(format!("no right on {}", id)))
             }
-            check_user_right_on_any_parents(ldp, &user_urls, id, right).await
         }
     }
 }
@@ -475,17 +485,12 @@ pub async fn mygroups<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<SgroupsWithAttrs> 
 // example of filter used: (| (memberURL;x-admin=uid=prigaux,...) (memberURL;x-admin=cn=collab.foo,...) (memberURL;x-update=uid=prigaux,...) (memberURL;x-update=cn=collab.foo,...) )
 async fn get_all_stems_id_with_user_right(ldp: &mut LdapW<'_>, user: &String, right: Right) -> Result<HashSet<String>> {
     let user_urls = user_urls(ldp, user).await?;
-
     let stems_with_right_filter = ldap_filter::and2(
         &ldp.config.stem.filter,
-        &ldap_filter::or(
-            right.to_allowed_attrs().into_iter().flat_map(|attr| {
-                user_urls.iter().map(|url| ldap_filter::eq(&attr,&url)).collect::<Vec<_>>()
-            }).collect()
-        ),
+        &user_has_right_on_sgroup_filter(&user_urls, &right),
     );
-    let stems_id_with_right = ldp.search_sgroups_id(&stems_with_right_filter).await?;
-    Ok(stems_id_with_right)
+    let stems_id = ldp.search_sgroups_id(&stems_with_right_filter).await?;
+    Ok(stems_id)
 }
 
 pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, right: Right, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
@@ -499,24 +504,23 @@ pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, right: Right, search_t
         LoggedUser::User(user) => {
 
             // from direct rights
-            let user_direct_allowed_groups_filter = ldap_filter::or(
-                right.to_allowed_rights().into_iter().map(|right| {
-                    ldap_filter::eq(ldp.config.to_flattened_attr(right.to_mright()), &ldp.config.people_id_to_dn(&user))
-                }).collect()
-            );
+            // example: (|(supannGroupeLecteurDN=uid=prigaux,...)(supannGroupeLecteurDN=uid=owner,...))
+            let user_direct_allowed_groups_filter = 
+                ldp.config.user_has_direct_right_on_group_filter(&ldp.config.people_id_to_dn(&user), &right);
 
             // from inherited rights
+            // example: (|(cn=a.*)(cn=b.bb.*)) if user has right on stems "a."" and "b.bb." 
             let children_of_allowed_stems_filter = {
                 let stems_id_with_right = get_all_stems_id_with_user_right(ldp, user, right).await?;
                 // TODO: simplify: no need to keep "a." and "a.b."
                 ldap_filter::or(
-                    stems_id_with_right.into_iter().map(|stem_id| ldap_filter::sgroup_self_and_children(&stem_id)).collect()
+                    dbg!(stems_id_with_right).into_iter().map(|stem_id| ldap_filter::sgroup_self_and_children(&stem_id)).collect()
                 )
             };
 
             let right_filter = ldap_filter::or(vec![
-                children_of_allowed_stems_filter,
                 user_direct_allowed_groups_filter, 
+                children_of_allowed_stems_filter,
             ]);
             ldap_filter::and2(&right_filter, &term_filter)
         },
