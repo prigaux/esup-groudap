@@ -1,15 +1,13 @@
 use std::collections::BTreeMap;
 use std::result::Result;
 
-use rocket::request::{self, FromRequest, Request};
+use rocket::{Route, State};
 use rocket::http::{Status, ContentType};
 use rocket::http::{Cookie, CookieJar};
-use rocket::response::{self, Responder, Response};
-use rocket::serde::json::json;
-
 use rocket::outcome::{Outcome, try_outcome};
-use rocket::serde::{json::Json};
-use rocket::{Route, State};
+use rocket::request::{self, FromRequest, Request};
+use rocket::response::{self, Responder, Response};
+use rocket::serde::json::{json, Json};
 
 use ldap3::result::LdapError;
 
