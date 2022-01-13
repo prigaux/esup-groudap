@@ -13,16 +13,6 @@ fn is_disjoint(vals: &Vec<String>, set: &HashSet<String>) -> bool {
     !vals.iter().any(|val| set.contains(val))
 }
 
-// true if at least one LDAP entry value is in "set"
-fn has_value(entry: SearchEntry, set: &HashSet<String>) -> bool {
-    for vals in entry.attrs.into_values() {
-        if !is_disjoint(&vals, &set) {
-            return true
-        }
-    }
-    false
-}
-
 async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
     let r = Ok(ldp.user_groups_and_user_dn(user).await?.iter().map(|dn| dn_to_url(&dn)).collect());
     eprintln!("    user_urls({}) => {:?}", user, r);
@@ -30,13 +20,12 @@ async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
 }
 
 async fn user_has_right_on_sgroup(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str, right: &Right) -> Result<bool> {
-    if let Some(group) = ldp.read_sgroup(id, right.to_allowed_attrs()).await? {
-        Ok(has_value(group, user_urls))
-    } else if id == ldp.config.stem.root_id {
-        Ok(false)
-    } else {
-        Err(LdapError::AdapterInit(format!("stem {} does not exist", id)))
-    }
+    let filter = ldap_filter::or(
+        right.to_allowed_attrs().into_iter().flat_map(|attr| {
+            user_urls.iter().map(|url| ldap_filter::eq(&attr,&url)).collect::<Vec<_>>()
+        }).collect()
+    );
+    Ok(ldp.is_sgroup_matching_filter(id, &filter).await?)
 }
 
 async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str) -> Result<Option<Right>> {
