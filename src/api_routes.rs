@@ -6,8 +6,8 @@ use rocket::http::{Status, ContentType};
 use rocket::http::{Cookie, CookieJar};
 use rocket::outcome::{Outcome, try_outcome};
 use rocket::request::{self, FromRequest, Request};
-use rocket::response::{self, Responder, Response};
-use rocket::serde::json::{json, Json};
+use rocket::response::{self, Responder, Response, Redirect};
+use rocket::serde::json::{json, Json, Value};
 
 use ldap3::result::LdapError;
 
@@ -104,11 +104,11 @@ fn action_result(r : Result<(), LdapError>) -> MyJson {
 
 
 #[get("/login?<ticket>")]
-async fn login(ticket: String, orig_url: OrigUrl, cookie_jar: &CookieJar<'_>, config: &State<Config>) -> Result<(), String> {
+async fn login(ticket: String, orig_url: OrigUrl, cookie_jar: &CookieJar<'_>, config: &State<Config>) -> Result<Redirect, String> {
     let service = before(&orig_url.0, "?ticket=").ok_or_else(|| "weird login url")?;
     let user = cas_auth::validate_ticket(&config.cas.prefix_url, service, &ticket).await?;
     cookie_jar.add_private(Cookie::new("user_id", user));
-    Ok(())
+    Ok(Redirect::found(uri!("/")))
 }
 
 #[get("/set_test_data")]
@@ -143,7 +143,6 @@ async fn delete<'a>(id: String, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
     action_result(api::delete(cfg_and_lu, &id).await)
 }
 
-// curl 'localhost:8000/modify_members_or_rights/?id=foo.bar' -d '{ "member": { "add": [ "ldap:///uid=prigaux2,..." ] } }'
 #[post("/modify_members_or_rights?<id>", data = "<mods>")]
 async fn modify_members_or_rights<'a>(id: String, mods: Json<MyMods>, cfg_and_lu : CfgAndLU<'a>) -> MyJson {
     action_result(api::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner()).await)
@@ -181,6 +180,12 @@ async fn search_subjects<'a>(search_token: String, sizelimit: i32, source_dn: Op
     to_json(api::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
 }
 
+#[get("/config/public")]
+fn config_public<'a>(cfg : &State<Config>) -> Value {
+    json!({
+        "cas_prefix_url": cfg.cas.prefix_url,
+    })
+}
 #[get("/config/subject_sources")]
 fn config_subject_sources<'a>(cfg_and_lu : CfgAndLU<'a>) -> Json<&Vec<SubjectSourceConfig>> {
     Json(&cfg_and_lu.cfg.ldap.subject_sources)
@@ -195,8 +200,7 @@ pub fn routes() -> Vec<Route> {
         login,
         clear_test_data, add_test_data, set_test_data, 
         sgroup, sgroup_direct_rights, group_flattened_mright, search_sgroups, search_subjects, mygroups,
-        config_subject_sources,
-        config_remotes,
+        config_public, config_subject_sources, config_remotes,
         create, modify, delete, modify_members_or_rights,
     ]
 }

@@ -15,11 +15,12 @@ mod test_data;
 mod api_routes;
 mod cas_auth;
 
-use rocket::{fairing::AdHoc};
+use rocket::{fairing::AdHoc, fs::FileServer, fs::relative};
 
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .mount("/", api_routes::routes())
+        .mount("/api", api_routes::routes())
+        .mount("/", FileServer::from(relative!("static")))
         .attach(AdHoc::config::<my_types::Config>())
 }
