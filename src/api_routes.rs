@@ -13,11 +13,31 @@ use rocket::{Route, State};
 
 use ldap3::result::LdapError;
 
+use crate::helpers::{before, parse_host_and_port, build_url_from_parts};
 use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs};
 use crate::api;
 use crate::test_data;
 use crate::cas_auth;
 
+struct OrigUrl(String);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for OrigUrl {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, ()> {
+        if let Some(host) = request.headers().get_one("Host") {
+            let (host_only, port) = parse_host_and_port(host);
+            Outcome::Success(OrigUrl(build_url_from_parts(
+                request.headers().get_one("X-Forwarded-Proto"),
+                host_only, request.headers().get_one("X-Forwarded-Port").or(port),
+                request.uri().to_string().as_ref(),
+            )))
+        } else {
+            Outcome::Failure((Status::InternalServerError, ()))
+        }
+    }
+}
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for CfgAndLU<'r> {
@@ -82,9 +102,12 @@ fn action_result(r : Result<(), LdapError>) -> MyJson {
     }
 }
 
+
+
+
 #[get("/login?<ticket>")]
-async fn login(ticket: String, cookie_jar: &CookieJar<'_>, config: &State<Config>) -> Result<(), String> {
-    let service = "http://localhost:8000/login"; // TODO
+async fn login(ticket: String, orig_url: OrigUrl, cookie_jar: &CookieJar<'_>, config: &State<Config>) -> Result<(), String> {
+    let service = before(&orig_url.0, "?ticket=").ok_or_else(|| "weird login url")?;
     let user = cas_auth::validate_ticket(&config.cas.prefix_url, service, &ticket).await?;
     cookie_jar.add_private(Cookie::new("user_id", user));
     Ok(())
