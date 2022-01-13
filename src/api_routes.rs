@@ -144,10 +144,10 @@ async fn group_flattened_mright<'a>(id: String, mright: String, search_token: Op
     to_json(api::get_group_flattened_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
 
-#[get("/search_sgroups?<mright>&<search_token>&<sizelimit>")]
-async fn search_sgroups<'a>(mright: String, search_token: String, sizelimit: i32, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
-    let mright = Mright::from_string(&mright).map_err(err_to_json)?;
-    to_json(api::search_sgroups(cfg_and_lu, mright, search_token, sizelimit).await)
+#[get("/search_sgroups?<right>&<search_token>&<sizelimit>")]
+async fn search_sgroups<'a>(right: String, search_token: String, sizelimit: i32, cfg_and_lu : CfgAndLU<'a>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
+    let right = Right::from_string(&right).map_err(err_to_json)?;
+    to_json(api::search_sgroups(cfg_and_lu, right, search_token, sizelimit).await)
 }
 
 #[get("/mygroups")]

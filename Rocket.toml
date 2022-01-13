@@ -13,6 +13,10 @@ groups_dn = "ou=groups,dc=nodomain"
 group_object_classes = [ "up1SyncGroup", "groupOfNames", "supannGroupe" ]
 stem_object_classes = [ "up1SyncGroup", "organizationalRole" ]
 
+[default.ldap.stem]
+filter = "(objectClass=organizationalRole)"
+#default_separator = "."
+
 [default.ldap.sgroup_attrs]
 #TODO cn = { label = "ID du groupe", description = "l'ID est l'identifiant unique de ce groupe au sein du dossier. Il doit être simple et court, et peut avoir des restrictions de caractères. Une fois créé, il est déconseillé de le modifier." }
 ou = { label = "Nom du groupe", description = "Le nom du groupe, il peut être modifié ultérieurement." }
@@ -45,9 +49,6 @@ name = "Groupe"
 search_filter = "(|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*))"
 display_attrs = ["ou", "description", "cn"]
 # default template is "display first non empty attr value"
-
-[default.ldap.stem]
-#default_separator = "."
 
 [default.remotes.g2t]
 periodicity = "12:00"

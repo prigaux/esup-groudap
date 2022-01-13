@@ -44,6 +44,7 @@ fn ldap_config_checker<'de, D>(d: D) -> Result<LdapConfig, D::Error>
 
 #[derive(Deserialize)]
 pub struct StemConfig {
+    pub filter: String,
     #[serde(default = "default_separator")]
     pub separator: String,
     #[serde(default = "default_root_id")]
@@ -129,7 +130,7 @@ pub struct Config {
 #[serde(rename_all = "lowercase")]
 pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
 
-#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
 pub enum Right { READER, UPDATER, ADMIN }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
@@ -189,6 +190,9 @@ impl Mright {
     pub fn list() -> Vec<Self> { vec![Self::MEMBER, Self::READER, Self::UPDATER, Self::ADMIN] }     
 }
 impl Right {
+    pub fn from_string(right: &str) -> Result<Self, String> {
+        serde::json::from_str(&format!(r#""{}""#, right)).map_err(|_| format!("invalid right {}", right))
+    }
     // NB: best right first
     pub fn to_allowed_rights(&self) -> Vec<Self> {
         match self {
@@ -210,11 +214,6 @@ impl Right {
     pub fn to_attr(&self) -> String {
         self.to_mright().to_attr()
     }
-    /*
-    pub fn to_flattened_attr(&self) -> &'static str {
-        self.to_mright().to_flattened_attr()
-    }
-    */
 }
 
 #[derive(Debug)]

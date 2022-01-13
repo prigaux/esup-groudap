@@ -278,7 +278,7 @@ mod tests {
     use super::*;
 
     fn stem_config() -> StemConfig {
-        StemConfig { separator: ".".to_owned(), root_id: "".to_owned() }    
+        StemConfig { filter: "(objectClass=organizationalRole)".to_owned(), separator: ".".to_owned(), root_id: "".to_owned() }    
     }
 
     #[test]

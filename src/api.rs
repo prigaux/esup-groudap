@@ -483,10 +483,55 @@ pub async fn mygroups<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<SgroupsWithAttrs> 
     }
 }
 
-pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, mright: Mright, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
-    eprintln!("search_sgroups({}, {:?})", search_token, mright);
+// example of filter used: (| (memberURL;x-admin=uid=prigaux,...) (memberURL;x-admin=cn=collab.foo,...) (memberURL;x-update=uid=prigaux,...) (memberURL;x-update=cn=collab.foo,...) )
+async fn get_all_stems_id_with_user_right(ldp: &mut LdapW<'_>, user: &String, right: Right) -> Result<HashSet<String>> {
+    let user_urls = user_urls(ldp, user).await?;
+
+    let stems_with_right_filter = ldap_filter::and2(
+        &ldp.config.stem.filter,
+        &ldap_filter::or(
+            right.to_allowed_attrs().into_iter().flat_map(|attr| {
+                user_urls.iter().map(|url| ldap_filter::eq(&attr,&url)).collect::<Vec<_>>()
+            }).collect()
+        ),
+    );
+    let stems_id_with_right = ldp.search_sgroups_id(&stems_with_right_filter).await?;
+    Ok(stems_id_with_right)
+}
+
+pub async fn search_sgroups<'a>(cfg_and_lu: CfgAndLU<'a>, right: Right, search_token: String, sizelimit: i32) -> Result<SgroupsWithAttrs> {
+    eprintln!("search_sgroups({}, {:?})", search_token, right);
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
-    let filter = ldp.config.sgroup_sscfg().unwrap().search_filter_(&search_token);
-    search_sgroups_with_attrs(ldp, &filter, Some(sizelimit)).await
+    let term_filter = ldp.config.sgroup_sscfg().unwrap().search_filter_(&search_token);
+
+    let group_filter = match &cfg_and_lu.user {
+        LoggedUser::TrustedAdmin => term_filter,
+        LoggedUser::User(user) => {
+
+            // from direct rights
+            let user_direct_allowed_groups_filter = ldap_filter::or(
+                right.to_allowed_rights().into_iter().map(|right| {
+                    ldap_filter::eq(ldp.config.to_flattened_attr(right.to_mright()), &ldp.config.people_id_to_dn(&user))
+                }).collect()
+            );
+
+            // from inherited rights
+            let children_of_allowed_stems_filter = {
+                let stems_id_with_right = get_all_stems_id_with_user_right(ldp, user, right).await?;
+                // TODO: simplify: no need to keep "a." and "a.b."
+                ldap_filter::or(
+                    stems_id_with_right.into_iter().map(|stem_id| ldap_filter::sgroup_self_and_children(&stem_id)).collect()
+                )
+            };
+
+            let right_filter = ldap_filter::or(vec![
+                children_of_allowed_stems_filter,
+                user_direct_allowed_groups_filter, 
+            ]);
+            ldap_filter::and2(&right_filter, &term_filter)
+        },
+    };
+    search_sgroups_with_attrs(ldp, &group_filter, Some(sizelimit)).await
 }
+

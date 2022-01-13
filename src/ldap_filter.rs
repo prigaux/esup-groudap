@@ -35,6 +35,11 @@ pub fn member(dn: &str) -> String {
     eq("member", dn)
 }
 
+pub fn sgroup_self_and_children(id: &str) -> String {
+    let id = ldap_escape(id);
+    format!("(cn={}*)", &id)
+}
+
 pub fn sgroup_children(id: &str) -> String {
     let id = ldap_escape(id);
     format!("(&(cn={}*)(!(cn={})))", &id, &id)

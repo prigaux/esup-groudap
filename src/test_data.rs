@@ -19,6 +19,11 @@ async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str, description: &str) -> Res
     ]).await
 }
 
+fn sort(mut v : Vec<String>) -> Vec<String> {
+    v.sort_unstable();
+    v
+}
+
 async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: CreateLdapAttrs<'_>) -> Result<LdapResult> {
     let dn = format!("uid={},ou=people,dc=nodomain", uid);
     let all_attrs = [ vec![
@@ -155,7 +160,7 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
     api::modify_members_or_rights(cfg_and_prigaux(), "collab.foo", btreemap!{
         Mright::ADMIN => btreemap!{ MyMod::ADD => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
     }).await?;
-    assert_eq!(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::ADMIN).await?, vec![
+    assert_eq!(sort(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::ADMIN).await?), vec![
         ldp.config.sgroup_id_to_dn("collab.DSIUN"), prigaux_dn(),
     ]);
 
