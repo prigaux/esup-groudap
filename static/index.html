@@ -1,39 +1,33 @@
 <!DOCTYPE html>
 <html>
 
-<pre id="x"></pre>
+<style>
+    [v-cloak] { display: none; }
+</style>
 
-<script>
+<script type="module">
 
-async function login() {
-    const cfg = await (await fetch("/api/config/public")).json()
-    if (cfg && cfg.cas_prefix_url) {
-        document.location.href = cfg.cas_prefix_url + "/login?service=http://localhost:8000/api/login"
-    }
-}
+import { createApp } from 'https://unpkg.com/petite-vue?module'
+import { api } from './lib.js'
 
-async function api(api_function) {
-    const response = await fetch("/api/" + api_function);
-    console.log(response);
-    if (response.status === 200) {
-        const json = await response.json()
-        console.log(json)
-        return json
-    }
-    if (response.status === 401) {
-        await login()
-        return new Promise() // return dead promise
-    }
-    throw new Error(response)
-}
-
-async function doit() {
-    const mygroups = await api("mygroups");
-    document.getElementById("x").innerText = JSON.stringify(mygroups, undefined, '  ')
-}
-
-doit();
+api("mygroups", {}).then(mygroups => {
+    createApp({
+        mygroups,
+    }).mount()
+})
 
 </script>
+
+<div v-scope v-cloak>
+    <div v-if="mygroups">
+        Mes groupes
+        <ul v-for="(attrs, id) in mygroups">
+            <li><a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a></li>
+        </ul>
+    </div>
+    <div v-else>
+        Chargement, veuillez patienter
+    </div>
+</div>
 
 </html>

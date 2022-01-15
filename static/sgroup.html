@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<style>
+    [v-cloak] { display: none; }
+</style>
+
+<script type="module">
+
+import { createApp } from 'https://unpkg.com/petite-vue?module'
+import { api, searchParams } from './lib.js'
+
+api("sgroup", { id: searchParams().get('id') }).then(sgroup => {
+    createApp({ 
+        sgroup,
+    }).mount()
+})
+
+</script>
+
+<div v-scope v-cloak>
+    <div v-if="sgroup">
+        <h1>{{sgroup.ou}}</h1>
+
+        <p>{{sgroup.description}}</p>
+
+        <p><i>Droits : {{sgroup.right}}</i></p>
+
+        <div v-if="sgroup.stem">
+            <ul v-for="(attrs, id) in sgroup.stem.children">
+                <li><a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a></li>
+            </ul>    
+        </div>
+        <div v-if="sgroup.group">
+            Membres directs
+            <ul v-for="(attrs, dn) in sgroup.group.direct_members">
+                <li>{{attrs}}</li>
+            </ul>    
+            
+        </div>
+
+    </div>
+</div>
+
+</html>
