@@ -21,6 +21,6 @@ use rocket::{fairing::AdHoc, fs::FileServer, fs::relative};
 fn rocket() -> _ {
     rocket::build()
         .mount("/api", api_routes::routes())
-        .mount("/", FileServer::from(relative!("static")))
+        .mount("/", FileServer::from(relative!("static/dist")))
         .attach(AdHoc::config::<my_types::Config>())
 }
