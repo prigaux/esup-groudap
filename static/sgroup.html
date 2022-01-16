@@ -3,12 +3,28 @@
 
 <style>
     [v-cloak] { display: none; }
+    body { font-family: Arial, sans-serif; }
+    h2 { display: inline-block; }
+    .description {
+        white-space: pre-wrap;
+    }
+    .my-icon {
+        display: inline-block;
+        --my-icon-size: 24px;
+    }
+    .my-icon > svg {
+        width: auto;
+        height: var(--my-icon-size);
+        display: block;
+    }
 </style>
 
 <script type="module">
 
 import { createApp } from '././node_modules/petite-vue'
-import { api, searchParams, create_dynamic_template, to_valid_DOM_id } from './lib.js'
+import { api, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink } from './lib.js'
+import folder_svg from '@fortawesome/fontawesome-free/svgs/regular/folder.svg?raw'
+import users_svg from '@fortawesome/fontawesome-free/svgs/solid/users.svg?raw'
 
 const Subject = (dn, subject, sscfg) => {
     const subject_cfg = sscfg.find(one => dn.endsWith(one.dn))
@@ -31,7 +47,9 @@ function create_subject_sources_templates(sscfg) {
 
 api("sgroup", { id: searchParams().get('id') }).then(async sgroup => {
     const o = { 
-        sgroup, Subject
+        sgroup, Subject, 
+        SgroupLink: prepare_SgroupLink(),
+        folder_svg, users_svg,
     }
     if (sgroup.group) {
         o.sscfg = await api("config/subject_sources")
@@ -44,27 +62,39 @@ api("sgroup", { id: searchParams().get('id') }).then(async sgroup => {
 
 <div v-scope v-cloak>
     <div v-if="sgroup">
-        <h1>{{sgroup.ou}}</h1>
+        <span v-for="(parent, i) in sgroup.parents">
+            <span v-scope="SgroupLink(parent)"></span>
+            <span v-if="i < sgroup.parents.length">&gt;</span>
+        </span>
 
-        <p>{{sgroup.description}}</p>
+        <h2>
+            <span class="my-icon" v-html="sgroup.stem ? folder_svg : users_svg"></span>
+            {{sgroup.ou}}
+        </h2>
+
+        <fieldset>
+            <legend>Description</legend>
+            <div class="description">{{sgroup.description}}</div>
+        </fieldset>
 
         <p><i>Droits : {{sgroup.right}}</i></p>
 
-        <div v-if="sgroup.stem">
+        <fieldset v-if="sgroup.stem">
+            <legend>Contenu du dossier</legend>
             <ul v-for="(attrs, id) in sgroup.stem.children">
-                <li><a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a></li>
+                <li v-scope="SgroupLink(attrs, id)"></li>
             </ul>    
-        </div>
-        <div v-if="sgroup.group">
-            Membres directs
+        </fieldset>
+        <fieldset v-if="sgroup.group">
+            <legend>Membres directs</legend>
             <ul v-for="(attrs, dn) in sgroup.group.direct_members">
                 <li>
-                    <a :href="'/sgroup.html?id=' + attrs.sgroup_id" :title="attrs.description" v-if="attrs.sgroup_id">{{attrs.ou}}</a>
+                    <span v-if="attrs.sgroup_id" v-scope="SgroupLink(attrs)"></span>
                     <span v-else v-scope="Subject(dn, attrs, sscfg)"></span>
                 </li>
             </ul>    
             
-        </div>
+        </fieldset>
 
     </div>
 </div>

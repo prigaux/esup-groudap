@@ -421,6 +421,10 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
             parents_id.into_iter().filter_map(|id| {
                 let mut o = id2attrs.remove(id)?;
                 o.insert("sgroup_id".to_owned(), id.to_owned());
+                if id.is_empty() {
+                    // TODO, move this in conf?
+                    o.insert("ou".to_owned(), "Racine".to_owned());
+                }
                 Some(o)
             }).collect()
         };

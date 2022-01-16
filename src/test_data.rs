@@ -155,7 +155,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
 
     api::create(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         "ou".to_owned() => "Grouper super admins".to_owned(),
-        "description".to_owned() => "Grouper admins de toute l'arborescence".to_owned(),
+        "description".to_owned() => "Grouper admins de toute l'arborescence\n\nTicket truc".to_owned(),
     }).await?;
     api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
