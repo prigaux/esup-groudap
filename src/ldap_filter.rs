@@ -41,6 +41,10 @@ pub fn sgroup_self_and_children(id: &str) -> String {
 }
 
 pub fn sgroup_children(id: &str) -> String {
-    let id = ldap_escape(id);
-    format!("(&(cn={}*)(!(cn={})))", &id, &id)
+    if id == "" {
+        "(cn=*)".to_owned()
+    } else {
+        let id = ldap_escape(id);
+        format!("(&(cn={}*)(!(cn={})))", &id, &id)
+    }
 }

@@ -109,6 +109,14 @@ pub async fn add<'a>(cfg_and_lu: CfgAndLU<'a>) -> Result<()> {
     let get_sgroup_collab = ||
         SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()} }, right: Right::ADMIN };
 
+    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "").await?,
+        SgroupAndMoreOut { attrs: btreemap!{ 
+            "description".to_owned() => "Groups. Droits sur l'arborescence entière".to_owned(),
+            "ou".to_owned() => "groups".to_owned(),
+        }, more: SgroupOutMore::Stem { children: btreemap!{
+            "collab.".to_owned() => collab_attrs(),
+        } }, right: Right::ADMIN }
+    );
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, get_sgroup_collab());
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.DSIUN").await?, 
                SgroupAndMoreOut { right: Right::ADMIN, more: SgroupOutMore::Group { direct_members: btreemap!{} }, attrs: collab_dsiun_attrs() });
