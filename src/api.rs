@@ -4,7 +4,7 @@ use ldap3::{Mod};
 use ldap3::result::{Result, LdapError};
 
 use crate::my_types::*;
-use crate::ldap_wrapper::{LdapW, mono_attrs};
+use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
 use crate::my_ldap::{self, dn_to_rdn_and_parent_dn};
 use crate::my_ldap::{dn_to_url, url_to_dn, url_to_dn_};
 use crate::ldap_filter;
@@ -13,10 +13,28 @@ fn is_disjoint(vals: &[String], set: &HashSet<String>) -> bool {
     !vals.iter().any(|val| set.contains(val))
 }
 
-async fn user_urls(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
+async fn user_urls_(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
     let r = Ok(ldp.user_groups_and_user_dn(user).await?.iter().map(|dn| dn_to_url(dn)).collect());
     eprintln!("    user_urls({}) => {:?}", user, r);
     r
+}
+
+async fn user_urls(ldp: &mut LdapW<'_>) -> Result<LoggedUserUrls> {
+    Ok(match ldp.logged_user {
+        LoggedUser::TrustedAdmin => LoggedUserUrls::TrustedAdmin,
+        LoggedUser::User(user) => LoggedUserUrls::User(user_urls_(ldp, user).await?)
+    })
+}
+
+fn user_highest_right(sgroup_attrs: &LdapAttrs, user_urls: &HashSet<String>) -> Option<Right> {
+    for right in Right::Reader.to_allowed_rights() {
+        if let Some(urls) = sgroup_attrs.get(&right.to_attr()) {
+            if !is_disjoint(urls, user_urls) {
+                return Some(right)
+            }
+        }
+    }
+    None
 }
 
 fn user_has_right_on_sgroup_filter(user_urls: &HashSet<String>, right: &Right) -> String {
@@ -40,21 +58,13 @@ async fn user_has_right_on_at_least_one_sgroups(ldp: &mut LdapW<'_>, user_urls: 
 
 async fn user_highest_right_on_stem(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, id: &str) -> Result<Option<Right>> {
     if let Some(group) = ldp.read_sgroup(id, Right::Reader.to_allowed_attrs()).await? {
-        for right in Right::Reader.to_allowed_rights() {
-            if let Some(urls) = group.attrs.get(&right.to_attr()) {
-                if !is_disjoint(urls, user_urls) {
-                    return Ok(Some(right))
-                }
-            }
-        }
-        Ok(None)
+        Ok(user_highest_right(&group.attrs, user_urls))
     } else if id == ldp.config.stem.root_id {
         Ok(None)
     } else {
         Err(LdapError::AdapterInit(format!("stem {} does not exist", id)))
     }
 }
-
 
 /*async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {    
     let filter = user_has_direct_right_on_group_filter(&ldp.config.people_id_to_dn(user), right);
@@ -73,7 +83,7 @@ async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right)
         },
         LoggedUser::User(user) => {
             eprintln!("  check_right_on_any_parents({}, {:?})", id, right);
-            let user_urls = user_urls(ldp, user).await?;
+            let user_urls = user_urls_(ldp, user).await?;
             let parents = ldp.config.stem.parent_stems(id);
             if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, parents, &right).await? {
                 Ok(())
@@ -91,7 +101,7 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
         },
         LoggedUser::User(user) => {
             eprintln!("  check_right_on_self_or_any_parents({}, {:?})", id, right);
-            let user_urls = user_urls(ldp, user).await?;
+            let user_urls = user_urls_(ldp, user).await?;
             let self_and_parents = [
                 vec![id],
                 ldp.config.stem.parent_stems(id),
@@ -104,30 +114,6 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
         }
     }
 }
-
-async fn best_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str) -> Result<Option<Right>> {
-    match ldp.logged_user {
-        LoggedUser::TrustedAdmin => {
-            Ok(Some(Right::Admin))
-        },
-        LoggedUser::User(user) => {
-            eprintln!("  best_right_on_self_or_any_parents({}) with user {}", id, user);
-            let user_urls = user_urls(ldp, user).await?;
-            let self_and_parents = [ ldp.config.stem.parent_stems(id), vec![id] ].concat();
-            let mut best = None;
-            for id in self_and_parents {
-                let right = user_highest_right_on_stem(ldp, &user_urls, id).await?;
-                eprintln!("    best_right_on_self_or_any_parents: {} => {:?}", id, right);
-                if right > best {
-                    best = right;
-                }
-            }
-            eprintln!("  best_right_on_self_or_any_parents({}) with user {} => {:?}", id, user, best);
-            Ok(best)
-        }
-    }
-}
-
 
 pub async fn create(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {
     eprintln!("create({}, _)", id);
@@ -402,9 +388,8 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         let direct_members = attrs.remove(&direct_member_attr);
         //eprintln!("      read sgroup {} => {:?}", id, entry);
         let is_stem = ldp.config.stem.is_stem(id);
-        let attrs = mono_attrs(attrs);
-        let right = best_right_on_self_or_any_parents(ldp, id).await?
-                .ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
+
+        let (right, mut parents) = search_sgroups_and_right_on_self_and_parents(ldp, id, &attrs).await?;
         let more = if is_stem { 
             let children = get_children(ldp, id).await?;
             SgroupOutMore::Stem { children }
@@ -413,21 +398,19 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
             SgroupOutMore::Group { direct_members }
         };
         let parents = {
-            let mut parents_id = ldp.config.stem.parent_stems(id);
-            parents_id.reverse();
-            let filter = ldap_filter::or(parents_id.iter().map(|id| ldp.config.sgroup_filter(id)).collect());
-            let mut id2attrs = search_sgroups_with_attrs(ldp, &filter, None).await?;
             // NB: with must keep the order of parents_id...
+            let mut parents_id = ldp.config.stem.parent_stems(id);
+            parents_id.reverse();                       
             parents_id.into_iter().filter_map(|id| {
-                let mut o = id2attrs.remove(id)?;
-                o.insert("sgroup_id".to_owned(), id.to_owned());
+                let mut o = parents.remove(id)?;
                 if id.is_empty() {
                     // TODO, move this in conf?
-                    o.insert("ou".to_owned(), "Racine".to_owned());
+                    o.attrs.insert("ou".to_owned(), "Racine".to_owned());
                 }
                 Some(o)
             }).collect()
         };
+        let attrs = mono_attrs(attrs);
         Ok(SgroupAndMoreOut { attrs, right, more, parents })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
@@ -492,6 +475,49 @@ async fn search_sgroups_with_attrs(ldp: &mut LdapW<'_>, filter: &str, sizelimit:
     Ok(groups)
 }
 
+async fn search_sgroups_and_right(ldp: &mut LdapW<'_>, filter: &str, user_urls: &LoggedUserUrls, sizelimit: Option<i32>) -> Result<BTreeMap<String, SgroupOutAndRight>> {
+    let display_attrs: Vec<&String> = ldp.config.sgroup_attrs.keys().collect();
+    let direct_right_attrs = Right::Reader.to_allowed_attrs();
+    let wanted_attrs = [ display_attrs, direct_right_attrs.iter().collect() ].concat();
+    let groups = ldp.search_sgroups(filter, wanted_attrs, sizelimit).await?.filter_map(|e| {
+        let id = ldp.config.dn_to_sgroup_id(&e.dn)?;
+        let right = match user_urls {
+            LoggedUserUrls::TrustedAdmin => Some(Right::Admin),
+            LoggedUserUrls::User(user_urls) => user_highest_right(&e.attrs, &user_urls),
+        };
+        let attrs: MonoAttrs = mono_attrs(e.attrs);
+        Some((id.clone(), SgroupOutAndRight { attrs, right, sgroup_id: id }))
+    }).collect();
+    Ok(groups)
+}
+
+async fn search_sgroups_and_right_on_parents(ldp: &mut LdapW<'_>, id: &str, user_urls: &LoggedUserUrls) -> Result<BTreeMap<String, SgroupOutAndRight>> {
+    let parents_id = ldp.config.stem.parent_stems(id);
+    let filter = ldap_filter::or(parents_id.iter().map(|id| ldp.config.sgroup_filter(id)).collect());
+    search_sgroups_and_right(ldp, &filter, user_urls, None).await
+}
+
+async fn search_sgroups_and_right_on_self_and_parents(ldp: &mut LdapW<'_>, id: &str, self_attrs: &LdapAttrs) -> Result<(Right, BTreeMap<String, SgroupOutAndRight>)> {
+    let user_urls = user_urls(ldp).await?;
+    let parents = search_sgroups_and_right_on_parents(ldp, id, &user_urls).await?;
+
+    let self_right = match user_urls {
+        LoggedUserUrls::TrustedAdmin => Some(Right::Admin),
+        LoggedUserUrls::User(user_urls) => user_highest_right(self_attrs, &user_urls),
+    };
+
+    eprintln!("  best_right_on_self_or_any_parents({}) with user {:?}", id, ldp.logged_user);
+    let mut best = self_right;
+    for parent in parents.values() {
+        if parent.right > best {
+            best = parent.right;
+        }
+    }
+    eprintln!("  best_right_on_self_or_any_parents({}) with user {:?} => {:?}", id, ldp.logged_user, best);
+    let best = best.ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
+    Ok((best, parents))
+}
+
 // returns groups user has DIRECT right update|admin
 // (inherited rights via stems are not taken into account)
 pub async fn mygroups(cfg_and_lu: CfgAndLU<'_>) -> Result<SgroupsWithAttrs> {
@@ -508,7 +534,7 @@ pub async fn mygroups(cfg_and_lu: CfgAndLU<'_>) -> Result<SgroupsWithAttrs> {
 
 // example of filter used: (| (memberURL;x-admin=uid=prigaux,...) (memberURL;x-admin=cn=collab.foo,...) (memberURL;x-update=uid=prigaux,...) (memberURL;x-update=cn=collab.foo,...) )
 async fn get_all_stems_id_with_user_right(ldp: &mut LdapW<'_>, user: &str, right: Right) -> Result<HashSet<String>> {
-    let user_urls = user_urls(ldp, user).await?;
+    let user_urls = user_urls_(ldp, user).await?;
     let stems_with_right_filter = ldap_filter::and2(
         &ldp.config.stem.filter,
         &user_has_right_on_sgroup_filter(&user_urls, &right),

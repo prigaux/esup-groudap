@@ -146,6 +146,16 @@ pub type SgroupsWithAttrs = BTreeMap<String, MonoAttrs>;
 pub type Subjects = BTreeMap<String, MonoAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
+pub struct SgroupOutAndRight {
+    #[serde(flatten)]
+    pub attrs: MonoAttrs,
+
+    pub sgroup_id: String,
+    pub right: Option<Right>,
+}
+
+
+#[derive(Serialize, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SgroupOutMore {
     Stem { children: SgroupsWithAttrs },
@@ -159,7 +169,7 @@ pub struct SgroupAndMoreOut {
     #[serde(flatten)]
     pub more: SgroupOutMore,
 
-    pub parents: Vec<MonoAttrs>,
+    pub parents: Vec<SgroupOutAndRight>,
     pub right: Right,
 }
 
@@ -211,6 +221,12 @@ impl Right {
 pub enum LoggedUser {
     TrustedAdmin,
     User(String),
+}
+
+#[derive(Debug)]
+pub enum LoggedUserUrls {
+    TrustedAdmin,
+    User(HashSet<String>),
 }
 
 pub struct CfgAndLU<'a> {
