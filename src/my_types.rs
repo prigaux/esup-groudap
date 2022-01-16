@@ -64,11 +64,10 @@ pub struct SubjectSourceConfig {
     pub vue_template : Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub vue_template_if_ambiguous : Option<String>,    
+    pub display_attrs : Vec<String>,
 
     #[serde(skip_serializing)]
     pub search_filter : String,
-    #[serde(skip_serializing)]
-    pub display_attrs : Vec<String>,
 }
 
 #[derive(Deserialize)]

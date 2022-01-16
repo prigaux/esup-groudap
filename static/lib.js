@@ -16,8 +16,7 @@ export async function api(api_function, params) {
     for (const key in params) {
         url.searchParams.set(key, params[key]);
     }
-    const response = await fetch(url);
-    console.log(response);
+    const response = await fetch(url.toString());
     if (response.status === 200) {
         const json = await response.json()
         console.log(json)
@@ -27,6 +26,19 @@ export async function api(api_function, params) {
         await login();
         return new Promise(_ => {}) // return dead promise
     }
-    throw new Error(response)
+    throw new Error(response.toString())
 }
 
+export const to_valid_DOM_id = (id) => (
+    id.replace(/[^a-z0-9_]/gi, '_')
+)
+
+export function create_dynamic_template(id, template) {
+    const id_ = to_valid_DOM_id(id)
+
+    const elt = document.createElement("template");
+    elt.setAttribute("id", id_)
+    elt.innerHTML = template
+    document.body.appendChild(elt)
+    return id_
+}

@@ -325,7 +325,17 @@ async fn get_subjects_from_same_branch<'a>(ldp: &mut LdapW<'_>, sscfg: &SubjectS
     } else {
         rdns_filter
     };
-    ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await
+    let subjects = ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await?;
+    if ldp.config.groups_dn == sscfg.dn {
+        // add "sgroup_id" value for subjects we handle
+        Ok(subjects.into_iter().map(|(dn, mut subject)| {
+            let id = ldp.config.dn_to_sgroup_id(&dn).expect(&format!("internal error on {}", dn));
+            subject.insert("sgroup_id".to_owned(), id);
+            (dn, subject)
+        }).collect())
+    } else {
+        Ok(subjects)
+    }
 }
 
 

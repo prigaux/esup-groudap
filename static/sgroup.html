@@ -7,13 +7,37 @@
 
 <script type="module">
 
-import { createApp } from 'https://unpkg.com/petite-vue?module'
-import { api, searchParams } from './lib.js'
+import { createApp } from '././node_modules/petite-vue'
+import { api, searchParams, create_dynamic_template, to_valid_DOM_id } from './lib.js'
 
-api("sgroup", { id: searchParams().get('id') }).then(sgroup => {
-    createApp({ 
-        sgroup,
-    }).mount()
+const Subject = (dn, subject, sscfg) => {
+    const subject_cfg = sscfg.find(one => dn.endsWith(one.dn))
+    const $template = '#' + to_valid_DOM_id(subject_cfg.dn)
+    return { ...subject, $template }
+}
+
+const compute_default_vue_template = (one) => (
+    one.display_attrs.map((attr, i) => 
+        `<span ${i ? "v-else-if" : "v-if"}="${attr}">{{${attr}}}</span>`
+    ).join('')
+)
+
+function create_subject_sources_templates(sscfg) {
+    for (const one of sscfg) {
+        const template = one.vue_template || compute_default_vue_template(one)
+        create_dynamic_template(one.dn, template)
+    }
+}
+
+api("sgroup", { id: searchParams().get('id') }).then(async sgroup => {
+    const o = { 
+        sgroup, Subject
+    }
+    if (sgroup.group) {
+        o.sscfg = await api("config/subject_sources")
+        create_subject_sources_templates(o.sscfg)
+    }
+    createApp(o).mount()
 })
 
 </script>
@@ -34,7 +58,10 @@ api("sgroup", { id: searchParams().get('id') }).then(sgroup => {
         <div v-if="sgroup.group">
             Membres directs
             <ul v-for="(attrs, dn) in sgroup.group.direct_members">
-                <li>{{attrs}}</li>
+                <li>
+                    <a :href="'/sgroup.html?id=' + attrs.sgroup_id" :title="attrs.description" v-if="attrs.sgroup_id">{{attrs.ou}}</a>
+                    <span v-else v-scope="Subject(dn, attrs, sscfg)"></span>
+                </li>
             </ul>    
             
         </div>
