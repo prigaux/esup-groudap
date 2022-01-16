@@ -2,7 +2,7 @@ use crate::helpers::between;
 
 fn parse_cas_response(body: &str) -> Option<&str> {
     if body.contains("<cas:authenticationSuccess>") {
-        between(&body, "<cas:user>", "</")
+        between(body, "<cas:user>", "</")
     } else {
         None
     }

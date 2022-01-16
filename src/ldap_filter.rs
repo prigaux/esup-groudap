@@ -41,7 +41,7 @@ pub fn sgroup_self_and_children(id: &str) -> String {
 }
 
 pub fn sgroup_children(id: &str) -> String {
-    if id == "" {
+    if id.is_empty() {
         "(cn=*)".to_owned()
     } else {
         let id = ldap_escape(id);

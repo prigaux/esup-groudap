@@ -16,12 +16,12 @@ fn remotes_periodicity_checker<'de, D>(d: D) -> Result<BTreeMap<String, RemoteCo
 {
     let remotes : BTreeMap<String, RemoteConfig> = BTreeMap::deserialize(d)?;
     
-    if let Err(_) = systemd_calendar_events::next_elapse(
+    if systemd_calendar_events::next_elapse(
             remotes.values().map(|cfg| &cfg.periodicity).collect()
-        ) {
+    ).is_err() {
         // there has been an error, retry one by one to know which one failed
         for (remote_id, cfg) in &remotes {
-            if let Err(_) = systemd_calendar_events::next_elapse(vec![&cfg.periodicity]) {
+            if systemd_calendar_events::next_elapse(vec![&cfg.periodicity]).is_err() {
                 let msg = format!("a valid periodicity for remote {}. Hint: validate it with ''systemd-analyze calendar ....''", remote_id);
                 return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.periodicity), &msg.as_str()));
             }
@@ -36,7 +36,7 @@ fn ldap_config_checker<'de, D>(d: D) -> Result<LdapConfig, D::Error>
     let cfg : LdapConfig = LdapConfig::deserialize(d)?;
     
     if cfg.sgroup_sscfg().is_none() {
-        let msg = format!("''ldap.groups_dn'' to be listed in ''ldap.subject_sources''");
+        let msg = "''ldap.groups_dn'' to be listed in ''ldap.subject_sources''".to_owned();
         return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.groups_dn), &msg.as_str()));
     }
     Ok(cfg)
@@ -92,7 +92,7 @@ pub struct LdapConfig {
 }
 
 impl LdapConfig {
-    pub fn sgroup_sscfg(self: &Self) -> Option<&SubjectSourceConfig> {
+    pub fn sgroup_sscfg(&self) -> Option<&SubjectSourceConfig> {
         self.subject_sources.iter().find(|sscfg| sscfg.dn == self.groups_dn)
     }    
 }
@@ -127,30 +127,20 @@ pub struct Config {
 
 #[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
-pub enum Mright { MEMBER, READER, UPDATER, ADMIN }
+pub enum Mright { Member, Reader, Updater, Admin }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
-pub enum Right { READER, UPDATER, ADMIN }
+pub enum Right { Reader, Updater, Admin }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
-pub enum MyMod { ADD, DELETE, REPLACE }
+pub enum MyMod { Add, Delete, Replace }
 
 pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
 
 
-#[derive(PartialEq, Eq, Deserialize, Serialize, Copy, Clone, Debug)]
-pub enum GroupKind { GROUP, STEM }
-
 pub type MonoAttrs = BTreeMap<String, String>;
-
-#[derive(Serialize, PartialEq, Eq, Debug)]
-pub struct SgroupOut {
-    #[serde(flatten)]
-    pub attrs: MonoAttrs,
-    pub kind: GroupKind,
-}
 
 pub type SgroupsWithAttrs = BTreeMap<String, MonoAttrs>;
 pub type Subjects = BTreeMap<String, MonoAttrs>;
@@ -176,42 +166,42 @@ impl Mright {
     pub fn from_string(mright: &str) -> Result<Self, String> {
         serde::json::from_str(&format!(r#""{}""#, mright)).map_err(|_| format!("invalid mright {}", mright))
     }
-    fn to_string(&self) -> &'static str {
+    fn to_string(self) -> &'static str {
         match self {
-            Self::MEMBER => "member",
-            Self::READER => "reader",
-            Self::UPDATER => "updater",
-            Self::ADMIN => "admin",
+            Self::Member => "member",
+            Self::Reader => "reader",
+            Self::Updater => "updater",
+            Self::Admin => "admin",
         }
     }
-    pub fn to_attr(&self) -> String {
+    pub fn to_attr(self) -> String {
         format!("memberURL;x-{}", self.to_string())
     }
-    pub fn list() -> Vec<Self> { vec![Self::MEMBER, Self::READER, Self::UPDATER, Self::ADMIN] }     
+    pub fn list() -> Vec<Self> { vec![Self::Member, Self::Reader, Self::Updater, Self::Admin] }     
 }
 impl Right {
     pub fn from_string(right: &str) -> Result<Self, String> {
         serde::json::from_str(&format!(r#""{}""#, right)).map_err(|_| format!("invalid right {}", right))
     }
     // NB: best right first
-    pub fn to_allowed_rights(&self) -> Vec<Self> {
+    pub fn to_allowed_rights(self) -> Vec<Self> {
         match self {
-            Self::READER => vec![Self::ADMIN, Self::UPDATER, Self::READER],
-            Self::UPDATER => vec![Self::ADMIN, Self::UPDATER],
-            Self::ADMIN => vec![Self::ADMIN],
+            Self::Reader => vec![Self::Admin, Self::Updater, Self::Reader],
+            Self::Updater => vec![Self::Admin, Self::Updater],
+            Self::Admin => vec![Self::Admin],
         }
     }
-    pub fn to_allowed_attrs(&self) -> Vec<String> {
+    pub fn to_allowed_attrs(self) -> Vec<String> {
         self.to_allowed_rights().iter().map(|r| r.to_attr()).collect()        
     }
-    pub fn to_mright(&self) -> Mright {
+    pub fn to_mright(self) -> Mright {
         match self {
-            Self::READER => Mright::READER,
-            Self::UPDATER => Mright::UPDATER,
-            Self::ADMIN => Mright::ADMIN,
+            Self::Reader => Mright::Reader,
+            Self::Updater => Mright::Updater,
+            Self::Admin => Mright::Admin,
         }
     }
-    pub fn to_attr(&self) -> String {
+    pub fn to_attr(self) -> String {
         self.to_mright().to_attr()
     }
 }

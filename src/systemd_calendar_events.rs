@@ -11,9 +11,9 @@ fn parse_systemd_analyze_output(output: &str) -> HashMap<String, DateTime<FixedO
     while let Some((event, rest)) = between_and_after(s, "Original form: ", "\n") {
         let (next_elapse, rest) = between_and_after(rest, " (in UTC): ", " UTC\n")
             .or_else(|| between_and_after(rest, "Next elapse: ", "\n"))
-            .expect(&format!("invalid systemd-analyze output {}", output));
+            .unwrap_or_else(|| panic!("invalid systemd-analyze output {}", output));
         let next_elapse = DateTime::parse_from_str(&format!("{} +0000", next_elapse), "%a %Y-%m-%d %H:%M:%S %z")
-            .expect(&format!("invalid systemd-analyze output: next_elapse ''{}''", next_elapse));
+            .unwrap_or_else(|_| panic!("invalid systemd-analyze output: next_elapse ''{}''", next_elapse));
         r.insert(event.to_owned(), next_elapse);
         s = rest;
     }
