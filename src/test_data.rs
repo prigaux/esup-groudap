@@ -95,7 +95,18 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     let cfg_and_prigaux = || CfgAndLU { user: LoggedUser::User("prigaux".to_owned()), ..cfg_and_lu };
     let cfg_and_aanli   = || CfgAndLU { user: LoggedUser::User("aanli".to_owned()), ..cfg_and_lu };
 
+    let root_with_id = || btreemap!{
+        "sgroup_id".to_owned() => "".to_owned(),
+        "description".to_owned() => "Groups. Droits sur l'arborescence entière".to_owned(),
+        "ou".to_owned() => "groups".to_owned(),
+    };
+
     let collab_attrs = || btreemap!{ 
+        "ou".to_owned() => "Collaboration".to_owned(),
+        "description".to_owned() => "Collaboration".to_owned(),
+    };
+    let collab_with_id = || btreemap!{ 
+        "sgroup_id".to_owned() => "collab.".to_owned(),
         "ou".to_owned() => "Collaboration".to_owned(),
         "description".to_owned() => "Collaboration".to_owned(),
     };
@@ -107,7 +118,9 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     api::create(cfg_and_prigaux(), "collab.DSIUN", collab_dsiun_attrs()).await?;
 
     let get_sgroup_collab = ||
-        SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()} }, right: Right::Admin };
+        SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { 
+            children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()},
+        }, parents: vec![ root_with_id() ], right: Right::Admin };
 
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "").await?,
         SgroupAndMoreOut { attrs: btreemap!{ 
@@ -115,11 +128,11 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
             "ou".to_owned() => "groups".to_owned(),
         }, more: SgroupOutMore::Stem { children: btreemap!{
             "collab.".to_owned() => collab_attrs(),
-        } }, right: Right::Admin }
+        } }, parents: vec![], right: Right::Admin }
     );
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, get_sgroup_collab());
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.DSIUN").await?, 
-               SgroupAndMoreOut { right: Right::Admin, more: SgroupOutMore::Group { direct_members: btreemap!{} }, attrs: collab_dsiun_attrs() });
+               SgroupAndMoreOut { right: Right::Admin, more: SgroupOutMore::Group { direct_members: btreemap!{} }, parents: vec![ root_with_id(), collab_with_id() ], attrs: collab_dsiun_attrs() });
     assert!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
 
     api::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
@@ -128,7 +141,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     }).await?;
 
     assert_eq!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
-               SgroupAndMoreOut { right: Right::Updater, more: SgroupOutMore::Group { direct_members: prigaux_subject() }, attrs: collab_dsiun_attrs() });
+               SgroupAndMoreOut { right: Right::Updater, more: SgroupOutMore::Group { direct_members: prigaux_subject() }, parents: vec![ root_with_id(), collab_with_id() ], attrs: collab_dsiun_attrs() });
 
     api::create(cfg_and_prigaux(), "applications.", btreemap!{ 
         "ou".to_owned() => "Applications".to_owned(),
@@ -158,7 +171,9 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
 
     // prigaux is still admin... via group "super-admins"
     assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
-        SgroupAndMoreOut { right: Right::Admin, more: SgroupOutMore::Stem { children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()} }, attrs: collab_attrs() });
+        SgroupAndMoreOut { right: Right::Admin, more: SgroupOutMore::Stem { 
+            children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()}
+        }, parents: vec![ root_with_id() ], attrs: collab_attrs() });
 
     let collab_foo_attrs = || btreemap!{
         "ou".to_owned() => "Collab Foo".to_owned(),
@@ -191,7 +206,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
         SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { children: btreemap!{
             "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
             "collab.foo".to_owned() => collab_foo_attrs(),
-        } }, right: Right::Admin }
+        } }, parents: vec![ root_with_id() ], right: Right::Admin }
     );
     assert_eq!(api::mygroups(cfg_and_prigaux()).await?, btreemap![
         "collab.foo".to_owned() => collab_foo_attrs(),

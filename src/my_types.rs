@@ -159,6 +159,7 @@ pub struct SgroupAndMoreOut {
     #[serde(flatten)]
     pub more: SgroupOutMore,
 
+    pub parents: Vec<MonoAttrs>,
     pub right: Right,
 }
 

@@ -412,7 +412,19 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
             let direct_members = get_subjects_from_urls(ldp, direct_members.unwrap_or_default()).await?;
             SgroupOutMore::Group { direct_members }
         };
-        Ok(SgroupAndMoreOut { attrs, right, more })
+        let parents = {
+            let mut parents_id = ldp.config.stem.parent_stems(id);
+            parents_id.reverse();
+            let filter = ldap_filter::or(parents_id.iter().map(|id| ldp.config.sgroup_filter(id)).collect());
+            let mut id2attrs = search_sgroups_with_attrs(ldp, &filter, None).await?;
+            // NB: with must keep the order of parents_id...
+            parents_id.into_iter().filter_map(|id| {
+                let mut o = id2attrs.remove(id)?;
+                o.insert("sgroup_id".to_owned(), id.to_owned());
+                Some(o)
+            }).collect()
+        };
+        Ok(SgroupAndMoreOut { attrs, right, more, parents })
     } else {
         Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
     }
