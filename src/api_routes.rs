@@ -103,12 +103,15 @@ fn action_result(r : Result<(), LdapError>) -> MyJson {
 
 
 
-#[get("/login?<ticket>")]
-async fn login(ticket: String, orig_url: OrigUrl, cookie_jar: &CookieJar<'_>, config: &State<Config>) -> Result<Redirect, String> {
-    let service = before(&orig_url.0, "?ticket=").ok_or_else(|| "weird login url")?;
+#[get("/login?<target>&<ticket>")]
+async fn login(target: String, ticket: String, orig_url: OrigUrl, cookie_jar: &CookieJar<'_>, config: &State<Config>) -> Result<Redirect, String> {
+    if !target.starts_with("/") || target.starts_with("//") {
+        return Err(format!("invalid target {}, it must be a path-absolute url", target));
+    }
+    let service = before(&orig_url.0, "&ticket=").ok_or_else(|| "weird login url")?;
     let user = cas_auth::validate_ticket(&config.cas.prefix_url, service, &ticket).await?;
     cookie_jar.add_private(Cookie::new("user_id", user));
-    Ok(Redirect::found(uri!("/")))
+    Ok(Redirect::found(target))
 }
 
 #[get("/set_test_data")]
