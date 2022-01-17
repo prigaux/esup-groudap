@@ -1,21 +1,39 @@
 <!DOCTYPE html>
 <html>
-<link rel="stylesheet" href="app.css">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">        
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
 
 <div v-scope v-cloak>
     <fieldset v-if="mygroups">
-        <legend>Mes groupes</legend>
-        <ul v-for="(attrs, id) in mygroups">
-            <li>
+        <legend><h3>Mes groupes</h3></legend>
+        <ul>
+            <li v-for="(attrs, id) in mygroups">
                 <span v-scope="SgroupLink(attrs, id)">
                     <span class="my-icon" v-html="svg.users"></span>
                 </span>
             </li>
         </ul>
     </fieldset>
-    <div v-else>
-        Chargement, veuillez patienter
-    </div>
+    <fieldset>
+        <legend><h3>Recherche</h3></legend>
+        <form @submit.prevent="search">
+            <input v-model="search_token">
+        </form>
+        <div v-if="search_results">            
+            <h4>Résultats</h4>
+            <ul>
+                <li v-for="(attrs, id) in search_results">
+                    <span v-scope="SgroupLink(attrs, id)">
+                        <span class="my-icon" v-html="id.endsWith('.') ? svg.folder : svg.users"></span>
+                    </span>
+                </li>
+            </ul>
+        </div>
+    </fieldset>
 </div>
 
 <script type="module">
@@ -28,9 +46,14 @@ api("mygroups", {}).then(mygroups => {
         mygroups, 
         SgroupLink: prepare_SgroupLink(), 
         svg,
+        search_token: '',
+        search_results: undefined,
+        async search() {
+            this.search_results = await api("search_sgroups", { sizelimit: 10, search_token: this.search_token, right: "updater" })
+        }
     }).mount()
 })
 
 </script>
 
-</html>
+</body></html>

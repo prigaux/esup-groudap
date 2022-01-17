@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html>
-<link rel="stylesheet" href="app.css">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">        
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
 
 <div v-scope v-cloak>
     <div v-if="sgroup">
@@ -16,24 +21,24 @@
         </h2>
 
         <fieldset>
-            <legend>Description</legend>
+            <legend><h4>Description</h4></legend>
             <div class="description">{{sgroup.description}}</div>
         </fieldset>
 
         <p><i>Droits : {{sgroup.right}}</i></p>
 
         <fieldset v-if="sgroup.stem">
-            <legend>Contenu du dossier</legend>
-            <ul v-for="(attrs, id) in sgroup.stem.children">
-                <li v-scope="SgroupLink(attrs, id)">
+            <legend><h4>Contenu du dossier</h4></legend>
+            <ul>
+                <li v-scope="SgroupLink(attrs, id)" v-for="(attrs, id) in sgroup.stem.children">
                     <span class="my-icon" v-html="svg.folder"></span>
                 </li>
             </ul>    
         </fieldset>
         <fieldset v-if="sgroup.group">
-            <legend>Membres directs</legend>
-            <ul v-for="(attrs, dn) in sgroup.group.direct_members">
-                <li>
+            <legend><h4>Membres directs</h4></legend>
+            <ul>
+                <li v-for="(attrs, dn) in sgroup.group.direct_members">
                     <span v-if="attrs.sgroup_id" v-scope="SgroupLink(attrs)">
                         <span class="my-icon" v-html="svg.folder"></span>
                     </span>
@@ -87,4 +92,4 @@ api("sgroup", { id: searchParams().get('id') }).then(async sgroup => {
 
 </script>
 
-</html>
+</body></html>

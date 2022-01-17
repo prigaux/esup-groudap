@@ -568,6 +568,7 @@ pub async fn search_sgroups(cfg_and_lu: CfgAndLU<'_>, right: Right, search_token
             // from inherited rights
             // example: (|(cn=a.*)(cn=b.bb.*)) if user has right on stems "a."" and "b.bb." 
             let children_of_allowed_stems_filter = {
+                // TODO: cache !?
                 let stems_id_with_right = get_all_stems_id_with_user_right(ldp, user, right).await?;
                 // TODO: simplify: no need to keep "a." and "a.b."
                 ldap_filter::or(

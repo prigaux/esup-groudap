@@ -28,3 +28,7 @@ h2 .my-icon {
 li {
     list-style: none;
 }
+
+fieldset > ul {
+    margin-top: 0;
+}
