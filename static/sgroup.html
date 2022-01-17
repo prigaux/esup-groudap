@@ -29,7 +29,14 @@
         <fieldset>
             <legend v-scope="LegendChoices(choice, setChoice, sgroup)"></legend>
             <div v-if="choice === 'rights'">
+                <span v-if="sgroup.stem">
+                    Les entités ayant des privilèges sur ce dossier <b>et tous les sous-dossiers et sous-groupes</b>
+                </span>
+                <span v-else>
+                    Les entités ayant des privilèges sur ce groupe
+                </span>
                 <div v-if="rights">
+                  <div v-if="empty(rights)"> <p></p> <i>Aucun</i> </div>
                   <div v-for="(subjects, right) in rights">
                     <h5>{{right2text[right]}}</h5>
                     <ul>
@@ -41,11 +48,13 @@
                 </div>
             </div>
             <ul v-else-if="sgroup.stem">
+                <div v-if="empty(sgroup.stem.children)"> <p></p> <i>Vide</i> </div>
                 <li v-scope="SgroupLink(attrs, id)" v-for="(attrs, id) in sgroup.stem.children">
                     <span class="my-icon" v-html="svg.folder"></span>
                 </li>
             </ul>    
             <ul v-else-if="sgroup.group">
+                <div v-if="empty(sgroup.group.direct_members)"> <p></p> <i>Aucun</i> </div>
                 <li v-for="(attrs, dn) in sgroup.group.direct_members">
                     <span v-scope="SubjectOrGroup(dn, attrs)"></span>
                 </li>
@@ -73,7 +82,7 @@ const Subject = (dn, subject, sscfg) => {
 const prepare_LegendChoices = () => {
     const $template = create_dynamic_template('LegendChoices', `
         <label @click="setChoice('direct')"><input type="radio" name="legend_choices" value='direct' v-model="choice">{{sgroup.group ? "Membres directs" : "Contenu du dossier"}}</label> 
-        <label @click="setChoice('rights')"><input type="radio" name="legend_choices" value='rights' v-model="choice">Droits</label>
+        <label @click="setChoice('rights')"><input type="radio" name="legend_choices" value='rights' v-model="choice">Privilèges</label>
     `)
     return (choice, setChoice, sgroup) => ({
         choice, setChoice, $template
@@ -117,6 +126,7 @@ api("sgroup", { id }).then(async sgroup => {
     const o = reactive({ 
         Subject, SgroupLink, SubjectOrGroup: prepare_SubjectOrGroup(sscfg), LegendChoices: prepare_LegendChoices(),
         svg, right2text,
+        empty(o) { return Object.keys(o).length === 0 },
 
         sgroup, sscfg,
         rights: undefined,
