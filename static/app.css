@@ -1,0 +1,30 @@
+[v-cloak] {
+    display: none;
+}
+
+body { 
+    font-family: Arial, sans-serif;
+}
+
+h2 { 
+    display: inline-block;
+    vertical-align: middle;
+}
+h2 .my-icon {
+    --my-icon-size: 24px;
+}
+.description {
+    white-space: pre-wrap;
+}
+.my-icon {
+    display: inline-block;
+    --my-icon-size: 13px;
+}
+.my-icon > svg {
+    width: auto;
+    height: var(--my-icon-size);
+    display: block;
+}
+li {
+    list-style: none;
+}

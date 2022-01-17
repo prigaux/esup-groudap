@@ -1,5 +1,11 @@
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
+import folder_svg from '@fortawesome/fontawesome-free/svgs/regular/folder.svg?raw'
+import users_svg from '@fortawesome/fontawesome-free/svgs/solid/users.svg?raw'
+import user_svg from '@fortawesome/fontawesome-free/svgs/regular/user.svg?raw'
+
+export const svg = { folder: folder_svg, users: users_svg, user: user_svg }
+
 export const searchParams = () => (
     new URL(location.href).searchParams
 )

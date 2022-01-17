@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
-
-<style>
-    [v-cloak] { display: none; }
-</style>
+<link rel="stylesheet" href="app.css">
 
 <div v-scope v-cloak>
-    <div v-if="mygroups">
-        Mes groupes
+    <fieldset v-if="mygroups">
+        <legend>Mes groupes</legend>
         <ul v-for="(attrs, id) in mygroups">
-            <li><a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a></li>
+            <li>
+                <span v-scope="SgroupLink(attrs, id)">
+                    <span class="my-icon" v-html="svg.users"></span>
+                </span>
+            </li>
         </ul>
-    </div>
+    </fieldset>
     <div v-else>
         Chargement, veuillez patienter
     </div>
@@ -20,11 +21,13 @@
 <script type="module">
 
 import { createApp } from '././node_modules/petite-vue'
-import { api } from './lib.js'
+import { api, svg, prepare_SgroupLink } from './lib.js'
 
 api("mygroups", {}).then(mygroups => {
     createApp({
-        mygroups,
+        mygroups, 
+        SgroupLink: prepare_SgroupLink(), 
+        svg,
     }).mount()
 })
 
