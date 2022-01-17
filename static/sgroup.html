@@ -38,10 +38,11 @@
                 <div v-if="rights">
                   <div v-if="empty(rights)"> <p></p> <i>Aucun</i> </div>
                   <div v-for="(subjects, right) in rights">
-                    <h5>{{right2text[right]}}</h5>
+                    <h5>Droit "{{right2text[right]}}"</h5>
                     <ul>
                         <li v-for="(subject, dn) in subjects">
                             <span v-scope="SubjectOrGroup(dn, subject)"></span>
+                            <button @click="remove_direct_mright(dn, right)">Supprimer</button>
                         </li>
                     </ul>
                   </div>
@@ -54,9 +55,11 @@
                 </li>
             </ul>    
             <ul v-else-if="sgroup.group">
-                <div v-if="empty(sgroup.group.direct_members)"> <p></p> <i>Aucun</i> </div>
+                <div v-if="!sgroup.group.direct_members">Veuillez patentier...</div>
+                <div v-else-if="empty(sgroup.group.direct_members)"> <p></p> <i>Aucun</i> </div>
                 <li v-for="(attrs, dn) in sgroup.group.direct_members">
                     <span v-scope="SubjectOrGroup(dn, attrs)"></span>
+                    <button @click="remove_direct_mright(dn, 'member')">Supprimer</button>
                 </li>
             </ul>               
         </fieldset>
@@ -69,7 +72,7 @@
 <script type="module">
 
 import { createApp, reactive } from '././node_modules/petite-vue'
-import { api, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
+import { api, api_post, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
 
 const SgroupLink = prepare_SgroupLink()
 
@@ -132,15 +135,29 @@ api("sgroup", { id }).then(async sgroup => {
         rights: undefined,
 
         choice: undefined,
+        updateSgroup() {
+            api('sgroup', { id }).then(sgroup => this.sgroup = sgroup)
+        },
+        updateRights() {
+            this.rights = undefined
+            api('sgroup_direct_rights', { id }).then(r => this.rights = r)
+        },
         initChoice() {
             this.choice = document.location.hash.match(/^#(.*)/)?.[1] || 'direct'
-            if (this.choice === 'rights') {
-                this.rights = undefined
-                api('sgroup_direct_rights', { id }).then(r => this.rights = r)
-            }
+            if (this.choice === 'rights') this.updateRights()
         },
         setChoice(what) {
             document.location.hash = "#" + what
+        },
+
+        async remove_direct_mright(dn, right) {
+            await api_post("modify_members_or_rights", { id }, { [right]: { delete: ['ldap:///' + dn] } })
+            if (right === 'member') {
+                this.sgroup.group.direct_members = undefined
+                this.updateSgroup()
+            } else {
+                this.updateRights()
+            }
         },
     })
     o.initChoice()

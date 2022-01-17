@@ -23,12 +23,12 @@ export async function login() {
     }
 }
 
-export async function api(api_function, params) {
+export async function api_(api_function, search_params, request_params) {
     const url = new URL(api_url + '/' + api_function);
-    for (const key in params) {
-        url.searchParams.set(key, params[key]);
+    for (const key in search_params) {
+        url.searchParams.set(key, search_params[key]);
     }
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), request_params);
     if (response.status === 200) {
         const json = await response.json()
         console.log(json)
@@ -39,6 +39,15 @@ export async function api(api_function, params) {
         return new Promise(_ => {}) // return dead promise
     }
     throw new Error(response.toString())
+}
+
+export const api = (api_function, search_params) => (
+    api_(api_function, search_params, {})
+)
+
+export const api_post = (api_function, search_params, json_body) => {
+    const body = JSON.stringify(json_body)
+    return api_(api_function, search_params, { body, method: 'POST' })
 }
 
 export const to_valid_DOM_id = (id) => (
