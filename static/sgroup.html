@@ -19,6 +19,46 @@
     }
 </style>
 
+
+<div v-scope v-cloak>
+    <div v-if="sgroup">
+        <span v-for="(parent, i) in sgroup.parents">
+            <span v-scope="SgroupLink(parent)"></span>
+            <span v-if="i < sgroup.parents.length">&gt;</span>
+        </span>
+
+        <h2>
+            <span class="my-icon" v-html="sgroup.stem ? folder_svg : users_svg"></span>
+            {{sgroup.ou}}
+        </h2>
+
+        <fieldset>
+            <legend>Description</legend>
+            <div class="description">{{sgroup.description}}</div>
+        </fieldset>
+
+        <p><i>Droits : {{sgroup.right}}</i></p>
+
+        <fieldset v-if="sgroup.stem">
+            <legend>Contenu du dossier</legend>
+            <ul v-for="(attrs, id) in sgroup.stem.children">
+                <li v-scope="SgroupLink(attrs, id)"></li>
+            </ul>    
+        </fieldset>
+        <fieldset v-if="sgroup.group">
+            <legend>Membres directs</legend>
+            <ul v-for="(attrs, dn) in sgroup.group.direct_members">
+                <li>
+                    <span v-if="attrs.sgroup_id" v-scope="SgroupLink(attrs)"></span>
+                    <span v-else v-scope="Subject(dn, attrs, sscfg)"></span>
+                </li>
+            </ul>    
+            
+        </fieldset>
+
+    </div>
+</div>
+
 <script type="module">
 
 import { createApp } from '././node_modules/petite-vue'
@@ -59,44 +99,5 @@ api("sgroup", { id: searchParams().get('id') }).then(async sgroup => {
 })
 
 </script>
-
-<div v-scope v-cloak>
-    <div v-if="sgroup">
-        <span v-for="(parent, i) in sgroup.parents">
-            <span v-scope="SgroupLink(parent)"></span>
-            <span v-if="i < sgroup.parents.length">&gt;</span>
-        </span>
-
-        <h2>
-            <span class="my-icon" v-html="sgroup.stem ? folder_svg : users_svg"></span>
-            {{sgroup.ou}}
-        </h2>
-
-        <fieldset>
-            <legend>Description</legend>
-            <div class="description">{{sgroup.description}}</div>
-        </fieldset>
-
-        <p><i>Droits : {{sgroup.right}}</i></p>
-
-        <fieldset v-if="sgroup.stem">
-            <legend>Contenu du dossier</legend>
-            <ul v-for="(attrs, id) in sgroup.stem.children">
-                <li v-scope="SgroupLink(attrs, id)"></li>
-            </ul>    
-        </fieldset>
-        <fieldset v-if="sgroup.group">
-            <legend>Membres directs</legend>
-            <ul v-for="(attrs, dn) in sgroup.group.direct_members">
-                <li>
-                    <span v-if="attrs.sgroup_id" v-scope="SgroupLink(attrs)"></span>
-                    <span v-else v-scope="Subject(dn, attrs, sscfg)"></span>
-                </li>
-            </ul>    
-            
-        </fieldset>
-
-    </div>
-</div>
 
 </html>

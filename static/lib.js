@@ -44,7 +44,10 @@ export function create_dynamic_template(id, template) {
 }
 
 export function prepare_SgroupLink() {
-    create_dynamic_template('SgroupLink', `<a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a>`);
+    create_dynamic_template('SgroupLink', `
+        <span :title="attrs.description" v-if="('right' in attrs) && !attrs.right">{{attrs.ou}}</span>
+        <a :href="'/sgroup.html?id=' + id" :title="attrs.description" v-else>{{attrs.ou}}</a>
+    `);
     return (attrs, id) => ({
         $template: '#SgroupLink',
         id: id || attrs.sgroup_id,

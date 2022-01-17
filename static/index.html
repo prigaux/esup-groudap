@@ -5,6 +5,18 @@
     [v-cloak] { display: none; }
 </style>
 
+<div v-scope v-cloak>
+    <div v-if="mygroups">
+        Mes groupes
+        <ul v-for="(attrs, id) in mygroups">
+            <li><a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a></li>
+        </ul>
+    </div>
+    <div v-else>
+        Chargement, veuillez patienter
+    </div>
+</div>
+
 <script type="module">
 
 import { createApp } from '././node_modules/petite-vue'
@@ -17,17 +29,5 @@ api("mygroups", {}).then(mygroups => {
 })
 
 </script>
-
-<div v-scope v-cloak>
-    <div v-if="mygroups">
-        Mes groupes
-        <ul v-for="(attrs, id) in mygroups">
-            <li><a :href="'/sgroup.html?id=' + id" :title="attrs.description">{{attrs.ou}}</a></li>
-        </ul>
-    </div>
-    <div v-else>
-        Chargement, veuillez patienter
-    </div>
-</div>
 
 </html>
