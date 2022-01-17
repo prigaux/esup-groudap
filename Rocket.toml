@@ -39,14 +39,14 @@ vue_template_if_ambiguous = "{{displayName}} ({{uid}})"
 [[default.ldap.subject_sources]]
 dn = "ou=admin,dc=nodomain"
 name = "Applications"
-search_filter = "(& (|(cn=%TERM%)(displayName=*%TERM%*)) (objectClass=groupOfNames) )"
+search_filter = "(|(cn=%TERM%)(displayName=*%TERM%*))"
 display_attrs = ["displayName", "description", "cn"]
 # default template is "display first non empty attr value"
 
 [[default.ldap.subject_sources]]
 dn = "ou=groups,dc=nodomain"
 name = "Groupe"
-search_filter = "(|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*))"
+search_filter = "(& (|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames))"
 display_attrs = ["ou", "description", "cn"]
 # default template is "display first non empty attr value"
 

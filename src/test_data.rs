@@ -81,7 +81,10 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
 
     let prigaux_dn = || ldp.config.people_id_to_dn("prigaux");
     let aanli_dn = || ldp.config.people_id_to_dn("aanli");
-    let prigaux_subject = || btreemap!{ prigaux_dn() => btreemap!{"displayName".to_owned() => "Pascal Rigaux".to_owned(), "uid".to_owned() => "prigaux".to_owned()} };
+    let prigaux_subject = || btreemap!{ prigaux_dn() => SubjectAttrs { 
+        attrs: btreemap!{"displayName".to_owned() => "Pascal Rigaux".to_owned(), "uid".to_owned() => "prigaux".to_owned()},
+        sgroup_id: None,
+    } };
 
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(""), vec![
         Mod::Add("objectClass", hashset!["up1SyncGroup"])
@@ -215,11 +218,9 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     });
 
     assert_eq!(api::search_sgroups(cfg_and_prigaux(), Right::Reader, "collaboration".to_owned(), 99).await?, btreemap![
-        "collab.".to_owned() => collab_attrs(),
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     ]);
     assert_eq!(api::search_sgroups(cfg_and_prigaux(), Right::Admin, "collaboration".to_owned(), 99).await?, btreemap![
-        "collab.".to_owned() => collab_attrs(),
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     ]);
     assert_eq!(api::search_sgroups(cfg_and_aanli(), Right::Updater, "collaboration".to_owned(), 99).await?, btreemap![

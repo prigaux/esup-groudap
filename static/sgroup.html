@@ -54,14 +54,40 @@
                     <span class="my-icon" v-html="svg.folder"></span>
                 </li>
             </ul>    
-            <ul v-else-if="sgroup.group">
+            <div v-else-if="sgroup.group">
+                <div style="height: 1rem"></div>
+                <button @click="showAddMember = true" v-if="!showAddMember">Ajouter des membres</button>
+                <form @submit.prevent="addMember_search" v-if="showAddMember">
+                    Recherchez un utilisateur/groupe/...<br>
+                    <input class="search_token" v-model="addMember_search_token">
+                </form>
+                <fieldset v-if="addMember_search_results">
+                    <legend>Résultats de recherche</legend>
+                    <ul>
+                        <li v-for="(subjects, ss) in addMember_search_results">
+                            <span v-if="!empty(subjects)">
+                                <span class="ss_name">{{sscfg.find(z => z.dn === ss).name}}</span>
+                                <ul>
+                                    <li v-for="(subject, dn) in subjects">
+                                        <span v-scope="SubjectOrGroup(dn, subject)"></span>
+                                        <button @click="add_direct_mright(dn, 'member')">Ajouter</button>
+                                    </li>
+                                </ul>
+                            </span>                                    
+                        </li>
+                    </ul>
+                </fieldset>
+                <div style="height: 1rem"></div>
+
                 <div v-if="!sgroup.group.direct_members">Veuillez patentier...</div>
                 <div v-else-if="empty(sgroup.group.direct_members)"> <p></p> <i>Aucun</i> </div>
-                <li v-for="(attrs, dn) in sgroup.group.direct_members">
-                    <span v-scope="SubjectOrGroup(dn, attrs)"></span>
-                    <button @click="remove_direct_mright(dn, 'member')">Supprimer</button>
-                </li>
-            </ul>               
+                <ul>
+                    <li v-for="(attrs, dn) in sgroup.group.direct_members">
+                        <span v-scope="SubjectOrGroup(dn, attrs)"></span>
+                        <button @click="remove_direct_mright(dn, 'member')">Supprimer</button>
+                    </li>
+                </ul>
+            </div>               
         </fieldset>
 
         <p><i>Mes droits sur ce groupe : {{right2text[sgroup.right]}}</i></p>
@@ -134,6 +160,11 @@ api_get("sgroup", { id }).then(async sgroup => {
         sgroup, sscfg,
         rights: undefined,
 
+        showAddMember: false, addMember_search_token: '', addMember_search_results: undefined,
+        async addMember_search() {
+            this.addMember_search_results = await api_get('search_subjects', { search_token: this.addMember_search_token, sizelimit: 10 })
+        },
+        
         choice: undefined,
         updateSgroup() {
             api_get('sgroup', { id }).then(sgroup => this.sgroup = sgroup)
@@ -148,6 +179,16 @@ api_get("sgroup", { id }).then(async sgroup => {
         },
         setChoice(what) {
             document.location.hash = "#" + what
+        },
+
+        async add_direct_mright(dn, right) {
+            await api_post("modify_members_or_rights", { id }, { [right]: { add: ['ldap:///' + dn] } })
+            if (right === 'member') {
+                this.sgroup.group.direct_members = undefined
+                this.updateSgroup()
+            } else {
+                this.updateRights()
+            }
         },
 
         async remove_direct_mright(dn, right) {

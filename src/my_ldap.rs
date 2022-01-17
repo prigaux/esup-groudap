@@ -234,7 +234,8 @@ impl LdapW<'_> {
             .search(base_dn, Scope::Subtree, dbg!(filter), attrs).await?.success()?;
         Ok(rs.into_iter().map(|r| { 
             let entry = SearchEntry::construct(r);
-            (entry.dn, mono_attrs(entry.attrs))
+            let sgroup_id = self.config.dn_to_sgroup_id(&entry.dn);
+            (entry.dn, SubjectAttrs { attrs: mono_attrs(entry.attrs), sgroup_id })
         }).collect())
     }   
 

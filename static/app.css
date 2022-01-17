@@ -29,7 +29,19 @@ li {
     list-style: none;
 }
 
-fieldset > ul {
+fieldset ul {
     margin-top: 0;
+    padding-left: 0;
 }
 
+.ss_name {
+    color: #00326E;
+    font-size: 80%;
+    font-variant: small-caps;
+}
+
+.search_token {
+    min-width: 20rem;
+    min-height: 1.5rem;
+    margin: 1rem;
+}

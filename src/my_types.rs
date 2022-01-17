@@ -143,7 +143,16 @@ pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
 pub type MonoAttrs = BTreeMap<String, String>;
 
 pub type SgroupsWithAttrs = BTreeMap<String, MonoAttrs>;
-pub type Subjects = BTreeMap<String, MonoAttrs>;
+
+#[derive(Serialize, PartialEq, Eq, Debug)]
+pub struct SubjectAttrs {
+    #[serde(flatten)]
+    pub attrs: MonoAttrs,
+
+    pub sgroup_id: Option<String>,
+}
+
+pub type Subjects = BTreeMap<String, SubjectAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupOutAndRight {

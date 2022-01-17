@@ -266,28 +266,6 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     Ok(())
 }
 
-/*fn contains_ref(l: &Vec<String>, s: &str) -> bool {
-    l.iter().any(|e| e == s)
-}*/
-
-/*
-fn shallow_copy_vec(v : &Vec<String>) -> Vec<&str> {
-    v.iter().map(AsRef::as_ref).collect()
-}
-
-async fn subject_to_attrs(ldp: &mut LdapW<'_>, dn: &str) -> Result<MonoAttrs> {
-    let sscfg = ldp.config.dn_to_subject_source_cfg(dn)
-            .ok_or_else(|| LdapError::AdapterInit(format!("DN {} has no corresponding subject source", dn)))?;
-    subject_to_attrs_(ldp, dn, sscfg).await
-}
-
-async fn subject_to_attrs_(ldp: &mut LdapW<'_>, dn: &str, sscfg: &SubjectSourceConfig) -> Result<MonoAttrs> {
-    let entry = ldp.read(dn, shallow_copy_vec(&sscfg.display_attrs)).await?
-            .ok_or_else(|| LdapError::AdapterInit(format!("invalid DN {}", dn)))?;
-    Ok(mono_attrs(entry.attrs))
-}
-*/
-
 impl SubjectSourceConfig {
     fn search_filter_(&self, term: &str) -> String {
         self.search_filter.replace("%TERM%", term).replace(" ", "")
@@ -301,19 +279,8 @@ async fn get_subjects_from_same_branch(ldp: &mut LdapW<'_>, sscfg: &SubjectSourc
     } else {
         rdns_filter
     };
-    let mut subjects = ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await?;
-    if ldp.config.groups_dn == sscfg.dn {
-        // add "sgroup_id" value for subjects we handle
-        for (dn, subject) in subjects.iter_mut() {
-            let id = ldp.config.dn_to_sgroup_id(dn).unwrap_or_else(|| panic!("internal error on {}", dn));
-            subject.insert("sgroup_id".to_owned(), id);
-        }
-    }
-    Ok(subjects)
+    Ok(ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await?)
 }
-
-
-
 
 async fn get_subjects_from_urls(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
     get_subjects(ldp, urls.into_iter().filter_map(url_to_dn_).collect(), &None, &None).await
@@ -359,7 +326,7 @@ pub async fn get_children(ldp: &mut LdapW<'_>, id: &str) -> Result<SgroupsWithAt
         let child_id = ldp.config.dn_to_sgroup_id(&e.dn)?;
         // ignore grandchildren
         if ldp.config.stem.is_grandchild(id, &child_id) { return None }
-        let attrs: MonoAttrs = mono_attrs(e.attrs);
+        let attrs = mono_attrs(e.attrs);
         Some((child_id, attrs))
     }).collect();
     Ok(children)
@@ -510,7 +477,7 @@ async fn search_sgroups_with_attrs(ldp: &mut LdapW<'_>, filter: &str, sizelimit:
     let wanted_attrs = ldp.config.sgroup_attrs.keys().collect();
     let groups = ldp.search_sgroups(filter, wanted_attrs, sizelimit).await?.filter_map(|e| {
         let id = ldp.config.dn_to_sgroup_id(&e.dn)?;
-        let attrs: MonoAttrs = mono_attrs(e.attrs);
+        let attrs = mono_attrs(e.attrs);
         Some((id, attrs))
     }).collect();
     Ok(groups)
