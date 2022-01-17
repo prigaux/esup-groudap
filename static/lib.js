@@ -23,7 +23,7 @@ export async function login() {
     }
 }
 
-export async function api_(api_function, search_params, request_params) {
+async function api_(api_function, search_params, request_params) {
     const url = new URL(api_url + '/' + api_function);
     for (const key in search_params) {
         url.searchParams.set(key, search_params[key]);
@@ -41,7 +41,7 @@ export async function api_(api_function, search_params, request_params) {
     throw new Error(response.toString())
 }
 
-export const api = (api_function, search_params) => (
+export const api_get = (api_function, search_params) => (
     api_(api_function, search_params, {})
 )
 

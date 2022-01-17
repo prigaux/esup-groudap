@@ -72,7 +72,7 @@
 <script type="module">
 
 import { createApp, reactive } from '././node_modules/petite-vue'
-import { api, api_post, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
+import { api_get, api_post, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
 
 const SgroupLink = prepare_SgroupLink()
 
@@ -122,10 +122,10 @@ function create_subject_sources_templates(sscfg) {
     }
 }
 const id = searchParams().get('id')
-const sscfg = await api("config/subject_sources")
+const sscfg = await api_get("config/subject_sources")
 create_subject_sources_templates(sscfg)
 
-api("sgroup", { id }).then(async sgroup => {
+api_get("sgroup", { id }).then(async sgroup => {
     const o = reactive({ 
         Subject, SgroupLink, SubjectOrGroup: prepare_SubjectOrGroup(sscfg), LegendChoices: prepare_LegendChoices(),
         svg, right2text,
@@ -136,11 +136,11 @@ api("sgroup", { id }).then(async sgroup => {
 
         choice: undefined,
         updateSgroup() {
-            api('sgroup', { id }).then(sgroup => this.sgroup = sgroup)
+            api_get('sgroup', { id }).then(sgroup => this.sgroup = sgroup)
         },
         updateRights() {
             this.rights = undefined
-            api('sgroup_direct_rights', { id }).then(r => this.rights = r)
+            api_get('sgroup_direct_rights', { id }).then(r => this.rights = r)
         },
         initChoice() {
             this.choice = document.location.hash.match(/^#(.*)/)?.[1] || 'direct'
