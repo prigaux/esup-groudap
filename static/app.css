@@ -6,7 +6,7 @@ body {
     font-family: Arial, sans-serif;
 }
 
-h2 { 
+h2, h4 { 
     display: inline-block;
     vertical-align: middle;
 }
@@ -32,3 +32,4 @@ li {
 fieldset > ul {
     margin-top: 0;
 }
+

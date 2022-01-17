@@ -6,6 +6,12 @@ import user_svg from '@fortawesome/fontawesome-free/svgs/regular/user.svg?raw'
 
 export const svg = { folder: folder_svg, users: users_svg, user: user_svg }
 
+export const right2text = {
+    "admin": "Administrer",
+    "updater": "Modifier les membres",
+    "reader": "Lire",
+}
+
 export const searchParams = () => (
     new URL(location.href).searchParams
 )
@@ -46,16 +52,16 @@ export function create_dynamic_template(id, template) {
     elt.setAttribute("id", id_)
     elt.innerHTML = template
     document.body.appendChild(elt)
-    return id_
+    return '#' + id_
 }
 
 export function prepare_SgroupLink() {
-    create_dynamic_template('SgroupLink', `
+    const $template = create_dynamic_template('SgroupLink', `
         <span :title="attrs.description" v-if="('right' in attrs) && !attrs.right">{{attrs.ou}}</span>
         <a :href="'/sgroup.html?id=' + id" :title="attrs.description" v-else>{{attrs.ou}}</a>
     `);
     return (attrs, id) => ({
-        $template: '#SgroupLink',
+        $template,
         id: id || attrs.sgroup_id,
         attrs
     })

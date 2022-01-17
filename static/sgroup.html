@@ -25,43 +25,76 @@
             <div class="description">{{sgroup.description}}</div>
         </fieldset>
 
-        <p><i>Droits : {{sgroup.right}}</i></p>
-
-        <fieldset v-if="sgroup.stem">
-            <legend><h4>Contenu du dossier</h4></legend>
-            <ul>
+        <p></p>
+        <fieldset>
+            <legend v-scope="LegendChoices(choice, setChoice, sgroup)"></legend>
+            <div v-if="choice === 'rights'">
+                <div v-if="rights">
+                  <div v-for="(subjects, right) in rights">
+                    <h5>{{right2text[right]}}</h5>
+                    <ul>
+                        <li v-for="(subject, dn) in subjects">
+                            <span v-scope="SubjectOrGroup(dn, subject)"></span>
+                        </li>
+                    </ul>
+                  </div>
+                </div>
+            </div>
+            <ul v-else-if="sgroup.stem">
                 <li v-scope="SgroupLink(attrs, id)" v-for="(attrs, id) in sgroup.stem.children">
                     <span class="my-icon" v-html="svg.folder"></span>
                 </li>
             </ul>    
-        </fieldset>
-        <fieldset v-if="sgroup.group">
-            <legend><h4>Membres directs</h4></legend>
-            <ul>
+            <ul v-else-if="sgroup.group">
                 <li v-for="(attrs, dn) in sgroup.group.direct_members">
-                    <span v-if="attrs.sgroup_id" v-scope="SgroupLink(attrs)">
-                        <span class="my-icon" v-html="svg.folder"></span>
-                    </span>
-                    <span v-else v-scope="Subject(dn, attrs, sscfg)">
-                        <span class="my-icon" v-html="svg.user"></span>
-                    </span>
+                    <span v-scope="SubjectOrGroup(dn, attrs)"></span>
                 </li>
-            </ul>    
-            
+            </ul>               
         </fieldset>
+
+        <p><i>Mes droits sur ce groupe : {{right2text[sgroup.right]}}</i></p>
 
     </div>
 </div>
 
 <script type="module">
 
-import { createApp } from '././node_modules/petite-vue'
-import { api, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg } from './lib.js'
+import { createApp, reactive } from '././node_modules/petite-vue'
+import { api, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
+
+const SgroupLink = prepare_SgroupLink()
 
 const Subject = (dn, subject, sscfg) => {
     const subject_cfg = sscfg.find(one => dn.endsWith(one.dn))
     const $template = '#' + to_valid_DOM_id(subject_cfg.dn)
     return { ...subject, $template }
+}
+
+const prepare_LegendChoices = () => {
+    const $template = create_dynamic_template('LegendChoices', `
+        <label @click="setChoice('direct')"><input type="radio" name="legend_choices" value='direct' v-model="choice">{{sgroup.group ? "Membres directs" : "Contenu du dossier"}}</label> 
+        <label @click="setChoice('rights')"><input type="radio" name="legend_choices" value='rights' v-model="choice">Droits</label>
+    `)
+    return (choice, setChoice, sgroup) => ({
+        choice, setChoice, $template
+    })
+}
+
+const prepare_SubjectOrGroup = (sscfg) => {
+    const $template = create_dynamic_template('SubjectOrGroup', `
+        <span v-if="attrs.sgroup_id" v-scope="SgroupLink(attrs)">
+            <span class="my-icon" v-html="svg.folder"></span>
+        </span>
+        <span v-else v-scope="Subject(dn, attrs, sscfg)">
+            <span class="my-icon" v-html="svg.user"></span>
+        </span>
+    `)
+    return (dn, attrs) => ({
+        $template,
+        Subject, SgroupLink,
+        sscfg, svg,
+        dn, attrs,
+    })
 }
 
 const compute_default_vue_template = (one) => (
@@ -76,17 +109,32 @@ function create_subject_sources_templates(sscfg) {
         create_dynamic_template(one.dn, template)
     }
 }
+const id = searchParams().get('id')
+const sscfg = await api("config/subject_sources")
+create_subject_sources_templates(sscfg)
 
-api("sgroup", { id: searchParams().get('id') }).then(async sgroup => {
-    const o = { 
-        sgroup, Subject, 
-        SgroupLink: prepare_SgroupLink(),
-        svg,
-    }
-    if (sgroup.group) {
-        o.sscfg = await api("config/subject_sources")
-        create_subject_sources_templates(o.sscfg)
-    }
+api("sgroup", { id }).then(async sgroup => {
+    const o = reactive({ 
+        Subject, SgroupLink, SubjectOrGroup: prepare_SubjectOrGroup(sscfg), LegendChoices: prepare_LegendChoices(),
+        svg, right2text,
+
+        sgroup, sscfg,
+        rights: undefined,
+
+        choice: undefined,
+        initChoice() {
+            this.choice = document.location.hash.match(/^#(.*)/)?.[1] || 'direct'
+            if (this.choice === 'rights') {
+                this.rights = undefined
+                api('sgroup_direct_rights', { id }).then(r => this.rights = r)
+            }
+        },
+        setChoice(what) {
+            document.location.hash = "#" + what
+        },
+    })
+    o.initChoice()
+    window.addEventListener('hashchange', () => o.initChoice())
     createApp(o).mount()
 })
 
