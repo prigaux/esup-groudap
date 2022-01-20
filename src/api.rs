@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashSet, HashMap};
 use ldap3::{Mod};
 use ldap3::result::{Result, LdapError};
 
+use crate::helpers::{after_last};
 use crate::my_types::*;
 use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
 use crate::my_ldap::{self, dn_to_rdn_and_parent_dn};
@@ -320,15 +321,29 @@ async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &Opti
     Ok(r)
 }
 
+/*
+pub fn to_rel_ou(parent_attrs: &MonoAttrs, mut attrs: MonoAttrs) -> MonoAttrs {
+    // if inside stem "Applications", transform "Applications:Filex" into "Filex" 
+    // TODO keep it only if "grouper" migration flag activated?
+    if let (Some(parent_ou), Some(child_ou)) = (parent_attrs.get("ou"), attrs.get_mut("ou")) {
+        if let Some(child_inner_ou) = child_ou.strip_prefix(parent_ou) {
+            *child_ou = child_inner_ou.trim_start_matches(":").to_owned();
+        }
+    }
+    attrs
+}
+*/
+
 pub async fn get_children(ldp: &mut LdapW<'_>, id: &str) -> Result<SgroupsWithAttrs> {
     eprintln!("  get_children({})", id);
     let wanted_attrs = ldp.config.sgroup_attrs.keys().collect();
     let filter = ldap_filter::sgroup_children(id);
+    let filter = ldap_filter::and2_if_some(&filter, &ldp.config.sgroup_filter);
     let children = ldp.search_sgroups(&filter, wanted_attrs, None).await?.filter_map(|e| {
         let child_id = ldp.config.dn_to_sgroup_id(&e.dn)?;
         // ignore grandchildren
         if ldp.config.stem.is_grandchild(id, &child_id) { return None }
-        let attrs = mono_attrs(e.attrs);
+        let attrs = simplify_hierachical_ou(mono_attrs(e.attrs));
         Some((child_id, attrs))
     }).collect();
     Ok(children)
@@ -485,11 +500,22 @@ async fn search_sgroups_with_attrs(ldp: &mut LdapW<'_>, filter: &str, sizelimit:
     Ok(groups)
 }
 
+fn simplify_hierachical_ou(mut attrs: MonoAttrs) -> MonoAttrs {
+    if let Some(ou) = attrs.get_mut("ou") {
+        if let Some(ou_) = after_last(ou, ":") {
+            *ou = ou_.to_owned();
+        }
+    }
+    attrs
+}
+
 fn to_sgroup_attrs(id: &str, attrs: LdapAttrs) -> MonoAttrs {
     let mut attrs = mono_attrs(attrs);
     if id.is_empty() {
         // TODO, move this in conf?
         attrs.insert("ou".to_owned(), "Racine".to_owned());
+    } else {
+        attrs = simplify_hierachical_ou(attrs)
     }
     attrs
 }
@@ -549,7 +575,9 @@ pub async fn search_sgroups(cfg_and_lu: CfgAndLU<'_>, right: Right, search_token
                 user_direct_allowed_groups_filter, 
                 children_of_allowed_stems_filter,
             ]);
-            ldap_filter::and2(&right_filter, &term_filter)
+            ldap_filter::and2_if_some(
+                &ldap_filter::and2(&right_filter, &term_filter),
+                &ldp.config.sgroup_filter).into_owned()
         },
     };
     search_sgroups_with_attrs(ldp, &group_filter, Some(sizelimit)).await

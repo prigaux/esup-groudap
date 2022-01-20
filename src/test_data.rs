@@ -151,7 +151,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     }).await?;
 
     api::create(cfg_and_prigaux(), "applications.grouper.", btreemap!{ 
-        "ou".to_owned() => "Grouper".to_owned(),
+        "ou".to_owned() => "Applications:Grouper".to_owned(),
         "description".to_owned() => "Grouper".to_owned(),
     }).await?;
 

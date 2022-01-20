@@ -3,6 +3,11 @@ pub fn after<'a>(s : &'a str, start: &'a str) -> Option<&'a str> {
     Some(&s[pos + start.len() ..])
 }
 
+pub fn after_last<'a>(s : &'a str, start: &'a str) -> Option<&'a str> {
+    let pos = s.rfind(start)?;
+    Some(&s[pos + start.len() ..])
+}
+
 pub fn before<'a>(s: &'a str, end: &'a str) -> Option<&'a str> {
     Some(&s[..s.find(end)?])
 }
@@ -42,3 +47,49 @@ pub fn parse_host_and_port(host: &str) -> (&str, Option<&str>) {
     }
 }
 
+/*
+fn map_with_preview<
+        T,
+        F : Fn(T, &Option<T>) -> T,
+        I : Iterator<Item = T>,
+> (mut iter: I, f: F) -> Vec<T> {
+    let mut r = vec![];
+
+    if let Some(mut elt) = iter.next() {
+        loop {
+            let preview = iter.next();
+            r.push(f(elt, &preview));
+            match preview {
+                Some(preview) => elt = preview,
+                None => break,
+            }
+        }
+    }
+    r
+}
+
+fn map_rev_with_preview<T, F : Fn(T, &Option<T>) -> T> (vec: Vec<T>, f: F) -> Vec<T> {
+    let mut r=  map_with_preview(vec.into_iter().rev(), f);
+    r.reverse();
+    r
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_map_rev_with_preview() {
+        let v = vec!["a".to_owned(), "a:b".to_owned(), "a:b:c".to_owned()];
+
+        let r = map_rev_with_preview(v, |elt, parent| {
+            match parent {
+                Some(parent) => elt.trim_start_matches(parent).trim_start_matches(":").to_owned(),
+                None => elt,
+            }
+        });
+        assert_eq!(r, vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]);    
+    }
+
+}
+*/

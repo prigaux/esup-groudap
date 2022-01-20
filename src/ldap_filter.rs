@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use ldap3::{ldap_escape};
 
 pub fn true_() -> &'static str {
@@ -18,6 +20,13 @@ pub fn _not(filter: &str) -> String {
 
 pub fn and2(filter1: &str, filter2: &str) -> String {
     format!("(&{}{})", filter1, filter2)
+}
+
+pub fn and2_if_some<'a>(filter1: &'a str, filter2: &Option<String>) -> Cow<'a, str> {
+    match filter2 {
+        Some(filter2) => Cow::Owned(and2(filter1, filter2)),
+        None => Cow::Borrowed(filter1),
+    }
 }
 
 pub fn or(l : Vec<String>) -> String {

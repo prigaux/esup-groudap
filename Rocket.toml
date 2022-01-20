@@ -12,6 +12,7 @@ base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
 group_object_classes = [ "up1SyncGroup", "groupOfNames", "supannGroupe" ]
 stem_object_classes = [ "up1SyncGroup", "organizationalRole" ] # root stem will have up1SyncGroup & organizationalUnit
+sgroup_filter = "(objectClass=up1SyncGroup)"
 
 [default.ldap.stem]
 filter = "(&(objectClass=up1SyncGroup)(!(objectClass=groupOfNames)))"
@@ -39,14 +40,14 @@ vue_template_if_ambiguous = "{{displayName}} ({{uid}})"
 [[default.ldap.subject_sources]]
 dn = "ou=admin,dc=nodomain"
 name = "Applications"
-search_filter = "(& (|(cn=%TERM%)(displayName=*%TERM%*)) (objectClass=groupOfNames) )"
+search_filter = "(|(cn=%TERM%)(displayName=*%TERM%*))"
 display_attrs = ["displayName", "description", "cn"]
 # default template is "display first non empty attr value"
 
 [[default.ldap.subject_sources]]
 dn = "ou=groups,dc=nodomain"
 name = "Groupe"
-search_filter = "(& (|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames))"
+search_filter = "(& (|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames) )"
 display_attrs = ["ou", "description", "cn"]
 # default template is "display first non empty attr value"
 

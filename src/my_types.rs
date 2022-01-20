@@ -85,6 +85,7 @@ pub struct LdapConfig {
     pub groups_dn: String,
     pub stem_object_classes: HashSet<String>,
     pub group_object_classes: HashSet<String>,
+    pub sgroup_filter: Option<String>, // needed if groupad does not own all groups in groups_dn
     pub stem: StemConfig,
     pub subject_sources: Vec<SubjectSourceConfig>,
     pub groups_flattened_attr: BTreeMap<Mright, String>,

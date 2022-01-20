@@ -4,7 +4,7 @@ use ldap3::result::{Result, LdapError};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::helpers::before_and_after;
-use crate::ldap_wrapper::mono_attrs;
+use crate::ldap_wrapper::{mono_attrs};
 
 use crate::ldap_wrapper::LdapW;
 use crate::my_types::*;
@@ -341,6 +341,7 @@ mod tests {
             groups_dn: "ou=groups,dc=nodomain".to_owned(),
             stem_object_classes: hashset![],
             group_object_classes: hashset![],
+            sgroup_filter: None,
             stem: stem_config(),
             subject_sources: vec![],
             sgroup_attrs: btreemap![],
