@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">        
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="./app.css">
 </head>
 <body>
 
@@ -148,10 +148,10 @@ function create_subject_sources_templates(sscfg) {
     }
 }
 const id = searchParams().get('id')
-const sscfg = await api_get("config/subject_sources")
-create_subject_sources_templates(sscfg)
-
-api_get("sgroup", { id }).then(async sgroup => {
+api_get("config/subject_sources").then(async sscfg => {
+    create_subject_sources_templates(sscfg)
+    const sgroup = await api_get("sgroup", { id })
+    
     const o = reactive({ 
         Subject, SgroupLink, SubjectOrGroup: prepare_SubjectOrGroup(sscfg), LegendChoices: prepare_LegendChoices(),
         svg, right2text,

@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">        
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="./app.css">
 </head>
 <body>
 
@@ -39,9 +39,9 @@
 <script type="module">
 
 import { createApp } from '././node_modules/petite-vue'
-import { api, svg, prepare_SgroupLink } from './lib.js'
+import { api_get, svg, prepare_SgroupLink } from './lib.js'
 
-api("mygroups", {}).then(mygroups => {
+api_get("mygroups", {}).then(mygroups => {
     createApp({
         mygroups, 
         SgroupLink: prepare_SgroupLink(), 
@@ -49,7 +49,7 @@ api("mygroups", {}).then(mygroups => {
         search_token: '',
         search_results: undefined,
         async search() {
-            this.search_results = await api("search_sgroups", { sizelimit: 10, search_token: this.search_token, right: "updater" })
+            this.search_results = await api_get("search_sgroups", { sizelimit: 10, search_token: this.search_token, right: "updater" })
         }
     }).mount()
 })
