@@ -1,3 +1,5 @@
+#![allow(clippy::comparison_chain)]
+
 use std::collections::{BTreeMap, HashSet, HashMap};
 
 use ldap3::{Mod};
@@ -339,7 +341,7 @@ async fn get_parents_raw(ldp: &mut LdapW<'_>, filter: &str, user_urls: &LoggedUs
     let groups = ldp.search_sgroups(filter, wanted_attrs, sizelimit).await?.filter_map(|mut e| {
         let right = match user_urls {
             LoggedUserUrls::TrustedAdmin => Some(Right::Admin),
-            LoggedUserUrls::User(user_urls) => user_highest_right(&mut e.attrs, &user_urls),
+            LoggedUserUrls::User(user_urls) => user_highest_right(&mut e.attrs, user_urls),
         };
         let id = ldp.config.dn_to_sgroup_id(&e.dn)?;
         // return the remaining attrs
@@ -358,7 +360,7 @@ async fn get_parents(ldp: &mut LdapW<'_>, id: &str, user_urls: &LoggedUserUrls) 
     let mut best = None;
     Ok(parents_id.into_iter().filter_map(|id| {
         let mut parent = parents.remove(id)?;
-        if parent.right > best {
+        if best < parent.right {
             best = parent.right;
         } else if parent.right < best {
             parent.right = best;
@@ -410,7 +412,7 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         // #2 compute rights (also computing parents because both require user_urls)
         let (right, parents) = get_right_and_parents(ldp, id, &mut attrs).await?;
         // #3 pack the remaining attrs:
-        let attrs = to_sgroup_attrs(&id, attrs);
+        let attrs = to_sgroup_attrs(id, attrs);
 
         let more = if is_stem { 
             let children = get_children(ldp, id).await?;

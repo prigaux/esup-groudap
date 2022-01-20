@@ -25,6 +25,19 @@ fn handle_read_one_search_result(res : SearchResult) -> Result<Option<ResultEntr
     }
 }
 
+fn search_options(sizelimit: Option<i32>) -> SearchOptions {
+    let opts = SearchOptions::new();
+    if let Some(limit) = sizelimit { opts.sizelimit(limit) } else { opts }
+}
+
+pub fn handle_sizelimited_search(res : SearchResult) -> Result<Vec<ResultEntry>> {
+    if res.1.rc == 0 || res.1.rc == 4 {
+        Ok(res.0)
+    } else {
+        Err(LdapError::from(res.1))
+    }
+}
+
 impl LdapW<'_> {
     pub async fn open_<'a>(cfg_and_lu: &'a CfgAndLU<'a>) -> Result<LdapW<'a>> {
         Self::open(&cfg_and_lu.cfg.ldap, &cfg_and_lu.user).await
@@ -36,7 +49,14 @@ impl LdapW<'_> {
         ldap.simple_bind(&config.bind_dn, &config.bind_password).await?;
         Ok(LdapW { ldap, config, logged_user })
     }
-    
+
+    pub async fn search<'a, S: AsRef<str> + Send + Sync + 'a>(
+        &mut self, base: &str, filter: &str, attrs: Vec<S>, sizelimit: Option<i32>
+    ) -> Result<Vec<ResultEntry>> {
+        Ok(handle_sizelimited_search(self.ldap.with_search_options(search_options(sizelimit))
+            .search(base, Scope::Subtree, filter, attrs).await?)?)
+    }
+
     pub async fn read<'a, S: AsRef<str> + Send + Sync + 'a>(&mut self, dn: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
         let res = self.ldap.search(dn, Scope::Base, ldap_filter::true_(), attrs).await?;
         let res = handle_read_one_search_result(res)?;
@@ -75,11 +95,7 @@ impl LdapW<'_> {
     }
 
     pub async fn one_group_matches_filter(&mut self, filter: &str) -> Result<bool> {
-        let (rs, _res) = {
-            let opts = SearchOptions::new().sizelimit(1);
-            let ldap_ = self.ldap.with_search_options(opts);
-            ldap_.search(&self.config.groups_dn, Scope::Subtree, dbg!(filter), vec![""]).await?.success()?
-        };
+        let rs = self.search(&self.config.groups_dn, dbg!(filter), vec![""], Some(1)).await?;
         Ok(!rs.is_empty())
     }
 
