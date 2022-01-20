@@ -1,3 +1,5 @@
+use std::thread;
+
 #[macro_use]
 extern crate maplit;
 
@@ -14,13 +16,22 @@ mod my_ldap;
 mod test_data;
 mod api_routes;
 mod cas_auth;
+mod cron;
 
 use rocket::{fairing::AdHoc, fs::FileServer, fs::relative};
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
+    let cache: api_routes::Cache = Default::default();
+
+    let rocket = rocket::build()
         .mount("/api", api_routes::routes())
         .mount("/", FileServer::from(relative!("static/dist")))
-        .attach(AdHoc::config::<my_types::Config>())
+        .manage(cache.clone())
+        .attach(AdHoc::config::<my_types::Config>());
+
+    let config: my_types::Config = rocket.figment().extract().expect("config");
+    thread::spawn(move || cron::the_loop(config, cache));
+
+    rocket
 }

@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 use std::result::Result;
 
+use std::time::SystemTime;
+use std::{sync::{Arc, Mutex}, collections::HashMap};
+
 use rocket::{Route, State};
 use rocket::http::{Status, ContentType};
 use rocket::http::{Cookie, CookieJar};
@@ -16,6 +19,11 @@ use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAnd
 use crate::api;
 use crate::test_data;
 use crate::cas_auth;
+
+#[derive(Clone, Default)]
+pub struct Cache {
+    pub synchronized_groups: Arc<Mutex<Option<(SystemTime, Arc<HashMap<String, String>>)>>>,
+}
 
 struct OrigUrl(String);
 
@@ -178,6 +186,12 @@ async fn mygroups(cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupsWithAttrs>, M
     to_json(api::mygroups(cfg_and_lu).await)
 }
 
+#[get("/clear_cache")]
+async fn clear_cache(cache : &State<Cache>) {
+    let mut val = cache.synchronized_groups.lock().unwrap();
+    *val = Some((SystemTime::now(), Arc::new(hashmap!["foo".to_owned() => "bar2".to_owned()])));
+}
+
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
 async fn search_subjects(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<&String, Subjects>>, MyJson> {
     to_json(api::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
@@ -201,6 +215,7 @@ fn config_remotes(cfg_and_lu : CfgAndLU<'_>) -> Json<&BTreeMap<String, RemoteCon
 pub fn routes() -> Vec<Route> {
     routes![
         login,
+        clear_cache,
         clear_test_data, add_test_data, set_test_data, 
         sgroup, sgroup_direct_rights, group_flattened_mright, search_sgroups, search_subjects, mygroups,
         config_public, config_subject_sources, config_remotes,
