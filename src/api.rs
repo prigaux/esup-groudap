@@ -370,9 +370,11 @@ async fn get_parents(ldp: &mut LdapW<'_>, id: &str, user_urls: &LoggedUserUrls) 
     let filter = ldap_filter::or(parents_id.iter().map(|id| ldp.config.sgroup_filter(id)).collect());
     let mut parents = get_parents_raw(ldp, &filter, user_urls, None).await?;
 
-    // convert to Vec using the order of parents_id
+    // convert to Vec using the order of parents_id + compute right (inheriting from parent)
     parents_id.reverse();
+
     let mut best = None;
+
     Ok(parents_id.into_iter().filter_map(|id| {
         let mut parent = parents.remove(id)?;
         if best < parent.right {
@@ -382,6 +384,15 @@ async fn get_parents(ldp: &mut LdapW<'_>, id: &str, user_urls: &LoggedUserUrls) 
         }
         Some(parent)
     }).collect())
+    /*
+    let r = map_rev_with_preview(parents, |one, p_one| {
+        match p_one {
+            Some(p_one) => 
+                SgroupOutAndRight { attrs: to_rel_ou(&p_one.attrs, one.attrs), ..one },
+            None => one,
+        }
+    });
+    */
 }
 async fn get_right_and_parents(ldp: &mut LdapW<'_>, id: &str, self_attrs: &mut LdapAttrs) -> Result<(Right, Vec<SgroupOutAndRight>)> {
     let user_urls = user_urls(ldp).await?;
