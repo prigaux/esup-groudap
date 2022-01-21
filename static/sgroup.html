@@ -80,19 +80,25 @@
                     </fieldset>
                 </div>
                 <button @click="showAddMember = true" v-else>Ajouter des membres</button>
+                <button @click="showIndirect = !showIndirect; updateMembers()">{{showIndirect ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
                 <div style="height: 1rem"></div>
 
-                <div v-if="!sgroup.group.direct_members">Veuillez patentier...</div>
-                <div v-else-if="empty(sgroup.group.direct_members)"> <p></p> <i>Aucun</i> </div>
-                <ul>
-                    <li v-for="(attrs, dn) in sgroup.group.direct_members">
-                        <span v-scope="SubjectOrGroup(dn, attrs)"></span>
-                        <button @click="remove_direct_mright(dn, 'member')">Supprimer</button>
-                    </li>
-                </ul>
+                <div v-if="!members">Veuillez patentier...</div>
+                <div v-else-if="!members.count"> <p></p> <i>Aucun</i> </div>
+                <div v-else-if="members">
+                    Nb : {{members?.count}}
+                    <ul>
+                        <li v-for="(attrs, dn) in members?.subjects">
+                            <span v-scope="SubjectOrGroup(dn, attrs)"></span>
+                            <i v-if="showIndirect && attrs.indirect">Indirect</i>
+                            <button @click="remove_direct_mright(dn, 'member')">Supprimer</button>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </fieldset>
+
 
         <p><i>Mes droits sur ce groupe : {{right2text[sgroup.right]}}</i></p>
 
@@ -101,7 +107,8 @@
 
 <script type="module">
 
-import { createApp, reactive } from '././node_modules/petite-vue'
+import forEach from 'lodash/forEach'
+import { createApp, reactive } from 'petite-vue'
 import { api_get, api_post, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
 
 const SgroupLink = prepare_SgroupLink()
@@ -114,7 +121,7 @@ const Subject = (dn, subject, sscfg) => {
 
 const prepare_LegendChoices = () => {
     const $template = create_dynamic_template('LegendChoices', `
-        <label @click="setChoice('direct')"><input type="radio" name="legend_choices" value='direct' v-model="choice">{{sgroup.group ? "Membres directs" : "Contenu du dossier"}}</label>
+        <label @click="setChoice('direct')"><input type="radio" name="legend_choices" value='direct' v-model="choice">{{sgroup.group ? "Membres" : "Contenu du dossier"}}</label>
         <label @click="setChoice('rights')"><input type="radio" name="legend_choices" value='rights' v-model="choice">Privilèges</label>
     `)
     return (choice, setChoice, sgroup) => ({
@@ -165,13 +172,19 @@ api_get("config/subject_sources").then(async sscfg => {
         rights: undefined,
 
         showAddMember: false, addMember_search_token: '', addMember_search_results: undefined,
+
+        members: undefined, flat_members: undefined,
+        showIndirect: false,
         async addMember_search() {
             this.addMember_search_results = await api_get('search_subjects', { search_token: this.addMember_search_token, sizelimit: 10 })
         },
 
         choice: undefined,
         updateSgroup() {
-            api_get('sgroup', { id }).then(sgroup => this.sgroup = sgroup)
+            api_get('sgroup', { id }).then(sgroup => {
+                this.sgroup = sgroup
+                this.updateMembers()
+            })
         },
         updateRights() {
             this.rights = undefined
@@ -185,10 +198,26 @@ api_get("config/subject_sources").then(async sscfg => {
             document.location.hash = "#" + what
         },
 
+        async searchFlatMembers() {
+            const r = await api_get('group_flattened_mright', { id, mright: 'member' })
+            forEach(r.subjects, (attrs, dn) => {
+                attrs.indirect = !(dn in this.sgroup.group?.direct_members)
+            })
+            this.flat_members = r
+        },
+
+        updateMembers() {
+            if (this.showIndirect && !this.flat_members) {
+                this.searchFlatMembers().then(_ => this.updateMembers())
+            }
+            let direct_members = this.sgroup.group?.direct_members
+            this.members = this.showIndirect ? this.flat_members : this.sgroup.group ? { count: Object.keys(direct_members).length, subjects: direct_members } : undefined
+        },
+
         async add_direct_mright(dn, right) {
             await api_post("modify_members_or_rights", { id }, { [right]: { add: ['ldap:///' + dn] } })
             if (right === 'member') {
-                this.sgroup.group.direct_members = undefined
+                this.members = undefined
                 this.updateSgroup()
             } else {
                 this.updateRights()
@@ -198,7 +227,7 @@ api_get("config/subject_sources").then(async sscfg => {
         async remove_direct_mright(dn, right) {
             await api_post("modify_members_or_rights", { id }, { [right]: { delete: ['ldap:///' + dn] } })
             if (right === 'member') {
-                this.sgroup.group.direct_members = undefined
+                this.members = undefined
                 this.updateSgroup()
             } else {
                 this.updateRights()
@@ -206,6 +235,7 @@ api_get("config/subject_sources").then(async sscfg => {
         },
     })
     o.initChoice()
+    o.updateMembers()
     window.addEventListener('hashchange', () => o.initChoice())
     createApp(o).mount()
 })
