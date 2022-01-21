@@ -229,6 +229,11 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     assert_eq!(api::search_sgroups(cfg_and_aanli(), Right::Admin, "collaboration".to_owned(), 99).await?, btreemap![
     ]);
 
+    assert_eq!(api::get_group_flattened_mright(cfg_and_prigaux(), "collab.DSIUN", Mright::Member, None, Some(1)).await?, 
+        SubjectsAndCount { count: 1, subjects: prigaux_subject() });
+
+    assert!(api::get_group_flattened_mright(cfg_and_prigaux(), "", Mright::Admin, None, None).await.is_err());
+    assert!(api::get_group_flattened_mright(cfg_and_prigaux(), "collab.", Mright::Admin, None, None).await.is_err());
 
     Ok(())
 }

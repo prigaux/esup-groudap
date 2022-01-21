@@ -78,7 +78,7 @@ impl LdapW<'_> {
     pub async fn read_flattened_mright(&mut self, dn: &str, mright: Mright) -> Result<Vec<String>> {
         let l = self.read_one_multi_attr__or_err(dn, self.config.to_flattened_attr(mright)).await?;
         // turn [""] into []
-        Ok(match l.get(0) {
+        Ok(match l.first() {
             Some(s) if s.is_empty() => vec![],
             _ => l
         })

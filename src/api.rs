@@ -473,16 +473,23 @@ pub async fn get_sgroup_direct_rights(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Res
     }
 }
 
-pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mright: Mright, search_token: Option<String>, sizelimit: Option<usize>) -> Result<Subjects> {
+// sizelimit is applied for each subject source, so the max number of results is sizelimit * nb_subject_sources
+pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mright: Mright, search_token: Option<String>, sizelimit: Option<usize>) -> Result<SubjectsAndCount> {
     eprintln!("get_group_flattened_mright({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    if cfg_and_lu.cfg.ldap.stem.is_stem(id) {
+        return Err(LdapError::AdapterInit("get_group_flattened_mright works only on groups, not stems".to_owned()))
+    }
+
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
     let flattened_dns = {
         let dn = ldp.config.sgroup_id_to_dn(id);
         ldp.read_flattened_mright(&dn, mright).await?
     };
-    get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await
+    let count = flattened_dns.len();
+    let subjects = get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await?;
+    Ok(SubjectsAndCount { count, subjects })
 }
 
 pub async fn search_subjects(cfg_and_lu: CfgAndLU<'_>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<BTreeMap<&String, Subjects>> {

@@ -156,6 +156,12 @@ pub struct SubjectAttrs {
 pub type Subjects = BTreeMap<String, SubjectAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
+pub struct SubjectsAndCount {
+    pub count: usize,
+    pub subjects: Subjects,
+}
+
+#[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupOutAndRight {
     #[serde(flatten)]
     pub attrs: MonoAttrs,

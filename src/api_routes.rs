@@ -15,7 +15,7 @@ use rocket::serde::json::{json, Json, Value};
 use ldap3::result::LdapError;
 
 use crate::helpers::{before, parse_host_and_port, build_url_from_parts};
-use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs};
+use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount};
 use crate::api;
 use crate::test_data;
 use crate::cas_auth;
@@ -170,7 +170,7 @@ async fn sgroup_direct_rights(id: String, cfg_and_lu : CfgAndLU<'_>) -> Result<J
 }
 
 #[get("/group_flattened_mright?<id>&<mright>&<search_token>&<sizelimit>")]
-async fn group_flattened_mright(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<Subjects>, MyJson> {
+async fn group_flattened_mright(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SubjectsAndCount>, MyJson> {
     let mright = Mright::from_string(&mright).map_err(err_to_json)?;
     to_json(api::get_group_flattened_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
