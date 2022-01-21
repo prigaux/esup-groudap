@@ -312,7 +312,7 @@ async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &Opti
                 count += subjects.len();
                 r.append(subjects);
                 if let Some(limit) = sizelimit {
-                    if count > *limit { break; }
+                    if count >= *limit { break; }
                 }
             }
         }

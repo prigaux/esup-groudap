@@ -45,3 +45,13 @@ fieldset ul {
     min-height: 1.5rem;
     margin: 1rem;
 }
+
+table {
+    border-spacing: 0;
+}
+tr:nth-child(even) { 
+    background-color: #f2f2f2;
+}
+td {
+    padding: 0.3rem 0.3rem 0.3rem 1rem;
+}

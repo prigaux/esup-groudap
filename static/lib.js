@@ -1,3 +1,5 @@
+import { pickBy } from 'lodash'
+
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
 import folder_svg from '@fortawesome/fontawesome-free/svgs/regular/folder.svg?raw'
@@ -40,6 +42,10 @@ async function api_(api_function, search_params, request_params) {
     }
     throw new Error(response.toString())
 }
+
+export const remove_empty_params = (params) => (
+    pickBy(params, (v) => v)
+)
 
 export const api_get = (api_function, search_params) => (
     api_(api_function, search_params, {})

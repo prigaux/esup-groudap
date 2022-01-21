@@ -36,7 +36,7 @@
                     Les entités ayant des privilèges sur ce groupe
                 </span>
                 <div v-if="rights">
-                  <div v-if="empty(rights)"> <p></p> <i>Aucun</i> </div>
+                  <div v-if="isEmpty(rights)"> <p></p> <i>Aucun</i> </div>
                   <div v-for="(subjects, right) in rights">
                     <h5>Droit "{{right2text[right]}}"</h5>
                     <ul>
@@ -49,7 +49,7 @@
                 </div>
             </div>
             <ul v-else-if="sgroup.stem">
-                <div v-if="empty(sgroup.stem.children)"> <p></p> <i>Vide</i> </div>
+                <div v-if="isEmpty(sgroup.stem.children)"> <p></p> <i>Vide</i> </div>
                 <li v-scope="SgroupLink(attrs, id)" v-for="(attrs, id) in sgroup.stem.children">
                     <span class="my-icon" v-html="svg.folder"></span>
                 </li>
@@ -66,7 +66,7 @@
                         <legend>Résultats de recherche</legend>
                         <ul>
                             <li v-for="(subjects, ss) in addMember_search_results">
-                                <span v-if="!empty(subjects)">
+                                <span v-if="!isEmpty(subjects)">
                                     <span class="ss_name">{{sscfg.find(z => z.dn === ss).name}}</span>
                                     <ul>
                                         <li v-for="(subject, dn) in subjects">
@@ -85,16 +85,25 @@
                 <div style="height: 1rem"></div>
 
                 <div v-if="!members">Veuillez patentier...</div>
-                <div v-else-if="!members.count"> <p></p> <i>Aucun</i> </div>
                 <div v-else-if="members">
-                    Nb : {{members?.count}}
-                    <ul>
-                        <li v-for="(attrs, dn) in members?.subjects">
-                            <span v-scope="SubjectOrGroup(dn, attrs)"></span>
-                            <i v-if="showIndirect && attrs.indirect">Indirect</i>
-                            <button @click="remove_direct_mright(dn, 'member')">Supprimer</button>
-                        </li>
-                    </ul>
+                    Nb : {{members?.real_count}}
+                        <span v-if="members?.limited"> / {{members?.count}}</span>
+
+                        <div v-if="showIndirect">
+                            <div v-if="members?.limited && !flat_member_search_token">Affichage limité, chercher dans les membres</div>
+                            <div v-else>Filtrer les membres</div>
+                            <form @submit.prevent="updateMembers(true)">
+                                <input class="search_token" v-model="flat_member_search_token">
+                            </form>
+                        </div>
+                    <div v-if="isEmpty(members?.subjects)"> <p></p> <i>Aucun</i> </div>
+                    <table>
+                        <tr v-for="(attrs, dn) in members?.subjects">
+                            <td v-scope="SubjectOrGroup(dn, attrs)"></td>
+                            <td><i v-if="showIndirect && attrs.indirect">Indirect</i></td>
+                            <td><button @click="remove_direct_mright(dn, 'member')">Supprimer</button></td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </fieldset>
@@ -107,9 +116,9 @@
 
 <script type="module">
 
-import forEach from 'lodash/forEach'
+import { forEach, isEmpty, size } from 'lodash'
 import { createApp, reactive } from 'petite-vue'
-import { api_get, api_post, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text } from './lib.js'
+import { api_get, api_post, searchParams, create_dynamic_template, to_valid_DOM_id, prepare_SgroupLink, svg, right2text, remove_empty_params } from './lib.js'
 
 const SgroupLink = prepare_SgroupLink()
 
@@ -166,7 +175,7 @@ api_get("config/subject_sources").then(async sscfg => {
     const o = reactive({
         Subject, SgroupLink, SubjectOrGroup: prepare_SubjectOrGroup(sscfg), LegendChoices: prepare_LegendChoices(),
         svg, right2text,
-        empty(o) { return Object.keys(o).length === 0 },
+        isEmpty, size,
 
         sgroup, sscfg,
         rights: undefined,
@@ -174,7 +183,7 @@ api_get("config/subject_sources").then(async sscfg => {
         showAddMember: false, addMember_search_token: '', addMember_search_results: undefined,
 
         members: undefined, flat_members: undefined,
-        showIndirect: false,
+        showIndirect: false, flat_member_search_token: '',
         async addMember_search() {
             this.addMember_search_results = await api_get('search_subjects', { search_token: this.addMember_search_token, sizelimit: 10 })
         },
@@ -197,21 +206,27 @@ api_get("config/subject_sources").then(async sscfg => {
         setChoice(what) {
             document.location.hash = "#" + what
         },
+        size,
 
         async searchFlatMembers() {
-            const r = await api_get('group_flattened_mright', { id, mright: 'member' })
+            const r = await api_get('group_flattened_mright', remove_empty_params({ id, mright: 'member', sizelimit: 10, search_token: this.flat_member_search_token }))
             forEach(r.subjects, (attrs, dn) => {
                 attrs.indirect = !(dn in this.sgroup.group?.direct_members)
             })
             this.flat_members = r
         },
 
-        updateMembers() {
+        updateMembers(noCache) {
+            if (noCache) this.flat_members = undefined
             if (this.showIndirect && !this.flat_members) {
                 this.searchFlatMembers().then(_ => this.updateMembers())
             }
             let direct_members = this.sgroup.group?.direct_members
-            this.members = this.showIndirect ? this.flat_members : this.sgroup.group ? { count: Object.keys(direct_members).length, subjects: direct_members } : undefined
+            this.members = this.showIndirect ? this.flat_members : this.sgroup.group ? { subjects: direct_members } : undefined
+            if (this.members) {
+                this.members.real_count = size(this.members.subjects)
+                this.members.limited = this.members.count && this.members.count !== this.members.real_count
+            }
         },
 
         async add_direct_mright(dn, right) {

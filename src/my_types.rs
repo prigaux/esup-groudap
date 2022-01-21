@@ -150,6 +150,7 @@ pub struct SubjectAttrs {
     #[serde(flatten)]
     pub attrs: MonoAttrs,
 
+    #[serde(skip_serializing_if="Option::is_none")]
     pub sgroup_id: Option<String>,
 }
 
