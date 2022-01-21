@@ -349,6 +349,7 @@ pub async fn get_children(ldp: &mut LdapW<'_>, id: &str) -> Result<SgroupsWithAt
     Ok(children)
 }
 
+// compute direct right, without taking into account right inheritance (inheritance is handled in "get_parents()")
 async fn get_parents_raw(ldp: &mut LdapW<'_>, filter: &str, user_urls: &LoggedUserUrls, sizelimit: Option<i32>) -> Result<BTreeMap<String, SgroupOutAndRight>> {
     let display_attrs: Vec<&String> = ldp.config.sgroup_attrs.keys().collect();
     let direct_right_attrs = Right::Reader.to_allowed_attrs();
@@ -491,6 +492,18 @@ pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mrig
     let subjects = get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await?;
     Ok(SubjectsAndCount { count, subjects })
 }
+
+/*
+pub async fn group_uses(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupsWithAttrs> {
+    eprintln!("group_uses({})", id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+
+    let group_filter = 
+    
+    search_sgroups_with_attrs(ldp, &group_filter, Some(sizelimit)).await
+}
+*/
 
 pub async fn search_subjects(cfg_and_lu: CfgAndLU<'_>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<BTreeMap<&String, Subjects>> {
     eprintln!("search_subjects({}, {:?})", search_token, source_dn);
