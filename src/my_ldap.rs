@@ -276,6 +276,20 @@ pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_m
     }
 }
 
+pub async fn user_urls_(ldp: &mut LdapW<'_>, user: &str) -> Result<HashSet<String>> {
+    let r = Ok(ldp.user_groups_and_user_dn(user).await?.iter().map(|dn| dn_to_url(dn)).collect());
+    eprintln!("    user_urls({}) => {:?}", user, r);
+    r
+}
+
+pub fn user_has_right_on_sgroup_filter(user_urls: &HashSet<String>, right: &Right) -> String {
+    ldap_filter::or(
+        right.to_allowed_attrs().into_iter().flat_map(|attr| {
+            user_urls.iter().map(|url| ldap_filter::eq(&attr,url)).collect::<Vec<_>>()
+        }).collect()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

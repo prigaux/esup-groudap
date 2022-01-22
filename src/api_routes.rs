@@ -16,7 +16,8 @@ use ldap3::result::LdapError;
 
 use crate::helpers::{before, parse_host_and_port, build_url_from_parts};
 use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, LoggedUser, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount};
-use crate::api;
+use crate::api_get;
+use crate::api_post;
 use crate::test_data;
 use crate::cas_auth;
 
@@ -138,52 +139,52 @@ async fn add_test_data(cfg_and_lu : CfgAndLU<'_>) -> MyJson {
 #[post("/create?<id>", data = "<attrs>")]
 async fn create(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
     action_result(
-        api::create(cfg_and_lu, &id, attrs.into_inner()).await
+        api_post::create(cfg_and_lu, &id, attrs.into_inner()).await
     )
 }
 
 #[post("/modify?<id>", data = "<attrs>")]
 async fn modify(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
     action_result(
-        api::modify_sgroup_attrs(cfg_and_lu, &id, attrs.into_inner()).await
+        api_post::modify_sgroup_attrs(cfg_and_lu, &id, attrs.into_inner()).await
     )
 }
 
 #[post("/delete?<id>")]
 async fn delete(id: String, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
-    action_result(api::delete(cfg_and_lu, &id).await)
+    action_result(api_post::delete(cfg_and_lu, &id).await)
 }
 
 #[post("/modify_members_or_rights?<id>", data = "<mods>")]
 async fn modify_members_or_rights(id: String, mods: Json<MyMods>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
-    action_result(api::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner()).await)
+    action_result(api_post::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner()).await)
 }
 
 #[get("/sgroup?<id>")]
 async fn sgroup(id: String, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupAndMoreOut>, MyJson> {
-    to_json(api::get_sgroup(cfg_and_lu, &id).await)
+    to_json(api_get::get_sgroup(cfg_and_lu, &id).await)
 }
 
 #[get("/sgroup_direct_rights?<id>")]
 async fn sgroup_direct_rights(id: String, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<Right, Subjects>>, MyJson> {
-    to_json(api::get_sgroup_direct_rights(cfg_and_lu, &id).await)
+    to_json(api_get::get_sgroup_direct_rights(cfg_and_lu, &id).await)
 }
 
 #[get("/group_flattened_mright?<id>&<mright>&<search_token>&<sizelimit>")]
 async fn group_flattened_mright(id: String, mright: String, search_token: Option<String>, sizelimit: Option<usize>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SubjectsAndCount>, MyJson> {
     let mright = Mright::from_string(&mright).map_err(err_to_json)?;
-    to_json(api::get_group_flattened_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
+    to_json(api_get::get_group_flattened_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
 
 #[get("/search_sgroups?<right>&<search_token>&<sizelimit>")]
 async fn search_sgroups(right: String, search_token: String, sizelimit: i32, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
     let right = Right::from_string(&right).map_err(err_to_json)?;
-    to_json(api::search_sgroups(cfg_and_lu, right, search_token, sizelimit).await)
+    to_json(api_get::search_sgroups(cfg_and_lu, right, search_token, sizelimit).await)
 }
 
 #[get("/mygroups")]
 async fn mygroups(cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
-    to_json(api::mygroups(cfg_and_lu).await)
+    to_json(api_get::mygroups(cfg_and_lu).await)
 }
 
 #[get("/clear_cache")]
@@ -194,7 +195,7 @@ async fn clear_cache(cache : &State<Cache>) {
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
 async fn search_subjects(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<&String, Subjects>>, MyJson> {
-    to_json(api::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
+    to_json(api_get::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
 }
 
 #[get("/config/public")]

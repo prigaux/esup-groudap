@@ -8,7 +8,8 @@ use crate::ldap_wrapper::LdapW;
 use crate::ldap_filter;
 use crate::my_ldap;
 use crate::my_ldap::{dn_to_url};
-use crate::api;
+use crate::api_get;
+use crate::api_post;
 
 async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str, description: &str) -> Result<LdapResult> {
     let dn = format!("ou={},dc=nodomain", ou);
@@ -111,60 +112,60 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     };
     let root_with_id = |right| to_parent("", root_attrs(), right);
     let collab_with_id = |right| to_parent("collab.", collab_attrs(), right);
-    api::create(cfg_and_prigaux(), "collab.", collab_attrs()).await?;
+    api_post::create(cfg_and_prigaux(), "collab.", collab_attrs()).await?;
     let collab_dsiun_attrs = || btreemap!{
         "ou".to_owned() => "Collaboration DSIUN".to_owned(),
         "description".to_owned() => "Collaboration DSIUN".to_owned(),
     };
-    api::create(cfg_and_prigaux(), "collab.DSIUN", collab_dsiun_attrs()).await?;
+    api_post::create(cfg_and_prigaux(), "collab.DSIUN", collab_dsiun_attrs()).await?;
 
     let get_sgroup_collab = ||
         SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { 
             children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()},
         }, parents: vec![ root_with_id(Some(Right::Admin)) ], right: Right::Admin };
 
-    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "").await?,
+    assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "").await?,
         SgroupAndMoreOut { attrs: root_attrs(), more: SgroupOutMore::Stem { children: btreemap!{
             "collab.".to_owned() => collab_attrs(),
         } }, parents: vec![], right: Right::Admin }
     );
-    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, get_sgroup_collab());
-    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.DSIUN").await?, 
+    assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.").await?, get_sgroup_collab());
+    assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.DSIUN").await?, 
                SgroupAndMoreOut { right: Right::Admin, more: SgroupOutMore::Group { direct_members: btreemap!{} }, parents: vec![ 
                    root_with_id(Some(Right::Admin)), collab_with_id(Some(Right::Admin)) 
                ], attrs: collab_dsiun_attrs() });
-    assert!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
+    assert!(api_get::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
 
-    api::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
+    api_post::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
         Mright::Updater => btreemap!{ MyMod::Add => hashset![dn_to_url(&aanli_dn())] },
     }).await?;
 
-    assert_eq!(api::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
+    assert_eq!(api_get::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
                SgroupAndMoreOut { right: Right::Updater, more: SgroupOutMore::Group { direct_members: prigaux_subject() }, parents: vec![ 
                    root_with_id(None), collab_with_id(None),
                ], attrs: collab_dsiun_attrs() });
 
-    api::create(cfg_and_prigaux(), "applications.", btreemap!{ 
+    api_post::create(cfg_and_prigaux(), "applications.", btreemap!{ 
         "ou".to_owned() => "Applications".to_owned(),
         "description".to_owned() => "Applications".to_owned(),
     }).await?;
 
-    api::create(cfg_and_prigaux(), "applications.grouper.", btreemap!{ 
+    api_post::create(cfg_and_prigaux(), "applications.grouper.", btreemap!{ 
         "ou".to_owned() => "Applications:Grouper".to_owned(),
         "description".to_owned() => "Grouper".to_owned(),
     }).await?;
 
-    api::create(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
+    api_post::create(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         "ou".to_owned() => "Grouper super admins".to_owned(),
         "description".to_owned() => "Grouper admins de toute l'arborescence\n\nTicket truc".to_owned(),
     }).await?;
-    api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
+    api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
     }).await?;
     assert_eq!(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), Mright::Member).await?, vec![prigaux_dn()]);
 
-    api::modify_members_or_rights(cfg_and_prigaux(), "", btreemap!{
+    api_post::modify_members_or_rights(cfg_and_prigaux(), "", btreemap!{
         Mright::Admin => btreemap!{ 
             MyMod::Delete => hashset![dn_to_url(&prigaux_dn())],
             MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"))],
@@ -172,7 +173,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     }).await?;
 
     // prigaux is still admin... via group "super-admins"
-    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
+    assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
         SgroupAndMoreOut { right: Right::Admin, more: SgroupOutMore::Stem { 
             children: btreemap!{"collab.DSIUN".to_owned() => collab_dsiun_attrs()}
         }, parents: vec![ root_with_id(Some(Right::Admin)) ], attrs: collab_attrs() });
@@ -181,8 +182,8 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
         "ou".to_owned() => "Collab Foo".to_owned(),
         "description".to_owned() => "Collab Foo".to_owned(),
     };
-    api::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
-    api::modify_members_or_rights(cfg_and_prigaux(), "collab.foo", btreemap!{
+    api_post::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
+    api_post::modify_members_or_rights(cfg_and_prigaux(), "collab.foo", btreemap!{
         Mright::Admin => btreemap!{ MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
     }).await?;
     assert_eq!(sort(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::Admin).await?), vec![
@@ -190,50 +191,50 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     ]);
 
     eprintln!(r#"remove last "member". Need to put an empty member back"#);
-    api::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
+    api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Delete => hashset![dn_to_url(&prigaux_dn())] },
     }).await?;
     assert_eq!(ldp.read_one_multi_attr__or_err(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), "member").await?, vec![""]);
     eprintln!(r#"prigaux is no more admin..."#);
-    assert!(api::get_sgroup(cfg_and_prigaux(), "collab.").await.is_err());
+    assert!(api_get::get_sgroup(cfg_and_prigaux(), "collab.").await.is_err());
 
     eprintln!(r#"add group in group "super-admins""#);
-    api::modify_members_or_rights(cfg_and_trusted(), "applications.grouper.super-admins", btreemap!{
+    api_post::modify_members_or_rights(cfg_and_trusted(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
     }).await?;
     assert_eq!(HashSet::from_iter(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), Mright::Member).await?), 
                hashset![ prigaux_dn(), ldp.config.sgroup_id_to_dn("collab.DSIUN") ]);
     eprintln!(r#"prigaux shoud be admin via stem "" via applications.grouper.super-admins via collab.DSIUN"#);
-    assert_eq!(api::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
+    assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
         SgroupAndMoreOut { attrs: collab_attrs(), more: SgroupOutMore::Stem { children: btreemap!{
             "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
             "collab.foo".to_owned() => collab_foo_attrs(),
         } }, parents: vec![ root_with_id(Some(Right::Admin)) ], right: Right::Admin }
     );
-    assert_eq!(api::mygroups(cfg_and_prigaux()).await?, btreemap![
+    assert_eq!(api_get::mygroups(cfg_and_prigaux()).await?, btreemap![
         "collab.foo".to_owned() => collab_foo_attrs(),
     ]);
-    assert_eq!(api::mygroups(cfg_and_aanli()).await?, btreemap!{
+    assert_eq!(api_get::mygroups(cfg_and_aanli()).await?, btreemap!{
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     });
 
-    assert_eq!(api::search_sgroups(cfg_and_prigaux(), Right::Reader, "collaboration".to_owned(), 99).await?, btreemap![
+    assert_eq!(api_get::search_sgroups(cfg_and_prigaux(), Right::Reader, "collaboration".to_owned(), 99).await?, btreemap![
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     ]);
-    assert_eq!(api::search_sgroups(cfg_and_prigaux(), Right::Admin, "collaboration".to_owned(), 99).await?, btreemap![
+    assert_eq!(api_get::search_sgroups(cfg_and_prigaux(), Right::Admin, "collaboration".to_owned(), 99).await?, btreemap![
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     ]);
-    assert_eq!(api::search_sgroups(cfg_and_aanli(), Right::Updater, "collaboration".to_owned(), 99).await?, btreemap![
+    assert_eq!(api_get::search_sgroups(cfg_and_aanli(), Right::Updater, "collaboration".to_owned(), 99).await?, btreemap![
         "collab.DSIUN".to_owned() => collab_dsiun_attrs(),
     ]);
-    assert_eq!(api::search_sgroups(cfg_and_aanli(), Right::Admin, "collaboration".to_owned(), 99).await?, btreemap![
+    assert_eq!(api_get::search_sgroups(cfg_and_aanli(), Right::Admin, "collaboration".to_owned(), 99).await?, btreemap![
     ]);
 
-    assert_eq!(api::get_group_flattened_mright(cfg_and_prigaux(), "collab.DSIUN", Mright::Member, None, Some(1)).await?, 
+    assert_eq!(api_get::get_group_flattened_mright(cfg_and_prigaux(), "collab.DSIUN", Mright::Member, None, Some(1)).await?, 
         SubjectsAndCount { count: 1, subjects: prigaux_subject() });
 
-    assert!(api::get_group_flattened_mright(cfg_and_prigaux(), "", Mright::Admin, None, None).await.is_err());
-    assert!(api::get_group_flattened_mright(cfg_and_prigaux(), "collab.", Mright::Admin, None, None).await.is_err());
+    assert!(api_get::get_group_flattened_mright(cfg_and_prigaux(), "", Mright::Admin, None, None).await.is_err());
+    assert!(api_get::get_group_flattened_mright(cfg_and_prigaux(), "collab.", Mright::Admin, None, None).await.is_err());
 
     Ok(())
 }
