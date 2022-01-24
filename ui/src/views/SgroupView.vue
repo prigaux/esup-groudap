@@ -142,6 +142,7 @@ let rights = asyncComputed(async () => {
 
     <p></p>
     <fieldset>
+        <legend>
         <label @click="tabToDisplay = 'direct'">
             <input type="radio" name="legend_choices" value='direct' v-model="tabToDisplay">
             {{sgroup.group ? "Membres" : "Contenu du dossier"}}
@@ -150,8 +151,10 @@ let rights = asyncComputed(async () => {
             <input type="radio" name="legend_choices" value='rights' v-model="tabToDisplay">
             Privilèges
         </label>
+        </legend>
 
         <div v-if="tabToDisplay === 'rights'">
+       
             <span v-if="sgroup.stem">
                 Les entités ayant des privilèges sur ce dossier <b>et tous les sous-dossiers et sous-groupes</b>
             </span>
@@ -172,15 +175,13 @@ let rights = asyncComputed(async () => {
             </div>
         </div>
         <ul v-else-if="sgroup.stem">
-            <div v-if="isEmpty(sgroup.stem.children)"> <p></p> <i>Vide</i> </div>
+            <div v-if="isEmpty(sgroup.stem.children)"> <i>Vide</i> </div>
             <li v-for="(attrs, id) in sgroup.stem.children">
                 <MyIcon name="folder" class="on-the-left" />
                 <SgroupLink :attrs="attrs" :id="id" />
             </li>
         </ul>
         <div v-else-if="sgroup.group">
-            <div style="height: 1rem"></div>
-
             <div v-if="add_member.show">
                 Recherchez un utilisateur/groupe/... <button @click="add_member.show = false">fermer</button> <br>
                 <input class="search_token" v-model="add_member.search_token.real">
@@ -217,10 +218,10 @@ let rights = asyncComputed(async () => {
                         <div v-else>Filtrer les membres</div>
                         <input class="search_token" v-model="flat_members.search_token.real">
                     </div>
-                <div v-if="isEmpty(members?.subjects)"> <p></p> <i>Aucun</i> </div>
+                <div v-if="isEmpty(members?.subjects)"> <i>Aucun</i> </div>
                 <table>
                     <tr v-for="(attrs, dn) in members?.subjects">
-                        <SubjectOrGroup :dn="dn" :attrs="attrs" />
+                        <td><SubjectOrGroup :dn="dn" :attrs="attrs" /></td>
                         <td>
                             <i v-if="attrs.indirect">Indirect</i>
                             <button v-else @click="remove_direct_mright(dn, 'member')">Supprimer</button>
