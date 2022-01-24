@@ -18,16 +18,18 @@ mod test_data;
 mod api_routes;
 mod cas_auth;
 mod cron;
+mod rocket_helpers;
 
 use rocket::{fairing::AdHoc, fs::FileServer, fs::relative};
 
 #[launch]
 fn rocket() -> _ {
-    let cache: api_routes::Cache = Default::default();
+    let cache: rocket_helpers::Cache = Default::default();
 
     let rocket = rocket::build()
         .mount("/api", api_routes::routes())
-        .mount("/", FileServer::from(relative!("static/dist")))
+        .mount("/", FileServer::from(relative!("ui/dist")))
+        .mount("/", routes![rocket_helpers::handle_js_ui_routes])
         .manage(cache.clone())
         .attach(AdHoc::config::<my_types::Config>());
 

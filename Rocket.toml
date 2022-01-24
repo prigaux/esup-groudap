@@ -34,8 +34,8 @@ dn = "ou=people,dc=nodomain"
 name = "Personnes"
 search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)(displayName=*%TERM%*)) )" # (!(accountStatus=disabled))
 display_attrs = ["displayName", "uid"]
-vue_template = "{{displayName}}"
-vue_template_if_ambiguous = "{{displayName}} ({{uid}})"
+vue_template = "{{attrs.displayName}}"
+vue_template_if_ambiguous = "{{attrs.displayName}} ({{attrs.uid}})"
 
 [[default.ldap.subject_sources]]
 dn = "ou=admin,dc=nodomain"

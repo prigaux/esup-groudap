@@ -3,7 +3,7 @@ use std::thread;
 use ldap3::result::Result;
 
 use crate::my_types::{Config, LoggedUser};
-use crate::api_routes::Cache;
+use crate::rocket_helpers::Cache;
 use crate::ldap_wrapper::LdapW;
 
 #[tokio::main]
