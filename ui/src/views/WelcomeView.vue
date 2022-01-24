@@ -9,25 +9,30 @@ import * as api from '@/api'
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import { isEmpty } from 'lodash';
+import { throttled_ref } from '@/vue_helpers';
 
 let mygroups = asyncComputed(api.mygroups)
 
-let search_token = ref('')
-let search_results = ref(undefined as SgroupsWithAttrs | undefined)
-const search = async () => {
-    search_results.value = await api.search_sgroups({ sizelimit: 10, search_token: search_token.value, right: "updater" })
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+let search_token = throttled_ref('')
+let searching = ref(false)
+let search_results = asyncComputed(async () => (
+    api.search_sgroups({ sizelimit: 10, search_token: search_token.throttled, right: "updater" })
+), null, searching)
 </script>
 
 <template>
 <fieldset>
     <legend><h3>Recherche</h3></legend>
-    <form @submit.prevent="search">
-        <input v-model="search_token">
-    </form>
-    <div v-if="search_results">            
+    <input v-model="search_token.real">
+    <div v-if="search_token.real">            
         <h4>Résultats</h4>
-        <ul>
+        <div v-if="searching">...</div>
+        <div v-else-if="isEmpty(search_results)"><i>Aucun</i></div>
+        <ul v-else>
             <li v-for="(attrs, id) in search_results">
                 <MyIcon :name="id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
                 <SgroupLink :attrs="attrs" :id="id" />
