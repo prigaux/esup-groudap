@@ -91,11 +91,20 @@ pub struct LdapConfig {
     pub groups_flattened_attr: BTreeMap<Mright, String>,
     pub sgroup_attrs: BTreeMap<String, AttrTexts>,
 }
+#[derive(Serialize)]
+pub struct LdapConfigOut<'a> {
+    pub groups_dn: &'a str,
+    pub subject_sources: &'a Vec<SubjectSourceConfig>,
+}
 
 impl LdapConfig {
     pub fn sgroup_sscfg(&self) -> Option<&SubjectSourceConfig> {
         self.subject_sources.iter().find(|sscfg| sscfg.dn == self.groups_dn)
-    }    
+    }
+
+    pub fn to_js_ui(&self) -> LdapConfigOut {
+        LdapConfigOut { groups_dn: &self.groups_dn, subject_sources: &self.subject_sources }
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]

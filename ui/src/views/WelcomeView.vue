@@ -1,5 +1,6 @@
 <script lang="ts">
 import { Ref, ref } from 'vue'
+import { asyncComputed } from '@vueuse/core';
 import { SgroupsWithAttrs } from '@/my_types';
 import * as api from '@/api'
 </script>
@@ -7,9 +8,9 @@ import * as api from '@/api'
 <script setup lang="ts">
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
+import { isEmpty } from 'lodash';
 
-let mygroups = ref(undefined as SgroupsWithAttrs | undefined)
-api.mygroups().then(mygroups_ => mygroups.value = mygroups_)
+let mygroups = asyncComputed(api.mygroups)
 
 let search_token = ref('')
 let search_results = ref(undefined as SgroupsWithAttrs | undefined)
@@ -19,15 +20,6 @@ const search = async () => {
 </script>
 
 <template>
-<fieldset v-if="mygroups">
-    <legend><h3>Mes groupes</h3></legend>
-    <ul>
-        <li v-for="(attrs, id) in mygroups">
-            <MyIcon name="users" class="on-the-left" />
-            <SgroupLink :attrs="attrs" :id="id" />
-        </li>
-    </ul>
-</fieldset>
 <fieldset>
     <legend><h3>Recherche</h3></legend>
     <form @submit.prevent="search">
@@ -42,5 +34,16 @@ const search = async () => {
             </li>
         </ul>
     </div>
+</fieldset>
+<fieldset>
+    <legend><h3>Mes groupes</h3></legend>
+    <div v-if="!mygroups">Veuillez patentier...</div>
+    <div v-else-if="isEmpty(mygroups)"> <p></p> <i>Aucun</i> </div>    
+    <ul v-else>
+        <li v-for="(attrs, id) in mygroups">
+            <MyIcon name="users" class="on-the-left" />
+            <SgroupLink :attrs="attrs" :id="id" />
+        </li>
+    </ul>
 </fieldset>
 </template>

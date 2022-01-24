@@ -49,9 +49,13 @@ fieldset ul {
 table {
     border-spacing: 0;
 }
-tr:nth-child(even) { 
+table:not(.with-theads) > tr:nth-child(even) { 
     background-color: #f2f2f2;
 }
+table.with-theads > tr:nth-child(odd) { 
+    background-color: #f2f2f2;
+}
+
 td {
     padding: 0.3rem 0.3rem 0.3rem 1rem;
 }

@@ -10,6 +10,7 @@ import Subject from './Subject'
 defineProps<{
   dn: string,
   attrs: SubjectAttrs,
+  ssdn?: string,
 }>()
 </script>
 
@@ -20,6 +21,6 @@ defineProps<{
 </span>
 <span v-else>
     <MyIcon name="user" class="on-the-left" />
-    <Subject :dn="dn" :attrs="attrs" />
+    <Subject :dn="dn" :attrs="attrs" :ssdn="ssdn" />
 </span>
 </template>

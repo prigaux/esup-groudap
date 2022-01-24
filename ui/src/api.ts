@@ -1,5 +1,5 @@
 import { Dictionary, pickBy } from "lodash";
-import { Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Subjects, SubjectsAndCount, SubjectSourceConfig } from "./my_types";
+import { LdapConfigOut, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, SubjectSourceConfig } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -66,7 +66,7 @@ export const search_sgroups = (search_params: { right: Right, search_token: stri
     let search_params_ = { ...search_params, sizelimit: "" + search_params.sizelimit }
     return api_get("search_sgroups", search_params_, {})
 }
-export const search_subjects = (search_params: { search_token: string, sizelimit: number, source_dn?: string }) : Promise<Record<Right, Subjects>> => {
+export const search_subjects = (search_params: { search_token: string, sizelimit: number, source_dn?: string }) : Promise<PRecord<Ssdn, Subjects>> => {
     let search_params_ = { ...search_params, sizelimit: "" + search_params.sizelimit }
     return api_get("search_subjects", search_params_, {})
 }
@@ -83,6 +83,6 @@ export const sgroup = (id: string) : Promise<SgroupAndMoreOut> => (
 export const mygroups = () : Promise<SgroupsWithAttrs> => (
     api_get("mygroups", {}, {})
 )
-export const config_subject_sources = () : Promise<SubjectSourceConfig[]> => (
+export const config_subject_sources = () : Promise<LdapConfigOut> => (
     api_get("config/subject_sources", {}, { memoize: true })
 )

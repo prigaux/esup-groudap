@@ -15,7 +15,7 @@ use rocket::serde::json::{json, Json, Value};
 
 
 use crate::helpers::{before};
-use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, SubjectSourceConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount};
+use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut};
 use crate::api_get;
 use crate::api_post;
 use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json, Cache};
@@ -105,7 +105,7 @@ async fn clear_cache(cache : &State<Cache>) {
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
-async fn search_subjects(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<&String, Subjects>>, MyJson> {
+async fn search_subjects(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<&String /* ssdn */, Subjects>>, MyJson> {
     to_json(api_get::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
 }
 
@@ -116,8 +116,8 @@ fn config_public(cfg : &State<Config>) -> Value {
     })
 }
 #[get("/config/subject_sources")]
-fn config_subject_sources(cfg_and_lu : CfgAndLU<'_>) -> Json<&Vec<SubjectSourceConfig>> {
-    Json(&cfg_and_lu.cfg.ldap.subject_sources)
+fn config_subject_sources(cfg_and_lu : CfgAndLU<'_>) -> Json<LdapConfigOut<'_>> {
+    Json(cfg_and_lu.cfg.ldap.to_js_ui())
 }
 #[get("/config/remotes")]
 fn config_remotes(cfg_and_lu : CfgAndLU<'_>) -> Json<&BTreeMap<String, RemoteConfig>> {
