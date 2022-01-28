@@ -54,8 +54,8 @@ async fn create(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'_>) -
     )
 }
 
-#[post("/modify?<id>", data = "<attrs>")]
-async fn modify(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
+#[post("/modify_sgroup_attrs?<id>", data = "<attrs>")]
+async fn modify_sgroup_attrs(id: String, attrs: Json<MonoAttrs>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
     action_result(
         api_post::modify_sgroup_attrs(cfg_and_lu, &id, attrs.into_inner()).await
     )
@@ -131,6 +131,6 @@ pub fn routes() -> Vec<Route> {
         clear_test_data, add_test_data, set_test_data, 
         sgroup, sgroup_direct_rights, group_flattened_mright, search_sgroups, search_subjects, mygroups,
         config_public, config_subject_sources, config_remotes,
-        create, modify, delete, modify_members_or_rights,
+        create, modify_sgroup_attrs, delete, modify_members_or_rights,
     ]
 }
