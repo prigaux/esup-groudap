@@ -14,7 +14,7 @@ const router = createRouter({
       path: '/sgroup',
       name: 'sgroup',
       component: SgroupView,
-      props: route => ({ id: route.query.id }),
+      props: route => ({ id: route.query.id, tabToDisplay: route.hash.match(/tabToDisplay=(\w+)/)?.[1] }),
     },
   ]
 })

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { isEmpty, size } from 'lodash'
 import { computed, reactive, Ref, ref } from 'vue'
+import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { throttled_ref } from '@/vue_helpers';
 import { forEach, forEachAsync, some } from '@/helpers';
@@ -57,13 +58,24 @@ import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   id: string,
-}>()
+  tabToDisplay: 'direct'|'rights',
+}>(), { tabToDisplay: 'direct' })
+
+const set_tabToDisplay = (tabToDisplay: 'direct'|'rights') => {
+    const hash = tabToDisplay !== 'direct' ? '#tabToDisplay=' + tabToDisplay : ''
+    router.push({ path: '/sgroup', query: { id: props.id }, hash })
+}
+
+let tabs = computed(() => {
+    return {
+        direct: sgroup.value?.group ? "Membres" : "Contenu du dossier",
+        rights: 'Privilèges',
+    }
+})
 
 let sscfgs = asyncComputed(api.config_subject_sources)
-
-let tabToDisplay = ref('direct' as 'direct'|'rights')
 
 let sgroup_force_refresh = ref(0)
 let sgroup = asyncComputed(async () => {
@@ -115,7 +127,7 @@ function remove_direct_mright(dn: string, mright: Mright) {
 let rights_force_refresh = ref(0)
 let rights = asyncComputed(async () => {
     const _ = rights_force_refresh.value // asyncComputed will know it needs to re-compute
-    if (tabToDisplay.value !== 'rights') return;
+    if (props.tabToDisplay !== 'rights') return;
     let r = await api.sgroup_direct_rights(props.id)
     await forEachAsync(r, (subjects, _) => add_sscfg_dns(subjects))
     return r
@@ -144,14 +156,10 @@ let rights = asyncComputed(async () => {
     <p></p>
     <fieldset>
         <legend>
-        <label @click="tabToDisplay = 'direct'">
-            <input type="radio" name="legend_choices" value='direct' v-model="tabToDisplay">
-            {{sgroup.group ? "Membres" : "Contenu du dossier"}}
-        </label>
-        <label @click="tabToDisplay = 'rights'">
-            <input type="radio" name="legend_choices" value='rights' v-model="tabToDisplay">
-            Privilèges
-        </label>
+            <label v-for="(text, key) of tabs" @click="set_tabToDisplay(key)">
+                <input type="radio" name="legend_choices" :value='key' :checked="tabToDisplay === key">
+                    {{text}}
+            </label>
         </legend>
 
         <div v-if="tabToDisplay === 'rights'">
