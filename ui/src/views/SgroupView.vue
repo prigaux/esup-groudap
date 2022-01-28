@@ -17,6 +17,7 @@ async function add_sscfg_dns(subjects: Subjects) {
 
 const flat_members_ = (props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMoreOut>) => {
     let show = ref(false)
+    let searching = ref(false)
     let search_token = throttled_ref('')
     let results = asyncComputed(async () => {
         console.log("flat_members l")
@@ -33,8 +34,8 @@ const flat_members_ = (props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMo
         })
         await add_sscfg_dns(r.subjects)
         return r
-    })
-    return reactive({ show, search_token, results })
+    }, undefined, searching)
+    return reactive({ show, searching, search_token, results })
 }
 
 const add_member_ = () => {
@@ -166,10 +167,12 @@ let rights = asyncComputed(async () => {
                 <table class="with-theads" v-else>
                   <template v-for="(subjects, right) in rights">
                     <thead><h5>Droit "{{right2text[right]}}"</h5></thead>
-                    <tr v-for="(subject, dn) in subjects">
-                        <td><SubjectOrGroup :dn="dn" :attrs="subject" /></td>
-                        <td><button @click="remove_direct_mright(dn, right)">Supprimer</button></td>
-                    </tr>
+                    <tbody>
+                        <tr v-for="(subject, dn) in subjects">
+                            <td><SubjectOrGroup :dn="dn" :attrs="subject" /></td>
+                            <td><button @click="remove_direct_mright(dn, right)">Supprimer</button></td>
+                        </tr>
+                    </tbody>
                   </template>
                 </table>
             </div>
@@ -187,19 +190,19 @@ let rights = asyncComputed(async () => {
                 <input class="search_token" v-model="add_member.search_token.real">
                 <fieldset v-if="add_member.results">
                     <legend>Résultats de recherche</legend>
-                    <ul>
+                    <table>
                         <template v-for="(subjects, ssdn) in add_member.results">
-                            <li v-if="!isEmpty(subjects)">
-                                <span class="ss_name">{{sscfgs?.subject_sources.find(sscfg => sscfg.dn === ssdn)?.name}}</span>
-                                <ul>
-                                    <li v-for="(subject, dn) in subjects">
-                                        <SubjectOrGroup :dn="dn" :attrs="subject" :ssdn="ssdn" />
-                                        <button @click="add_direct_mright(dn, 'member')">Ajouter</button>
-                                    </li>
-                                </ul>
-                            </li>
+                            <template v-if="!isEmpty(subjects)">
+                                <thead class="ss_name">{{sscfgs?.subject_sources.find(sscfg => sscfg.dn === ssdn)?.name}}</thead>
+                                <tbody>
+                                    <tr v-for="(subject, dn) in subjects">
+                                        <td><SubjectOrGroup :dn="dn" :attrs="subject" :ssdn="ssdn" /></td>
+                                        <td><button @click="add_direct_mright(dn, 'member')">Ajouter</button></td>
+                                    </tr>
+                                </tbody>
+                            </template>
                         </template>
-                    </ul>
+                    </table>
                 </fieldset>
             </div>
             <button @click="add_member.show = true" v-else>Ajouter des membres</button>
@@ -207,7 +210,7 @@ let rights = asyncComputed(async () => {
 
             <div style="height: 1rem"></div>
 
-            <div v-if="!members">Veuillez patentier...</div>
+            <div v-if="!members || flat_members.searching">Veuillez patentier...</div>
             <div v-else-if="members">
                 <p>Nombre : {{members_details?.real_count}}
                     <span v-if="members_details?.limited"> / {{members?.count}}</span>

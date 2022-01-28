@@ -2,14 +2,16 @@
 import folder from '@fortawesome/fontawesome-free/svgs/regular/folder.svg?raw'
 import users from '@fortawesome/fontawesome-free/svgs/solid/users.svg?raw'
 import user from '@fortawesome/fontawesome-free/svgs/regular/user.svg?raw'
+import cogs from '@fortawesome/fontawesome-free/svgs/solid/cogs.svg?raw'
+
 </script>
 
 <script setup lang="ts">
 defineProps<{
-  name: 'folder' | 'users' | 'user',
+  name: 'folder' | 'users' | 'user' | 'cogs',
 }>()
 
-const icons = { folder, users, user }
+const icons = { folder, users, user, cogs }
 </script>
 
 <template>

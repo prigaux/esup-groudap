@@ -13,22 +13,19 @@ import { throttled_ref } from '@/vue_helpers';
 
 let mygroups = asyncComputed(api.mygroups)
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-let search_token = throttled_ref('')
+let search_token = throttled_ref('', 3)
 let searching = ref(false)
-let search_results = asyncComputed(async () => (
-    api.search_sgroups({ sizelimit: 10, search_token: search_token.throttled, right: "updater" })
-), null, searching)
+let search_results = asyncComputed(async () => {
+    const token = search_token.throttled
+    return token ? api.search_sgroups({ sizelimit: 10, search_token: token, right: "updater" }) : undefined
+}, null, searching)
 </script>
 
 <template>
 <fieldset>
     <legend><h3>Recherche</h3></legend>
     <input v-model="search_token.real">
-    <div v-if="search_token.real">            
+    <div v-if="search_token.throttled || searching">            
         <h4>Résultats</h4>
         <div v-if="searching">...</div>
         <div v-else-if="isEmpty(search_results)"><i>Aucun</i></div>

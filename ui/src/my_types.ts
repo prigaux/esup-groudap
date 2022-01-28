@@ -48,7 +48,6 @@ export interface SubjectSourceConfig {
     dn : string
     name : string
     vue_template? : string
-    vue_template_if_ambiguous? : string
     display_attrs : string[]
 }
 

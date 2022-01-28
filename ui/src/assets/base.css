@@ -59,3 +59,8 @@ table.with-theads > tr:nth-child(odd) {
 td {
     padding: 0.3rem 0.3rem 0.3rem 1rem;
 }
+
+.SgroupLink a, .Subject a {
+    color: #00326E;
+    text-decoration: none;
+}

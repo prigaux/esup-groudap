@@ -33,21 +33,25 @@ admin = "owner"
 dn = "ou=people,dc=nodomain"
 name = "Personnes"
 search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)(displayName=*%TERM%*)) )" # (!(accountStatus=disabled))
-display_attrs = ["displayName", "uid"]
-vue_template = "{{attrs.displayName}}"
-vue_template_if_ambiguous = "{{attrs.displayName}} ({{attrs.uid}})"
+display_attrs = ["displayName", "mail", "eduPersonPrimaryAffiliation" ]
+# below is sent to UI which decide what to do with it. category.attr should be listed in "display_attrs" above
+labels = { eduPersonPrimaryAffiliation = { student = "étudiant", staff = "biatss", teacher = "enseignant", _ = "autre" } }
+vue_template = """<MyIcon name="user" /> {{ 
+    ({ teacher: 'enseignant', student: 'étudiant', staff: 'biatss', researcher: 'chercheur', emeritus: 'professeur émérite', affiliate: 'invité', alum: 'ancien étudiant', retired: 'retraité', 'registered-reader': 'Lecteur externe', 'library-walk-in': 'visiteur bibliothèque' }[attrs.eduPersonPrimaryAffiliation] || 'autre')
+  }} - <a target='_blank' :href='"https://annuaire.univ-paris1.fr/ent/" + attrs.mail'>{{attrs.displayName}}</a>"""
 
 [[default.ldap.subject_sources]]
 dn = "ou=admin,dc=nodomain"
 name = "Applications"
 search_filter = "(|(cn=%TERM%)(displayName=*%TERM%*))"
 display_attrs = ["displayName", "description", "cn"]
+vue_template = """<MyIcon name="cogs" /> <span :title='attrs.description'>{{attrs.cn}} - {{attrs.displayName || first_line(attrs.description)}}</span>"""
 # default template is "display first non empty attr value"
 
 [[default.ldap.subject_sources]]
 dn = "ou=groups,dc=nodomain"
 name = "Groupe"
-search_filter = "(& (|(cn=%TERM%)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames) )"
+search_filter = "(& (|(cn=*%TERM%*)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames) )"
 display_attrs = ["ou", "description", "cn"]
 # default template is "display first non empty attr value"
 

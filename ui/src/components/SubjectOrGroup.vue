@@ -15,12 +15,11 @@ defineProps<{
 </script>
 
 <template>
-<span v-if="attrs.sgroup_id">
+<span class="SgroupLink" v-if="attrs.sgroup_id">
     <MyIcon name="folder" class="on-the-left" />
     <SgroupLink :attrs="attrs" />
 </span>
-<span v-else>
-    <MyIcon name="user" class="on-the-left" />
+<span class="Subject" v-else>
     <Subject :dn="dn" :attrs="attrs" :ssdn="ssdn" />
 </span>
 </template>

@@ -1,6 +1,7 @@
 import { defineAsyncComponent, defineComponent } from "vue";
 import * as api from '@/api'
 import { SubjectSourceConfig } from "@/my_types";
+import MyIcon from './MyIcon.vue'
 
 const compute_default_vue_template = (sscfg: SubjectSourceConfig) => (
     sscfg.display_attrs.map((attr, i) =>
@@ -21,6 +22,12 @@ export default defineAsyncComponent(async () => {
             dn: String,
             attrs: {},
             ssdn: String,
+        },
+        components: { MyIcon },
+        methods: {
+            first_line(s: string) {
+                return s.replace(/\n.*/s, '')
+            },
         },
         template,
     });
