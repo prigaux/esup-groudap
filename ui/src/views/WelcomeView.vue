@@ -32,7 +32,7 @@ let search_results = asyncComputed(async () => {
         <ul v-else>
             <li v-for="(attrs, id) in search_results">
                 <MyIcon :name="id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
-                <SgroupLink :attrs="attrs" :id="id" />
+                <SgroupLink :sgroup="{ attrs }" :id="id" />
             </li>
         </ul>
     </div>
@@ -44,7 +44,7 @@ let search_results = asyncComputed(async () => {
     <ul v-else>
         <li v-for="(attrs, id) in mygroups">
             <MyIcon name="users" class="on-the-left" />
-            <SgroupLink :attrs="attrs" :id="id" />
+            <SgroupLink :sgroup="{ attrs }" :id="id" />
         </li>
     </ul>
 </fieldset>

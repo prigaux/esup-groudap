@@ -1,5 +1,5 @@
 import { Dictionary, pickBy } from "lodash";
-import { LdapConfigOut, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, SubjectSourceConfig } from "./my_types";
+import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, SubjectSourceConfig } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -60,6 +60,10 @@ const api_post = (api_function: string, search_params: Record<string, string>, j
 
 export const modify_members_or_rights = (id: string, mods: MyMods) => (
     api_post("modify_members_or_rights", { id }, mods)
+)
+
+export const modify_sgroup_attrs = (id: string, attrs: MonoAttrs) => (
+    api_post('modify_sgroup_attrs', { id }, attrs)
 )
 
 export const search_sgroups = (search_params: { right: Right, search_token: string, sizelimit: number }) : Promise<SgroupsWithAttrs> => {

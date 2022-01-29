@@ -1,6 +1,6 @@
 import { defineAsyncComponent, defineComponent } from "vue";
 import * as api from '@/api'
-import { SubjectSourceConfig } from "@/my_types";
+import { SubjectAttrs, SubjectSourceConfig } from "@/my_types";
 import MyIcon from './MyIcon.vue'
 
 const compute_default_vue_template = (sscfg: SubjectSourceConfig) => (
@@ -14,16 +14,21 @@ export default defineAsyncComponent(async () => {
 
     const template = sscfgs.subject_sources.map(sscfg => {
         const sub_tmpl = sscfg.vue_template || compute_default_vue_template(sscfg)
-        return `<span v-if="(ssdn || attrs.sscfg_dn) === '${sscfg.dn}'">${sub_tmpl}</span>`
+        return `<span v-if="(ssdn || subject.sscfg_dn) === '${sscfg.dn}'">${sub_tmpl}</span>`
     }).join('')
 
     return defineComponent({
         props: {
             dn: String,
-            attrs: {},
+            subject: {},
             ssdn: String,
         },
         components: { MyIcon },
+        computed: {
+            attrs() {
+                return (this.subject as any).attrs
+            },
+        },
         methods: {
             first_line(s: string) {
                 return s.replace(/\n.*/s, '')

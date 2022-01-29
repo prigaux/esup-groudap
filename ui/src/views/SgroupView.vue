@@ -1,11 +1,11 @@
 <script lang="ts">
-import { isEmpty, size } from 'lodash'
-import { computed, reactive, Ref, ref } from 'vue'
+import { initial, isEmpty, size } from 'lodash'
+import { computed, onBeforeUpdate, reactive, Ref, ref, unref, UnwrapRef, watch, watchEffect } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { throttled_ref } from '@/vue_helpers';
 import { forEach, forEachAsync, some } from '@/helpers';
-import { Mright, MyMod, SgroupAndMoreOut, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
+import { Mright, MyMod, PRecord, SgroupAndMoreOut, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
 import { right2text } from '@/lib';
 import * as api from '@/api'
 
@@ -133,24 +133,54 @@ let rights = asyncComputed(async () => {
     return r
 })
 
+const new_ref_watching = <T>(source: any, value: () => T) => {
+    const r = ref(value())
+    watch(source, () => {
+        r.value = value() as UnwrapRef<T>
+    })
+    return r
+}
+
+type Attr = 'ou'|'description'
+let modify_attrs = new_ref_watching(() => props.id, () => ({} as PRecord<Attr, boolean>))
+const send_modify_attrs = async (attr: Attr) => {
+    await api.modify_sgroup_attrs(props.id, sgroup.value.attrs)
+    modify_attrs.value[attr] = false
+}
+
 </script>
 
 <template>
 <div v-if="sgroup">
     <a href=".">Accueil</a> &gt;
     <span v-for="(parent, i) in sgroup.parents">
-        <SgroupLink :attrs="parent" />
+        <SgroupLink :sgroup="parent" />
         <span v-if="i < sgroup.parents.length"> &gt; </span>
     </span>
 
     <h2>
         <MyIcon :name="sgroup.stem ? 'folder' : 'users'" class="on-the-left" />
-        {{sgroup.ou}}
+        <span v-if="modify_attrs.ou">
+            <input v-model="sgroup.attrs.ou">
+        </span>
+        <span v-else>{{sgroup.attrs.ou}}</span>
+        
     </h2>
+    <span v-if="modify_attrs.ou">
+        <MyIcon name="check" class="on-the-right" @click="send_modify_attrs('ou')" />
+        <MyIcon name="close" class="on-the-right" @click="modify_attrs.ou = false" />
+    </span>
+    <span v-else>
+        <MyIcon name="pencil" class="on-the-right" @click="modify_attrs.ou = true" />
+    </span>
 
     <fieldset>
-        <legend><h4>Description</h4></legend>
-        <div class="description">{{sgroup.description}}</div>
+        <legend>
+            <h4>Description</h4>
+            <MyIcon name="pencil" class="on-the-right" @click="modify_attrs.description = true" />
+        </legend>
+        <textarea v-if="modify_attrs.description" v-model="sgroup.attrs.description"></textarea>
+        <div v-else class="description">{{sgroup.attrs.description}}</div>
     </fieldset>
 
     <p></p>
@@ -177,7 +207,7 @@ let rights = asyncComputed(async () => {
                     <thead><h5>Droit "{{right2text[right]}}"</h5></thead>
                     <tbody>
                         <tr v-for="(subject, dn) in subjects">
-                            <td><SubjectOrGroup :dn="dn" :attrs="subject" /></td>
+                            <td><SubjectOrGroup :dn="dn" :subject="subject" /></td>
                             <td><button @click="remove_direct_mright(dn, right)">Supprimer</button></td>
                         </tr>
                     </tbody>
@@ -189,7 +219,7 @@ let rights = asyncComputed(async () => {
             <div v-if="isEmpty(sgroup.stem.children)"> <i>Vide</i> </div>
             <li v-for="(attrs, id) in sgroup.stem.children">
                 <MyIcon name="folder" class="on-the-left" />
-                <SgroupLink :attrs="attrs" :id="id" />
+                <SgroupLink :sgroup="{ attrs }" :id="id" />
             </li>
         </ul>
         <div v-else-if="sgroup.group">
@@ -204,7 +234,7 @@ let rights = asyncComputed(async () => {
                                 <thead class="ss_name">{{sscfgs?.subject_sources.find(sscfg => sscfg.dn === ssdn)?.name}}</thead>
                                 <tbody>
                                     <tr v-for="(subject, dn) in subjects">
-                                        <td><SubjectOrGroup :dn="dn" :attrs="subject" :ssdn="ssdn" /></td>
+                                        <td><SubjectOrGroup :dn="dn" :subject="subject" :ssdn="ssdn" /></td>
                                         <td><button @click="add_direct_mright(dn, 'member')">Ajouter</button></td>
                                     </tr>
                                 </tbody>
@@ -232,7 +262,7 @@ let rights = asyncComputed(async () => {
                 <div v-if="isEmpty(members?.subjects)"> <i>Aucun</i> </div>
                 <table>
                     <tr v-for="(attrs, dn) in members?.subjects">
-                        <td><SubjectOrGroup :dn="dn" :attrs="attrs" /></td>
+                        <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
                         <td>
                             <i v-if="attrs.indirect">Indirect</i>
                             <button v-else @click="remove_direct_mright(dn, 'member')">Supprimer</button>
@@ -249,3 +279,9 @@ let rights = asyncComputed(async () => {
 </div>
 </template>
 
+<style scoped>
+textarea {
+    width: 100%;
+    height: 10rem;
+}
+</style>

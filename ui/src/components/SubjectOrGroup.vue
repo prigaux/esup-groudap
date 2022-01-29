@@ -9,17 +9,17 @@ import Subject from './Subject'
 
 defineProps<{
   dn: string,
-  attrs: SubjectAttrs,
+  subject: SubjectAttrs,
   ssdn?: string,
 }>()
 </script>
 
 <template>
-<span class="SgroupLink" v-if="attrs.sgroup_id">
+<span class="SgroupLink" v-if="subject.sgroup_id">
     <MyIcon name="folder" class="on-the-left" />
-    <SgroupLink :attrs="attrs" />
+    <SgroupLink :sgroup="subject" />
 </span>
 <span class="Subject" v-else>
-    <Subject :dn="dn" :attrs="attrs" :ssdn="ssdn" />
+    <Subject :dn="dn" :subject="subject" :ssdn="ssdn" />
 </span>
 </template>

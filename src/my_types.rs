@@ -156,7 +156,6 @@ pub type SgroupsWithAttrs = BTreeMap<String, MonoAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SubjectAttrs {
-    #[serde(flatten)]
     pub attrs: MonoAttrs,
 
     #[serde(skip_serializing_if="Option::is_none")]
@@ -173,7 +172,6 @@ pub struct SubjectsAndCount {
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupOutAndRight {
-    #[serde(flatten)]
     pub attrs: MonoAttrs,
 
     pub sgroup_id: String,
@@ -190,7 +188,6 @@ pub enum SgroupOutMore {
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SgroupAndMoreOut {
-    #[serde(flatten)]
     pub attrs: MonoAttrs,
     #[serde(flatten)]
     pub more: SgroupOutMore,

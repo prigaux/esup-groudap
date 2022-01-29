@@ -10,7 +10,10 @@ export type MyMods = PRecord<Mright, PRecord<MyMod, string[]>>
 
 export type MonoAttrs = Record<string, string>
 
-export type SubjectAttrs = MonoAttrs & { sgroup_id?: string }
+export interface SubjectAttrs { 
+    attrs: MonoAttrs
+    sgroup_id?: string
+}
 export type SubjectAttrs_with_more = SubjectAttrs & { sscfg_dn?: string, indirect?: boolean }
 
 export type SgroupsWithAttrs = Record<string, MonoAttrs>
@@ -18,7 +21,8 @@ export type SgroupsWithAttrs = Record<string, MonoAttrs>
 export type Subjects = Record<string, SubjectAttrs>;
 export type Subjects_with_more = Record<string, SubjectAttrs_with_more>;
 
-export type SgroupOutAndRight = MonoAttrs & {
+export interface SgroupOutAndRight {
+    attrs: MonoAttrs
     sgroup_id: string
     right?: Right
 }
@@ -28,7 +32,8 @@ export interface SgroupOutMore {
     group?: { direct_members: Subjects }
 }
 
-export type SgroupAndMoreOut = MonoAttrs & SgroupOutMore & {
+export type SgroupAndMoreOut = SgroupOutMore & {
+    attrs: MonoAttrs
     parents: SgroupOutAndRight[]
     right: Right
 }

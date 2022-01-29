@@ -2,10 +2,6 @@
     display: none;
 }
 
-body { 
-    font-family: Arial, sans-serif;
-}
-
 h2, h4 { 
     display: inline-block;
     vertical-align: middle;
@@ -63,4 +59,8 @@ td {
 .SgroupLink a, .Subject a {
     color: #00326E;
     text-decoration: none;
+}
+
+legend label {
+    margin: 0 0.5rem;    
 }
