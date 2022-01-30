@@ -22,6 +22,7 @@ let search_results = asyncComputed(async () => {
 </script>
 
 <template>
+<h2>Accueil</h2>
 <fieldset>
     <legend><h3>Recherche</h3></legend>
     <input v-model="search_token.real">

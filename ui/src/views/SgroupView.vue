@@ -1,5 +1,5 @@
 <script lang="ts">
-import { isEmpty, size } from 'lodash'
+import { isEmpty, last, size } from 'lodash'
 import { computed, FunctionDirective, reactive, Ref, ref, UnwrapRef, watch } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
@@ -195,13 +195,21 @@ const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() => void)>
     })
 }
 
-
-let drag = ref(false)
-
+const delete_sgroup = async () => {
+    if (confirm("Supprimer ?")) {
+        await api.delete_sgroup(props.id)
+        const parent = last(sgroup.value.parents)
+        router.push(parent?.right ? { path: '/sgroup', query: { id: parent.sgroup_id } } : { path: "/" })
+    }
+}
 </script>
 
 <template>
 <div v-if="sgroup">
+    <div style="float: right">
+        ID : {{props.id}}
+    </div>
+
     <a href=".">Accueil</a> &gt;
     <span v-for="(parent, i) in sgroup.parents">
         <SgroupLink :sgroup="parent" />
@@ -237,7 +245,7 @@ let drag = ref(false)
                 </template>
             </template>
         </legend>
-        <textarea v-if="modify_attrs.description" v-model="sgroup.attrs.description" 
+        <textarea v-if="modify_attrs.description" class="description" v-model="sgroup.attrs.description" 
             v-focus @focusout="delayed_cancel_modify_attr('description')" @keydown.esc="cancel_modify_attr('description')"
             @keypress.enter.ctrl="send_modify_attr('description')"
             >
@@ -337,8 +345,23 @@ let drag = ref(false)
         </div>
     </fieldset>
 
+    <ul class="inline">
+        <template v-if="sgroup.stem && sgroup.right === 'admin'">
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id } }">
+                <button>Créer un groupe</button>
+            </RouterLink></li>
 
-    <p><i>Mes droits sur ce groupe : {{right2text[sgroup.right]}}</i></p>
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id, is_stem: true } }">
+                <button>Créer un dossier</button>
+            </RouterLink></li>
+        </template>
+
+        <template v-if="!sgroup.stem || isEmpty(sgroup.stem.children)">
+            <li><button @click="delete_sgroup">Supprimer le {{sgroup.stem ? 'dossier' : 'groupe'}}</button></li>
+        </template>
+    </ul>
+
+    <p><i>Mes droits sur ce {{sgroup.stem ? 'dossier' : 'groupe'}} : {{right2text[sgroup.right]}}</i></p>
 
 </div>
 </template>

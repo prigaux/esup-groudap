@@ -1,3 +1,8 @@
+body {
+    max-width: 60rem;
+    margin: 0 auto;
+}
+
 [v-cloak] {
     display: none;
 }
@@ -28,6 +33,13 @@ li {
 fieldset ul {
     margin-top: 0;
     padding-left: 0;
+}
+ul.inline {
+    padding-left: 0;
+}
+ul.inline > li {
+    display: inline-block;
+    margin-right: 0.5rem;
 }
 
 .ss_name {
@@ -65,4 +77,8 @@ a:visited {
 }
 legend label {
     margin: 0 0.5rem;    
+}
+textarea.description {
+    width: 100%;
+    height: 10rem;
 }

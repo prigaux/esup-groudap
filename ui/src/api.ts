@@ -62,6 +62,12 @@ export const modify_members_or_rights = (id: string, mods: MyMods) => (
     api_post("modify_members_or_rights", { id }, mods)
 )
 
+export const delete_sgroup = (id: string) => (
+    api_post('delete', { id }, {})
+)
+export const create = (id: string, attrs: MonoAttrs) => (
+    api_post('create', { id }, attrs)
+)
 export const modify_sgroup_attrs = (id: string, attrs: MonoAttrs) => (
     api_post('modify_sgroup_attrs', { id }, attrs)
 )

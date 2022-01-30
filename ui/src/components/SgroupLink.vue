@@ -15,6 +15,6 @@ let id = computed(() => props.id || props.sgroup.sgroup_id)
 </script>
 
 <template>
-    <span :title="sgroup.attrs.description" v-if="('right' in sgroup) && !sgroup.right">{{sgroup.attrs.ou}}</span>
-    <RouterLink :to="{ path: '/sgroup', query: { id } }" :title="sgroup.attrs.description" v-else>{{sgroup.attrs.ou}}</RouterLink>
+    <span :title="sgroup.attrs.description" v-if="('right' in sgroup) && !sgroup.right">{{sgroup.attrs.ou || id}}</span>
+    <RouterLink :to="{ path: '/sgroup', query: { id } }" :title="sgroup.attrs.description" v-else>{{sgroup.attrs.ou || id}}</RouterLink>
  </template>
