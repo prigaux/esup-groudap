@@ -56,11 +56,13 @@ td {
     padding: 0.3rem 0.3rem 0.3rem 1rem;
 }
 
-.SgroupLink a, .Subject a {
+a {
     color: #00326E;
     text-decoration: none;
 }
-
+a:visited {
+    color: #00225E;
+}
 legend label {
     margin: 0 0.5rem;    
 }
