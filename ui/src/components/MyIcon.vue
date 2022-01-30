@@ -25,6 +25,7 @@ const icons = { folder, users, user, cogs, pencil, close, check }
 .my-icon {
   --my-icon-size: 12px;
   display: inline-block;
+  vertical-align: middle;
 }
 .my-icon > svg {
   width: auto;

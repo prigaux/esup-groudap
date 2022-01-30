@@ -1,6 +1,6 @@
 <script lang="ts">
-import { initial, isEmpty, size } from 'lodash'
-import { computed, onBeforeUpdate, reactive, Ref, ref, unref, UnwrapRef, watch, watchEffect } from 'vue'
+import { isEmpty, size } from 'lodash'
+import { computed, FunctionDirective, reactive, Ref, ref, UnwrapRef, watch } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { throttled_ref } from '@/vue_helpers';
@@ -21,16 +21,13 @@ const flat_members_ = (props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMo
     let searching = ref(false)
     let search_token = throttled_ref('')
     let results = asyncComputed(async () => {
-        console.log("flat_members l")
         if (!show.value) return;
         const search_token_ = search_token.throttled || ''
         //if (search_token_.length < 3) return;
-        console.log("flat_members l")
 
         const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id: props.id, mright: 'member', sizelimit: 50, search_token: search_token_ })
         let direct_members = sgroup.value?.group?.direct_members || {}
         forEach(r.subjects, (attrs, dn) => {
-            console.log(dn, dn in direct_members)
             attrs.indirect = !(dn in direct_members)
         })
         await add_sscfg_dns(r.subjects)
@@ -107,6 +104,10 @@ let members_details = computed(() => {
     }
 })
 
+let can_modify_member = computed(() => (
+    ['updater', 'admin'].includes(sgroup.value?.right))
+)
+
 let add_member = add_member_()
 
 async function add_remove_direct_mright(dn: string, mright: Mright, mod: MyMod) {
@@ -142,11 +143,60 @@ const new_ref_watching = <T>(source: any, value: () => T) => {
 }
 
 type Attr = 'ou'|'description'
-let modify_attrs = new_ref_watching(() => props.id, () => ({} as PRecord<Attr, boolean>))
-const send_modify_attrs = async (attr: Attr) => {
-    await api.modify_sgroup_attrs(props.id, sgroup.value.attrs)
-    modify_attrs.value[attr] = false
+let modify_attrs = new_ref_watching(() => props.id, () => ({} as PRecord<Attr, { prev: string, status?: 'canceling'|'saving' }>))
+const start_modify_attr = (attr: Attr) => {
+    modify_attrs.value[attr] = { prev: sgroup.value.attrs[attr] }
 }
+const cancel_modify_attr = (attr: Attr, opt?: 'force') => {
+    let state = modify_attrs.value[attr]
+    if (state) {
+        if (sgroup.value.attrs[attr] !== state.prev && opt !== 'force') {
+            if (state.status) return
+            state.status = 'canceling'
+            if (!confirm('Voulez vous perdre les modifications ?')) {
+                setTimeout(() => { if (state?.status === 'canceling') state.status = undefined }, 1000)
+                return
+            }
+        }
+        // restore previous value
+        sgroup.value.attrs[attr] = state.prev
+    }
+    // stop modifying this attr:
+    modify_attrs.value[attr] = undefined
+}
+const delayed_cancel_modify_attr = (attr: Attr) => {
+    setTimeout(() => cancel_modify_attr(attr), 200)
+}
+const send_modify_attr = async (attr: Attr) => {
+    let state = modify_attrs.value[attr]
+    if (state) state.status = 'saving'
+    await api.modify_sgroup_attrs(props.id, sgroup.value.attrs)
+    modify_attrs.value[attr] = undefined
+}
+
+const vFocus : FunctionDirective<HTMLElement, void> = (el) => { 
+    el.focus()
+}
+const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() => void)> = (el, binding) => {
+    const f = binding.value
+    if (!f) return
+    let moved = false
+    el.addEventListener('mousedown', () => moved = false)
+    el.addEventListener('mousemove', () => moved = true)
+    let dblclicked = false
+    el.addEventListener('dblclick', () => dblclicked = true)
+    el.addEventListener('click', () => { 
+        if (!moved) {
+            dblclicked = false
+            setTimeout(() => {
+                if (!dblclicked) f()
+            }, 300)
+        }
+    })
+}
+
+
+let drag = ref(false)
 
 </script>
 
@@ -160,27 +210,41 @@ const send_modify_attrs = async (attr: Attr) => {
 
     <h2>
         <MyIcon :name="sgroup.stem ? 'folder' : 'users'" class="on-the-left" />
-        <span v-if="modify_attrs.ou">
-            <input v-model="sgroup.attrs.ou">
-        </span>
-        <span v-else>{{sgroup.attrs.ou}}</span>
-        
     </h2>
-    <span v-if="modify_attrs.ou">
-        <MyIcon name="check" class="on-the-right" @click="send_modify_attrs('ou')" />
-        <MyIcon name="close" class="on-the-right" @click="modify_attrs.ou = false" />
-    </span>
-    <span v-else>
-        <MyIcon name="pencil" class="on-the-right" @click="modify_attrs.ou = true" />
-    </span>
+    <template v-if="sgroup.right === 'admin'">
+        <form v-if="modify_attrs.ou" @submit.prevent="send_modify_attr('ou')" class="modify_attr">
+            <h2><input v-focus v-model="sgroup.attrs.ou" @focusout="delayed_cancel_modify_attr('ou')" @keydown.esc="cancel_modify_attr('ou')"></h2>
+            <MyIcon name="check" class="on-the-right" @click="send_modify_attr('ou')" />
+            <MyIcon name="close" class="on-the-right" @click="cancel_modify_attr('ou', 'force')" />
+        </form>
+        <span v-else>
+            <h2 v-click-without-moving="() => start_modify_attr('ou')">{{sgroup.attrs.ou}}</h2>
+            <MyIcon name="pencil" class="on-the-right" @click="start_modify_attr('ou')" />
+        </span>       
+    </template>
+    <h2 v-else>{{sgroup.attrs.ou}}</h2>
 
     <fieldset>
         <legend>
             <h4>Description</h4>
-            <MyIcon name="pencil" class="on-the-right" @click="modify_attrs.description = true" />
+            <template v-if="sgroup.right === 'admin'">
+                <template v-if="modify_attrs.description">
+                    <MyIcon name="check" class="on-the-right" @click="send_modify_attr('description')" />
+                    <MyIcon name="close" class="on-the-right" @click="cancel_modify_attr('description', 'force')" />
+                </template>
+                <template v-else>
+                    <MyIcon name="pencil" class="on-the-right" @click="start_modify_attr('description')" />
+                </template>
+            </template>
         </legend>
-        <textarea v-if="modify_attrs.description" v-model="sgroup.attrs.description"></textarea>
-        <div v-else class="description">{{sgroup.attrs.description}}</div>
+        <textarea v-if="modify_attrs.description" v-model="sgroup.attrs.description" 
+            v-focus @focusout="delayed_cancel_modify_attr('description')" @keydown.esc="cancel_modify_attr('description')"
+            @keypress.enter.ctrl="send_modify_attr('description')"
+            >
+        </textarea>
+        <div v-else class="description" v-click-without-moving="sgroup.right === 'admin' && (() => start_modify_attr('description'))">
+            {{sgroup.attrs.description}}
+        </div>
     </fieldset>
 
     <p></p>
@@ -208,7 +272,7 @@ const send_modify_attrs = async (attr: Attr) => {
                     <tbody>
                         <tr v-for="(subject, dn) in subjects">
                             <td><SubjectOrGroup :dn="dn" :subject="subject" /></td>
-                            <td><button @click="remove_direct_mright(dn, right)">Supprimer</button></td>
+                            <td><button v-if="sgroup.right == 'admin'" @click="remove_direct_mright(dn, right)">Supprimer</button></td>
                         </tr>
                     </tbody>
                   </template>
@@ -243,7 +307,7 @@ const send_modify_attrs = async (attr: Attr) => {
                     </table>
                 </fieldset>
             </div>
-            <button @click="add_member.show = true" v-else>Ajouter des membres</button>
+            <button @click="add_member.show = true" v-else-if="can_modify_member">Ajouter des membres</button>
             <button @click="flat_members.show = !flat_members.show" v-if="members_details?.may_have_indirects">{{flat_members.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <div style="height: 1rem"></div>
@@ -265,7 +329,7 @@ const send_modify_attrs = async (attr: Attr) => {
                         <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
                         <td>
                             <i v-if="attrs.indirect">Indirect</i>
-                            <button v-else @click="remove_direct_mright(dn, 'member')">Supprimer</button>
+                            <button v-else-if="can_modify_member" @click="remove_direct_mright(dn, 'member')">Supprimer</button>
                         </td>
                     </tr>
                 </table>
@@ -283,5 +347,11 @@ const send_modify_attrs = async (attr: Attr) => {
 textarea {
     width: 100%;
     height: 10rem;
+}
+.modify_attr {
+    display: inline-block;
+}
+.my-icon-check, .my-icon-close {
+    --my-icon-size: 16px;
 }
 </style>
