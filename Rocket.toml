@@ -33,7 +33,7 @@ admin = "owner"
 dn = "ou=people,dc=nodomain"
 name = "Personnes"
 search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)(displayName=*%TERM%*)) )" # (!(accountStatus=disabled))
-display_attrs = ["displayName", "mail", "eduPersonPrimaryAffiliation" ]
+display_attrs = ["displayName", "mail", "eduPersonPrimaryAffiliation", "uid" ]
 # below is sent to UI which decide what to do with it. category.attr should be listed in "display_attrs" above
 labels = { eduPersonPrimaryAffiliation = { student = "étudiant", staff = "biatss", teacher = "enseignant", _ = "autre" } }
 vue_template = """<MyIcon name="user" /> {{ 
