@@ -6,15 +6,16 @@ import cogs from '@fortawesome/fontawesome-free/svgs/solid/cogs.svg?raw'
 import pencil from '@fortawesome/fontawesome-free/svgs/solid/pencil-alt.svg?raw'
 import close from '@fortawesome/fontawesome-free/svgs/solid/window-close.svg?raw'
 import check from '@fortawesome/fontawesome-free/svgs/solid/check-square.svg?raw'
+import spinner from '@fortawesome/fontawesome-free/svgs/solid/spinner.svg?raw'
 
 </script>
 
 <script setup lang="ts">
 defineProps<{
-  name: 'folder' | 'users' | 'user' | 'cogs' | 'pencil' | 'close' | 'check',
+  name: 'folder' | 'users' | 'user' | 'cogs' | 'pencil' | 'close' | 'check' | 'spinner',
 }>()
 
-const icons = { folder, users, user, cogs, pencil, close, check }
+const icons = { folder, users, user, cogs, pencil, close, check, spinner }
 </script>
 
 <template>
@@ -25,7 +26,7 @@ const icons = { folder, users, user, cogs, pencil, close, check }
 .my-icon {
   --my-icon-size: 12px;
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: baseline;
 }
 .my-icon > svg {
   width: auto;
@@ -37,5 +38,8 @@ const icons = { folder, users, user, cogs, pencil, close, check }
 }
 .my-icon.on-the-right {
   margin-left: 0.5rem;
+}
+.my-icon-spinner {
+    --my-icon-size: 13px;
 }
 </style>

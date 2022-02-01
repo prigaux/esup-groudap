@@ -1,11 +1,11 @@
 <script lang="ts">
-import { isEmpty, last, size } from 'lodash'
-import { computed, FunctionDirective, reactive, Ref, ref, UnwrapRef, watch } from 'vue'
+import { fromPairs, isEmpty, last, size } from 'lodash'
+import { computed, FunctionDirective, reactive, Ref, ref, toRef, UnwrapRef, watch } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
-import { throttled_ref } from '@/vue_helpers';
+import { new_ref_watching, throttled_ref } from '@/vue_helpers';
 import { forEach, forEachAsync, some } from '@/helpers';
-import { Mright, MyMod, PRecord, SgroupAndMoreOut, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
+import { LdapConfigOut, Mright, MyMod, PRecord, Right, SgroupAndMoreOut, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
 import { right2text } from '@/lib';
 import * as api from '@/api'
 
@@ -16,7 +16,7 @@ async function add_sscfg_dns(subjects: Subjects) {
     })
 }
 
-const flat_members_ = (props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMoreOut>) => {
+const flat_ = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
     let show = ref(false)
     let searching = ref(false)
     let search_token = throttled_ref('')
@@ -25,15 +25,37 @@ const flat_members_ = (props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMo
         const search_token_ = search_token.throttled || ''
         //if (search_token_.length < 3) return;
 
-        const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id: props.id, mright: 'member', sizelimit: 50, search_token: search_token_ })
-        let direct_members = sgroup.value?.group?.direct_members || {}
+        const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id: props.id, mright, sizelimit: 100, search_token: search_token_ })
+        let directs_ = directs()
         forEach(r.subjects, (attrs, dn) => {
-            attrs.indirect = !(dn in direct_members)
+            attrs.indirect = !(dn in directs_)
         })
         await add_sscfg_dns(r.subjects)
         return r
     }, undefined, searching)
-    return reactive({ show, searching, search_token, results })
+    return { show, searching, search_token, results }
+}
+
+const flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
+    let flat = flat_(props, mright, directs)
+    let subjects = computed(() => {
+        if (flat.show.value) {
+            return flat.results.value
+        } else {
+            const subjects = directs() as Subjects_with_more
+            return subjects ? { count: size(subjects), subjects } : undefined
+        }
+    })
+    let details = computed(() => {
+        if (!subjects.value || !sscfgs.value) return;
+        const real_count = size(subjects.value.subjects);
+        return {
+            real_count,
+            limited: subjects.value.count !== real_count,
+            may_have_indirects: some(subjects.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.value.groups_dn)
+        }
+    })
+    return reactive({ subjects, details, ...flat })
 }
 
 const add_member_ = () => {
@@ -48,9 +70,12 @@ const add_member_ = () => {
     return reactive({ show, search_token, results })
 }
 
+const list_of_rights: Right[] = ['reader', 'updater', 'admin']
+
 </script>
 
 <script setup lang="ts">
+import { vFocus } from '@/vue_helpers';
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
@@ -84,25 +109,9 @@ let sgroup = asyncComputed(async () => {
     return sgroup
 })
 
-let flat_members = flat_members_(props, sgroup)
-
-let members = computed(() => {
-    if (flat_members.show) {
-        return flat_members.results
-    } else {
-        const direct_members = sgroup.value?.group?.direct_members as Subjects_with_more
-        return direct_members ? { count: size(direct_members), subjects: direct_members } : undefined
-    }
-})
-let members_details = computed(() => {
-    if (!members.value || !sscfgs.value) return;
-    const real_count = size(members.value.subjects);
-    return {
-        real_count,
-        limited: members.value.count !== real_count,
-        may_have_indirects: some(members.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.value.groups_dn)
-    }
-})
+let flat_members = flat_or_not(sscfgs, props, 'member', () => sgroup.value?.group?.direct_members || {})
+let members = toRef(flat_members, 'subjects')
+let members_details = toRef(flat_members, 'details')
 
 let can_modify_member = computed(() => (
     ['updater', 'admin'].includes(sgroup.value?.right))
@@ -133,14 +142,9 @@ let rights = asyncComputed(async () => {
     await forEachAsync(r, (subjects, _) => add_sscfg_dns(subjects))
     return r
 })
-
-const new_ref_watching = <T>(source: any, value: () => T) => {
-    const r = ref(value())
-    watch(source, () => {
-        r.value = value() as UnwrapRef<T>
-    })
-    return r
-}
+let flat_rights = fromPairs(list_of_rights.map(right => (
+    [ right, flat_(props, right, () => rights.value?.[right] || {}) ]
+)))
 
 type Attr = 'ou'|'description'
 let modify_attrs = new_ref_watching(() => props.id, () => ({} as PRecord<Attr, { prev: string, status?: 'canceling'|'saving' }>))
@@ -174,9 +178,6 @@ const send_modify_attr = async (attr: Attr) => {
     modify_attrs.value[attr] = undefined
 }
 
-const vFocus : FunctionDirective<HTMLElement, void> = (el) => { 
-    el.focus()
-}
 const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() => void)> = (el, binding) => {
     const f = binding.value
     if (!f) return
@@ -206,9 +207,9 @@ const delete_sgroup = async () => {
 
 <template>
 <div v-if="sgroup">
-    <div style="float: right">
+    <small class="float-right">
         ID : {{props.id}}
-    </div>
+    </small>
 
     <a href=".">Accueil</a> &gt;
     <span v-for="(parent, i) in sgroup.parents">
@@ -276,11 +277,15 @@ const delete_sgroup = async () => {
                 <div v-if="isEmpty(rights)"> <p></p> <i>Aucun</i> </div>
                 <table class="with-theads" v-else>
                   <template v-for="(subjects, right) in rights">
-                    <thead><h5>Droit "{{right2text[right]}}"</h5></thead>
+                    <thead>
+                        <h5>Droit "{{right2text[right]}}"</h5> 
+                        <!--<button @click="flat_rights[right].show = !flat_rights[right].show">{{flat_rights[right].show ? "Cacher les indirects" : "Voir les indirects"}}</button>-->
+                    </thead>
                     <tbody>
                         <tr v-for="(subject, dn) in subjects">
                             <td><SubjectOrGroup :dn="dn" :subject="subject" /></td>
                             <td><button v-if="sgroup.right == 'admin'" @click="remove_direct_mright(dn, right)">Supprimer</button></td>
+                            <td></td>
                         </tr>
                     </tbody>
                   </template>
@@ -295,8 +300,9 @@ const delete_sgroup = async () => {
             </li>
         </ul>
         <div v-else-if="sgroup.group">
-            <div v-if="add_member.show">
-                Recherchez un utilisateur/groupe/... <button @click="add_member.show = false">fermer</button> <br>
+            <button class="float-right" @click="add_member.show = !add_member.show" v-if="can_modify_member">{{add_member.show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
+            <p v-if="add_member.show" style="padding: 1rem; background: #eee">
+                Recherchez un utilisateur/groupe/...<br>
                 <input class="search_token" v-model="add_member.search_token.real">
                 <fieldset v-if="add_member.results">
                     <legend>Résultats de recherche</legend>
@@ -314,11 +320,8 @@ const delete_sgroup = async () => {
                         </template>
                     </table>
                 </fieldset>
-            </div>
-            <button @click="add_member.show = true" v-else-if="can_modify_member">Ajouter des membres</button>
-            <button @click="flat_members.show = !flat_members.show" v-if="members_details?.may_have_indirects">{{flat_members.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
-
-            <div style="height: 1rem"></div>
+            </p>
+            <button class="float-right" @click="flat_members.show = !flat_members.show" v-if="members_details?.may_have_indirects">{{flat_members.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <div v-if="!members || flat_members.searching">Veuillez patentier...</div>
             <div v-else-if="members">
@@ -376,5 +379,14 @@ textarea {
 }
 .my-icon-check, .my-icon-close {
     --my-icon-size: 16px;
+    vertical-align: middle;
+}
+
+thead > h5 {
+    display: inline-block;
+}
+.float-right {
+    float: right;
+    margin-left: 1rem;
 }
 </style>

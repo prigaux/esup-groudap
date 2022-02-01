@@ -1,5 +1,5 @@
 import { debouncedWatch, throttledWatch, useThrottle } from "@vueuse/core"
-import { reactive, ref } from "vue"
+import { FunctionDirective, reactive, ref, UnwrapRef, watch } from "vue"
 
 export function throttled_ref(initial_val: string, min_length?: number) {
     let real = ref(initial_val)
@@ -9,4 +9,16 @@ export function throttled_ref(initial_val: string, min_length?: number) {
     }, { debounce: 500 })
     
     return reactive({ real, throttled })
+}
+
+export function new_ref_watching<T>(source: any, value: () => T) {
+    const r = ref(value())
+    watch(source, () => {
+        r.value = value() as UnwrapRef<T>
+    })
+    return r
+}
+
+export const vFocus : FunctionDirective<HTMLElement, void> = (el) => { 
+    el.focus()
 }

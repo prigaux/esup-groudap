@@ -1,7 +1,8 @@
 <script lang="ts">
-import { Ref, ref } from 'vue'
 import { asyncComputed } from '@vueuse/core';
-import { SgroupsWithAttrs } from '@/my_types';
+import { map } from 'lodash';
+import router from '@/router';
+import { SgroupOutAndRight } from '@/my_types';
 import * as api from '@/api'
 </script>
 
@@ -9,34 +10,33 @@ import * as api from '@/api'
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import { isEmpty } from 'lodash';
-import { throttled_ref } from '@/vue_helpers';
+import Typeahead, { UnknownT } from '@/components/Typeahead.vue';
 
 let mygroups = asyncComputed(api.mygroups)
 
-let search_token = throttled_ref('', 3)
-let searching = ref(false)
-let search_results = asyncComputed(async () => {
-    const token = search_token.throttled
-    return token ? api.search_sgroups({ sizelimit: 10, search_token: token, right: "updater" }) : undefined
-}, null, searching)
+let search_limit = 30
+let search = async (search_token: string) => {
+    let h = await api.search_sgroups({ sizelimit: search_limit + 1, search_token, right: "updater" })
+    return map(h, (attrs, sgroup_id) => {
+        const sgroup: SgroupOutAndRight = { sgroup_id, attrs }
+        return sgroup as any as UnknownT
+    })
+}
+
+const goto = (sgroup: UnknownT) => {
+    router.push({ path: '/sgroup', query: { id: (sgroup as any as SgroupOutAndRight).sgroup_id } })
+}
 </script>
 
 <template>
 <h2>Accueil</h2>
+
 <fieldset>
     <legend><h3>Recherche</h3></legend>
-    <input v-model="search_token.real">
-    <div v-if="search_token.throttled || searching">            
-        <h4>Résultats</h4>
-        <div v-if="searching">...</div>
-        <div v-else-if="isEmpty(search_results)"><i>Aucun</i></div>
-        <ul v-else>
-            <li v-for="(attrs, id) in search_results">
-                <MyIcon :name="id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
-                <SgroupLink :sgroup="{ attrs }" :id="id" />
-            </li>
-        </ul>
-    </div>
+    <Typeahead :focus="true" @update:model-value="goto" :minChars="3" :limit="search_limit" :editable="false" :options="search" v-slot="props">
+        <MyIcon :name="(props.item as any).sgroup_id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
+        <SgroupLink :sgroup="(props.item as any)" />
+    </Typeahead>
 </fieldset>
 <fieldset>
     <legend><h3>Mes groupes</h3></legend>
@@ -50,3 +50,9 @@ let search_results = asyncComputed(async () => {
     </ul>
 </fieldset>
 </template>
+
+<style scoped>
+ul {
+    line-height: 1.5;
+}
+</style>
