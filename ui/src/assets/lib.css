@@ -26,3 +26,18 @@ body {
         transform:rotate(1turn)
     }
 }
+
+.popup {
+    position: relative;
+}
+.popup > * {    
+    position: absolute;
+    background-color: white;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0;
+    padding: 0.5rem 0;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    box-shadow: 0 5px 10px black
+}

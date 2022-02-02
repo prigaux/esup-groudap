@@ -1,5 +1,6 @@
 import { Dictionary, pickBy } from "lodash";
-import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, SubjectSourceConfig } from "./my_types";
+import { forEach } from "./helpers";
+import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, SubjectSourceConfig, Subjects_with_more } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -96,3 +97,10 @@ export const mygroups = () : Promise<SgroupsWithAttrs> => (
 export const config_subject_sources = () : Promise<LdapConfigOut> => (
     api_get("config/subject_sources", {}, { memoize: true })
 )
+
+export async function add_sscfg_dns(subjects: Subjects) {
+    let sscfgs = (await config_subject_sources()).subject_sources
+    forEach(subjects as Subjects_with_more, (attrs, dn) => {
+        attrs.sscfg_dn = sscfgs.find(one => dn?.endsWith(one.dn))?.dn
+    })
+}

@@ -46,6 +46,8 @@ ul.inline > li {
     color: #00326E;
     font-size: 80%;
     font-variant: small-caps;
+    padding-left: 0.5rem;
+    display: block;
 }
 
 .search_token {

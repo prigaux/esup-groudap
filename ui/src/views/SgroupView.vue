@@ -9,13 +9,6 @@ import { LdapConfigOut, Mright, MyMod, PRecord, Right, SgroupAndMoreOut, Subject
 import { right2text } from '@/lib';
 import * as api from '@/api'
 
-async function add_sscfg_dns(subjects: Subjects) {
-    let sscfgs = (await api.config_subject_sources()).subject_sources
-    forEach(subjects as Subjects_with_more, (attrs, dn) => {
-        attrs.sscfg_dn = sscfgs.find(one => dn?.endsWith(one.dn))?.dn
-    })
-}
-
 const flat_ = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
     let show = ref(false)
     let searching = ref(false)
@@ -30,7 +23,7 @@ const flat_ = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => 
         forEach(r.subjects, (attrs, dn) => {
             attrs.indirect = !(dn in directs_)
         })
-        await add_sscfg_dns(r.subjects)
+        await api.add_sscfg_dns(r.subjects)
         return r
     }, undefined, searching)
     return { show, searching, search_token, results }
@@ -58,18 +51,6 @@ const flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }
     return reactive({ subjects, details, ...flat })
 }
 
-const add_member_ = () => {
-    let show = ref(false)
-    let search_token = throttled_ref('')
-    let results = asyncComputed(async () => {
-        if (!show.value) return;
-        const search_token_ = search_token.throttled
-        if (search_token_.length < 3) return;
-        return api.search_subjects({ search_token: search_token_, sizelimit: 10 })
-    })
-    return reactive({ show, search_token, results })
-}
-
 const list_of_rights: Right[] = ['reader', 'updater', 'admin']
 
 </script>
@@ -79,6 +60,7 @@ import { vFocus } from '@/vue_helpers';
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
+import SearchSubject from '@/components/SearchSubject.vue';
 
 const props = withDefaults(defineProps<{
   id: string,
@@ -104,7 +86,7 @@ let sgroup = asyncComputed(async () => {
     const _ = sgroup_force_refresh.value // asyncComputed will know it needs to re-compute
     let sgroup = await api.sgroup(props.id)
     if (sgroup.group) {
-        await add_sscfg_dns(sgroup.group.direct_members)
+        await api.add_sscfg_dns(sgroup.group.direct_members)
     }
     return sgroup
 })
@@ -117,7 +99,7 @@ let can_modify_member = computed(() => (
     ['updater', 'admin'].includes(sgroup.value?.right))
 )
 
-let add_member = add_member_()
+let add_member_show = ref(false)
 
 async function add_remove_direct_mright(dn: string, mright: Mright, mod: MyMod) {
     await api.modify_members_or_rights(props.id, { [mright]: { [mod]: ['ldap:///' + dn] } })
@@ -139,7 +121,7 @@ let rights = asyncComputed(async () => {
     const _ = rights_force_refresh.value // asyncComputed will know it needs to re-compute
     if (props.tabToDisplay !== 'rights') return;
     let r = await api.sgroup_direct_rights(props.id)
-    await forEachAsync(r, (subjects, _) => add_sscfg_dns(subjects))
+    await forEachAsync(r, (subjects, _) => api.add_sscfg_dns(subjects))
     return r
 })
 let flat_rights = fromPairs(list_of_rights.map(right => (
@@ -300,26 +282,10 @@ const delete_sgroup = async () => {
             </li>
         </ul>
         <div v-else-if="sgroup.group">
-            <button class="float-right" @click="add_member.show = !add_member.show" v-if="can_modify_member">{{add_member.show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
-            <p v-if="add_member.show" style="padding: 1rem; background: #eee">
+            <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
+            <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
-                <input class="search_token" v-model="add_member.search_token.real">
-                <fieldset v-if="add_member.results">
-                    <legend>Résultats de recherche</legend>
-                    <table>
-                        <template v-for="(subjects, ssdn) in add_member.results">
-                            <template v-if="!isEmpty(subjects)">
-                                <thead class="ss_name">{{sscfgs?.subject_sources.find(sscfg => sscfg.dn === ssdn)?.name}}</thead>
-                                <tbody>
-                                    <tr v-for="(subject, dn) in subjects">
-                                        <td><SubjectOrGroup :dn="dn" :subject="subject" :ssdn="ssdn" /></td>
-                                        <td><button @click="add_direct_mright(dn, 'member')">Ajouter</button></td>
-                                    </tr>
-                                </tbody>
-                            </template>
-                        </template>
-                    </table>
-                </fieldset>
+                <SearchSubject />
             </p>
             <button class="float-right" @click="flat_members.show = !flat_members.show" v-if="members_details?.may_have_indirects">{{flat_members.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 

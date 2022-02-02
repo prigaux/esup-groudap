@@ -19,12 +19,12 @@ let search = async (search_token: string) => {
     let h = await api.search_sgroups({ sizelimit: search_limit + 1, search_token, right: "updater" })
     return map(h, (attrs, sgroup_id) => {
         const sgroup: SgroupOutAndRight = { sgroup_id, attrs }
-        return sgroup as any as UnknownT
+        return sgroup
     })
 }
 
 const goto = (sgroup: UnknownT) => {
-    router.push({ path: '/sgroup', query: { id: (sgroup as any as SgroupOutAndRight).sgroup_id } })
+    router.push({ path: '/sgroup', query: { id: sgroup.sgroup_id } })
 }
 </script>
 
@@ -33,9 +33,9 @@ const goto = (sgroup: UnknownT) => {
 
 <fieldset>
     <legend><h3>Recherche</h3></legend>
-    <Typeahead :focus="true" @update:model-value="goto" :minChars="3" :limit="search_limit" :editable="false" :options="search" v-slot="props">
-        <MyIcon :name="(props.item as any).sgroup_id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
-        <SgroupLink :sgroup="(props.item as any)" />
+    <Typeahead :focus="true" @update:model-value="goto" :minChars="3" :limit="search_limit" :editable="false" :options="search" v-slot="{ item: sgroup }">
+        <MyIcon :name="sgroup.sgroup_id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
+        <SgroupLink :sgroup="sgroup" />
     </Typeahead>
 </fieldset>
 <fieldset>

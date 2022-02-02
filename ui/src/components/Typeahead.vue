@@ -4,9 +4,7 @@
 import { escapeRegExp } from "lodash";
 import { computed, onMounted, ref, watch } from "vue";
 
-type Validity = { valueMissing?: true; badInput?: boolean; valid?: boolean; }
-
-export type UnknownT = { header?: string } & (string | Record<string, unknown>)
+export type UnknownT = any // { header?: string } & (string | Record<string, unknown>)
 
 const noResultsMsg = "Aucun résultat"
 const default_moreResultsMsg = (limit: number) => (
@@ -24,11 +22,6 @@ interface Props<T> {
     minChars?: number
     limit?: number
     formatting?: (e: T) => string
-    editable?: boolean
-    required?: boolean
-    pattern?: string | RegExp
-    name?: string
-    id?: string
     placeholder?: string
     rows?: number
     focus?: boolean
@@ -41,10 +34,9 @@ let props = withDefaults(defineProps<Props<UnknownT>>(), {
     minChars: 0,
     limit: 10,
     formatting: (e) => e as string,
-    editable: true,
     noResultsMsg: "No results",
 })
-let emit = defineEmits(['update:modelValue', 'update:validity'])
+let emit = defineEmits(['update:modelValue'])
 
 let moreResultsMsg_ = computed(() => (props.moreResultsMsg || default_moreResultsMsg)(props.limit))
 
@@ -62,33 +54,12 @@ if (props.focus) {
     onMounted(() => input_elt.value?.focus())
 }
 
-function emitValidity(validity: Validity) {
-    input_elt.value?.setCustomValidity(validity.valid ? '' : 'err')
-    emit('update:validity', validity)
-}
-
-function checkValidity(v: UnknownT | undefined, from : 'input' | 'parent') {
-    // "v" is an accepted value
-    const valueMissing = v === '' || v === undefined || v === null;        
-    const validity = props.required && valueMissing ? { valueMissing } : 
-                        !valueMissing && props.pattern && !new RegExp(props.pattern).test(v as string) ? { badInput: true } :
-                        from === 'input' && !props.editable && !valueMissing ? { badInput: true } : { valid: true };
-    emitValidity(validity);
-}
-
-onMounted(() => checkValidity(props.modelValue, 'parent'))
-
 watch(() => props.modelValue, _ => {
     const v = props.modelValue
     query.value = v === undefined ? '' : props.formatting(v);
-    checkValidity(v, 'parent');
 })
 
 function input_changed() {
-    if (props.editable) {
-        emit('update:modelValue', query.value);
-    }
-    checkValidity(query.value, 'input');
     open();
 }
 
@@ -136,7 +107,6 @@ function setOptions(data: UnknownT[]) {
 }
 
 function stopAndClose() {
-    return;
     cancel.value()
     items.value = []
     noResults.value = false
@@ -157,9 +127,6 @@ function hit () {
     let chosen = items.value[current.value];
     query.value = props.formatting(chosen);
     emit('update:modelValue', chosen);
-    if (!props.editable) {
-        emitValidity({ valid : true });
-    }
     stopAndClose();
 }
 
@@ -181,7 +148,7 @@ function down () {
 
 <template>
     <div>
-        <input :id="id" :name="name" :aria-label="placeholder" :placeholder="placeholder"
+        <input :aria-label="placeholder" :placeholder="placeholder"
            v-model="query" ref="input_elt"
            type="text" autocomplete="off"
            @keydown.down.prevent="down"
@@ -219,20 +186,8 @@ input {
     width: 100%;
     box-sizing: border-box;
 }
-.popup {
-    position: relative;
-}
 ul {    
-    position: absolute;
-    background-color: white;
-    width: 100%;
-    box-sizing: border-box;
-    margin-top: 0;
-    padding: 0.5rem 0;
     line-height: 1.3;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: 8px;
-    box-shadow: 0 5px 10px black
 }
 li {
     display: block;
@@ -241,8 +196,7 @@ li {
 li.active {
     background-color: #16A170;
 }
-/* NB: ">>>" is Vue.js scoped style specific */
-li.active, li.active >>> * {
+li.active, li.active :deep(*) {
     color: white;
 }
 input {
