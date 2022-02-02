@@ -1,4 +1,4 @@
-import { debouncedWatch, throttledWatch, useThrottle } from "@vueuse/core"
+import { debouncedWatch } from "@vueuse/core"
 import { FunctionDirective, reactive, ref, UnwrapRef, watch } from "vue"
 
 export function throttled_ref(initial_val: string, min_length?: number) {

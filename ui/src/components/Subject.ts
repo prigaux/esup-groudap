@@ -1,6 +1,6 @@
 import { defineAsyncComponent, defineComponent } from "vue";
 import * as api from '@/api'
-import { SubjectAttrs, SubjectSourceConfig } from "@/my_types";
+import { SubjectSourceConfig } from "@/my_types";
 import MyIcon from './MyIcon.vue'
 
 const compute_default_vue_template = (sscfg: SubjectSourceConfig) => (

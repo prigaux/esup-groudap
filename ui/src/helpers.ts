@@ -1,4 +1,4 @@
-import { pick, pickBy, sortBy } from "lodash"
+import { pick, sortBy } from "lodash"
 import { PRecord } from "./my_types"
 
 // NB: workaround typescript&lodash limitation on type of V param

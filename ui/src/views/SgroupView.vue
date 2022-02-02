@@ -1,11 +1,11 @@
 <script lang="ts">
 import { fromPairs, isEmpty, last, size } from 'lodash'
-import { computed, FunctionDirective, reactive, Ref, ref, toRef, UnwrapRef, watch } from 'vue'
+import { computed, reactive, Ref, ref, toRef } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { new_ref_watching, throttled_ref } from '@/vue_helpers';
 import { forEach, forEachAsync, some } from '@/helpers';
-import { LdapConfigOut, Mright, MyMod, PRecord, Right, SgroupAndMoreOut, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
+import { LdapConfigOut, Mright, MyMod, PRecord, Right, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
 import { right2text } from '@/lib';
 import * as api from '@/api'
 
@@ -83,7 +83,8 @@ let sscfgs = asyncComputed(api.config_subject_sources)
 
 let sgroup_force_refresh = ref(0)
 let sgroup = asyncComputed(async () => {
-    const _ = sgroup_force_refresh.value // asyncComputed will know it needs to re-compute
+    // @ts-nocheck
+    sgroup_force_refresh.value // asyncComputed will know it needs to re-compute
     let sgroup = await api.sgroup(props.id)
     if (sgroup.group) {
         await api.add_sscfg_dns(sgroup.group.direct_members)
@@ -102,6 +103,7 @@ let can_modify_member = computed(() => (
 let add_member_show = ref(false)
 
 async function add_remove_direct_mright(dn: string, mright: Mright, mod: MyMod) {
+    console.log('add_remove_direct_mright')
     await api.modify_members_or_rights(props.id, { [mright]: { [mod]: ['ldap:///' + dn] } })
     if (mright === 'member') {
         sgroup_force_refresh.value++
@@ -118,7 +120,7 @@ function remove_direct_mright(dn: string, mright: Mright) {
 
 let rights_force_refresh = ref(0)
 let rights = asyncComputed(async () => {
-    const _ = rights_force_refresh.value // asyncComputed will know it needs to re-compute
+    rights_force_refresh.value // asyncComputed will know it needs to re-compute
     if (props.tabToDisplay !== 'rights') return;
     let r = await api.sgroup_direct_rights(props.id)
     await forEachAsync(r, (subjects, _) => api.add_sscfg_dns(subjects))
@@ -267,7 +269,7 @@ const delete_sgroup = async () => {
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
-                <SearchSubject />
+                <SearchSubject @add="dn => add_direct_mright(dn, 'member')" />
             </p>
             <button class="float-right" @click="flat_members.show = !flat_members.show" v-if="members_details?.may_have_indirects">{{flat_members.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 

@@ -1,6 +1,6 @@
-import { Dictionary, pickBy } from "lodash";
+import { pickBy } from "lodash";
 import { forEach } from "./helpers";
-import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, SubjectSourceConfig, Subjects_with_more } from "./my_types";
+import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 

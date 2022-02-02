@@ -59,10 +59,6 @@ watch(() => props.modelValue, _ => {
     query.value = v === undefined ? '' : props.formatting(v);
 })
 
-function input_changed() {
-    open();
-}
-
 function open() {
     cancel.value()
 
@@ -157,12 +153,13 @@ function down () {
            @keydown.esc="stopAndClose"
            @blur="stopAndClose"
            @focus="open"
-           @input="input_changed">
+           @input="open">
         <MyIcon class="fa-spin end-of-input" name="spinner" v-if="loading"/>
    </div>
 
    <div class="popup">
     <ul v-show="items.length || noResults">
+      <li v-if="noResults"><a v-text="noResultsMsg"></a></li>
       <li v-if="moreResults" class="moreResultsMsg" v-html="moreResultsMsg_"></li>
       <li v-if="moreResults" role="separator" class="divider"></li>
       <template v-for="(item, $item) in items">
@@ -176,7 +173,6 @@ function down () {
         <slot :item="item"></slot>
        </li>
       </template>
-      <li v-if="noResults"><a v-text="noResultsMsg"></a></li>
     </ul>
    </div>
 </template>
