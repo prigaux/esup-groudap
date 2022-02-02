@@ -22,3 +22,22 @@ export function new_ref_watching<T>(source: any, value: () => T) {
 export const vFocus : FunctionDirective<HTMLElement, void> = (el) => { 
     el.focus()
 }
+
+export const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() => void)> = (el, binding) => {
+    const f = binding.value
+    if (!f) return
+    let moved = false
+    el.addEventListener('mousedown', () => moved = false)
+    el.addEventListener('mousemove', () => moved = true)
+    let dblclicked = false
+    el.addEventListener('dblclick', () => dblclicked = true)
+    el.addEventListener('click', () => { 
+        if (!moved) {
+            dblclicked = false
+            setTimeout(() => {
+                if (!dblclicked) f()
+            }, 300)
+        }
+    })
+}
+

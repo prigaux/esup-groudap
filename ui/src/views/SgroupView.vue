@@ -56,7 +56,7 @@ const list_of_rights: Right[] = ['reader', 'updater', 'admin']
 </script>
 
 <script setup lang="ts">
-import { vFocus } from '@/vue_helpers';
+import { vFocus, vClickWithoutMoving } from '@/vue_helpers';
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
@@ -158,24 +158,6 @@ const send_modify_attr = async (attr: Attr) => {
     if (state) state.status = 'saving'
     await api.modify_sgroup_attrs(props.id, sgroup.value.attrs)
     modify_attrs.value[attr] = undefined
-}
-
-const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() => void)> = (el, binding) => {
-    const f = binding.value
-    if (!f) return
-    let moved = false
-    el.addEventListener('mousedown', () => moved = false)
-    el.addEventListener('mousemove', () => moved = true)
-    let dblclicked = false
-    el.addEventListener('dblclick', () => dblclicked = true)
-    el.addEventListener('click', () => { 
-        if (!moved) {
-            dblclicked = false
-            setTimeout(() => {
-                if (!dblclicked) f()
-            }, 300)
-        }
-    })
 }
 
 const delete_sgroup = async () => {
