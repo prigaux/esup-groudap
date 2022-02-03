@@ -44,7 +44,7 @@ export interface SubjectsAndCount {
 }
 
 export interface SubjectsAndCount_with_more {
-    count?: number
+    count: number
     subjects: Subjects_with_more
 }
 
