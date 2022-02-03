@@ -29,16 +29,7 @@ reader = "supannGroupeLecteurDN"
 updater = "supannGroupeAdminDN"
 admin = "owner"
 
-[[default.ldap.subject_sources]]
-dn = "ou=people,dc=nodomain"
-name = "Personnes"
-search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)(displayName=*%TERM%*)) )" # (!(accountStatus=disabled))
-display_attrs = ["displayName", "mail", "eduPersonPrimaryAffiliation", "uid" ]
-# below is sent to UI which decide what to do with it. category.attr should be listed in "display_attrs" above
-labels = { eduPersonPrimaryAffiliation = { student = "étudiant", staff = "biatss", teacher = "enseignant", _ = "autre" } }
-vue_template = """<MyIcon name="user" /> {{ 
-    ({ teacher: 'enseignant', student: 'étudiant', staff: 'biatss', researcher: 'chercheur', emeritus: 'professeur émérite', affiliate: 'invité', alum: 'ancien étudiant', retired: 'retraité', 'registered-reader': 'Lecteur externe', 'library-walk-in': 'visiteur bibliothèque' }[attrs.eduPersonPrimaryAffiliation] || 'autre')
-  }} - <a target='_blank' :href='"https://annuaire.univ-paris1.fr/ent/" + attrs.mail'>{{attrs.displayName}}</a>"""
+# NB: order of "default.ldap.subject_sources" impacts UI subjects ordering
 
 [[default.ldap.subject_sources]]
 dn = "ou=admin,dc=nodomain"
@@ -54,6 +45,17 @@ name = "Groupe"
 search_filter = "(& (|(cn=*%TERM%*)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames) )"
 display_attrs = ["ou", "description", "cn"]
 # default template is "display first non empty attr value"
+
+[[default.ldap.subject_sources]]
+dn = "ou=people,dc=nodomain"
+name = "Personnes"
+search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)(displayName=*%TERM%*)) )" # (!(accountStatus=disabled))
+display_attrs = ["displayName", "mail", "eduPersonPrimaryAffiliation", "uid" ]
+# below is sent to UI which decide what to do with it. category.attr should be listed in "display_attrs" above
+labels = { eduPersonPrimaryAffiliation = { student = "étudiant", staff = "biatss", teacher = "enseignant", _ = "autre" } }
+vue_template = """<MyIcon name="user" /> {{ 
+    ({ teacher: 'enseignant', student: 'étudiant', staff: 'biatss', researcher: 'chercheur', emeritus: 'professeur émérite', affiliate: 'invité', alum: 'ancien étudiant', retired: 'retraité', 'registered-reader': 'Lecteur externe', 'library-walk-in': 'visiteur bibliothèque' }[attrs.eduPersonPrimaryAffiliation] || 'autre')
+  }} - <a target='_blank' :href='"https://annuaire.univ-paris1.fr/ent/" + attrs.mail'>{{attrs.displayName}}</a>"""
 
 [default.remotes.g2t]
 periodicity = "12:00"
