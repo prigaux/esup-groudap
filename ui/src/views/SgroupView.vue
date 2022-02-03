@@ -18,7 +18,7 @@ import { vFocus, vClickWithoutMoving } from '@/vue_helpers';
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
-import SearchSubject from '@/components/SearchSubject.vue';
+import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 
 const props = withDefaults(defineProps<{
@@ -227,7 +227,7 @@ const delete_sgroup = async () => {
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
-                <p><SearchSubject @add="dn => add_direct_mright(dn, 'member')" /></p>
+                <p><SearchSubjectToAdd @add="dn => add_direct_mright(dn, 'member')" /></p>
             </p>
             <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
