@@ -1,58 +1,14 @@
 <script lang="ts">
-import { fromPairs, isEmpty, last, size } from 'lodash'
-import { computed, reactive, Ref, ref } from 'vue'
+import { fromPairs, isEmpty, last } from 'lodash'
+import { computed, ref } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
-import { new_ref_watching, throttled_ref } from '@/vue_helpers';
-import { forEach, forEachAsync, some } from '@/helpers';
-import { LdapConfigOut, Mright, MyMod, PRecord, Right, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
+import { new_ref_watching } from '@/vue_helpers';
+import { forEachAsync } from '@/helpers';
+import { Mright, MyMod, PRecord, Right } from '@/my_types';
 import { right2text } from '@/lib';
+import { flat_mrights_show_search, mrights_flat_or_not } from './SgroupSubjects.vue';
 import * as api from '@/api'
-
-// call API + add flag "indirect" if indirect + add "sscfg_dn"
-async function group_flattened_mright(id: string, mright: Mright, search_token: string, directs: Subjects) {
-    const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id, mright, sizelimit: 100, search_token });
-    forEach(r.subjects, (attrs, dn) => {
-        attrs.indirect = !(dn in directs);
-    });
-    await api.add_sscfg_dns(r.subjects);
-    return r;
-}
-
-const flat_mrights_show_search = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
-    let show = ref(false)
-    let searching = ref(false)
-    let search_token = throttled_ref('')
-    let results = asyncComputed(async () => {
-        if (!show.value) return;
-        const search_token_ = search_token.throttled || ''
-        //if (search_token_.length < 3) return;
-        return await group_flattened_mright(props.id, mright, search_token_, directs());
-    }, undefined, searching)
-    return { show, searching, search_token, results }
-}
-
-const mrights_flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
-    let flat = flat_mrights_show_search(props, mright, directs)
-    let results = computed(() => {
-        if (flat.show.value) {
-            return flat.results.value
-        } else {
-            const subjects = directs() as Subjects_with_more
-            return subjects ? { count: size(subjects), subjects } : undefined
-        }
-    })
-    let details = computed(() => {
-        if (!results.value || !sscfgs.value) return;
-        const real_count = size(results.value.subjects);
-        return {
-            real_count,
-            limited: results.value.count !== real_count,
-            may_have_indirects: some(results.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.value.groups_dn)
-        }
-    })
-    return reactive({ flat, results, details })
-}
 
 const list_of_rights: Right[] = ['reader', 'updater', 'admin']
 
@@ -64,6 +20,7 @@ import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
 import SearchSubject from '@/components/SearchSubject.vue';
+import SgroupSubjects from './SgroupSubjects.vue';
 
 const props = withDefaults(defineProps<{
   id: string,
@@ -275,28 +232,8 @@ const delete_sgroup = async () => {
             </p>
             <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
-            <div v-if="!members || members.flat.searching">Veuillez patentier...</div>
-            <div v-else-if="members">
-                <p>Nombre : {{members.details?.real_count}}
-                    <span v-if="members.details?.limited"> / {{members.results?.count}}</span>
-                </p>
-
-                    <div v-if="members.flat.show">
-                        <div v-if="members.details?.limited && !members.flat.search_token.real">Affichage limité, chercher dans les membres</div>
-                        <div v-else>Filtrer les membres</div>
-                        <input class="search_token" v-model="members.flat.search_token.real">
-                    </div>
-                <div v-if="isEmpty(members.results?.subjects)"> <i>Aucun</i> </div>
-                <table>
-                    <tr v-for="(attrs, dn) in members.results?.subjects">
-                        <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
-                        <td>
-                            <i v-if="attrs.indirect">Indirect</i>
-                            <button v-else-if="can_modify_member" @click="remove_direct_mright(dn, 'member')">Supprimer</button>
-                        </td>
-                    </tr>
-                </table>
-            </div>
+            <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify_member="can_modify_member"
+                @remove="dn => remove_direct_mright(dn, 'member')" />
         </div>
     </fieldset>
 

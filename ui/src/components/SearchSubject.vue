@@ -28,7 +28,9 @@ import SubjectOrGroup from "./SubjectOrGroup.vue";
 import MyIcon from "./MyIcon.vue";
 import { LdapConfigOut, PRecord, Ssdn, Subjects } from "@/my_types";
 
-let emit = defineEmits(["add"])
+let emit = defineEmits<{
+  (e: 'add', dn: string): void
+}>()
 
 let sscfgs = asyncComputed(api.config_subject_sources)
 
