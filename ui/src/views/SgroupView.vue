@@ -5,13 +5,11 @@ import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { new_ref_watching } from '@/vue_helpers';
 import { forEachAsync } from '@/helpers';
-import { Mright, MyMod, PRecord, Right } from '@/my_types';
-import { right2text } from '@/lib';
+import { Mright, MyMod, PRecord } from '@/my_types';
+import { list_of_rights, right2text } from '@/lib';
 import { flat_mrights_show_search, mrights_flat_or_not } from '@/composition/SgroupSubjects';
 
 import * as api from '@/api'
-
-const list_of_rights: Right[] = ['reader', 'updater', 'admin']
 
 </script>
 
