@@ -9,7 +9,7 @@ import { LdapConfigOut, Mright, MyMod, PRecord, Right, Subjects, SubjectsAndCoun
 import { right2text } from '@/lib';
 import * as api from '@/api'
 
-const flat_ = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
+const flat_mrights_show_search = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
     let show = ref(false)
     let searching = ref(false)
     let search_token = throttled_ref('')
@@ -29,8 +29,8 @@ const flat_ = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => 
     return { show, searching, search_token, results }
 }
 
-const flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
-    let flat = flat_(props, mright, directs)
+const mrights_flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
+    let flat = flat_mrights_show_search(props, mright, directs)
     let results = computed(() => {
         if (flat.show.value) {
             return flat.results.value
@@ -92,7 +92,7 @@ let sgroup = asyncComputed(async () => {
     return sgroup
 })
 
-let members = flat_or_not(sscfgs, props, 'member', () => sgroup.value?.group?.direct_members || {})
+let members = mrights_flat_or_not(sscfgs, props, 'member', () => sgroup.value?.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
     ['updater', 'admin'].includes(sgroup.value?.right))
@@ -125,7 +125,7 @@ let rights = asyncComputed(async () => {
     return r
 })
 let flat_rights = fromPairs(list_of_rights.map(right => (
-    [ right, flat_(props, right, () => rights.value?.[right] || {}) ]
+    [ right, flat_mrights_show_search(props, right, () => rights.value?.[right] || {}) ]
 )))
 
 type Attr = 'ou'|'description'
