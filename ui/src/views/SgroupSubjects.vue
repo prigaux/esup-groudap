@@ -11,7 +11,7 @@ const emit = defineEmits<{
 }>()
 
 defineProps<{
-    can_modify_member: boolean,
+    can_modify: boolean,
     flat: {
         show: boolean,
         searching: boolean,
@@ -47,7 +47,7 @@ defineProps<{
             <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
             <td>
                 <i v-if="attrs.indirect">Indirect</i>
-                <button v-else-if="can_modify_member" @click="emit('remove', dn)">Supprimer</button>
+                <button v-else-if="can_modify" @click="emit('remove', dn)">Supprimer</button>
             </td>
         </tr>
     </table>

@@ -17,9 +17,9 @@ import * as api from '@/api'
 import { vFocus, vClickWithoutMoving } from '@/vue_helpers';
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
-import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
 import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
+import SgroupRightsView from './SgroupRightsView.vue';
 
 const props = withDefaults(defineProps<{
   id: string,
@@ -75,6 +75,7 @@ function remove_direct_mright(dn: string, mright: Mright) {
     add_remove_direct_mright(dn, mright, 'delete')
 }
 
+let add_right_show = ref(false)
 let rights_force_refresh = ref(0)
 let rights = asyncComputed(async () => {
     rights_force_refresh.value // asyncComputed will know it needs to re-compute
@@ -190,31 +191,27 @@ const delete_sgroup = async () => {
         </legend>
 
         <div v-if="tabToDisplay === 'rights'">
-       
+
+            <button class="float-right" @click="add_right_show = !add_right_show" v-if="can_modify_member">{{add_right_show ? "Fermer l'ajout de droits" : "Ajouter des droits"}}</button>
+            <p v-if="add_right_show" style="padding: 1rem; background: #eee">
+                Recherchez un utilisateur/groupe/...<br>
+                <p><SearchSubjectToAdd v-slot="{ dn, close }">
+                    <template v-for="right of list_of_rights">               
+                        <button @click.prevent="add_direct_mright(dn, right); close()">{{right2text[right]}}</button>
+                        &nbsp;
+                    </template>
+                </SearchSubjectToAdd></p>
+            </p>
+
             <span v-if="sgroup.stem">
                 Les entités ayant des privilèges sur ce dossier <b>et tous les sous-dossiers et sous-groupes</b>
             </span>
             <span v-else>
                 Les entités ayant des privilèges sur ce groupe
             </span>
-            <div v-if="rights">
-                <div v-if="isEmpty(rights)"> <p></p> <i>Aucun</i> </div>
-                <table class="with-theads" v-else>
-                  <template v-for="(subjects, right) in rights">
-                    <thead>
-                        <h5>Droit "{{right2text[right]}}"</h5> 
-                        <!--<button @click="flat_rights[right].show = !flat_rights[right].show">{{flat_rights[right].show ? "Cacher les indirects" : "Voir les indirects"}}</button>-->
-                    </thead>
-                    <tbody>
-                        <tr v-for="(subject, dn) in subjects">
-                            <td><SubjectOrGroup :dn="dn" :subject="subject" /></td>
-                            <td><button v-if="sgroup.right == 'admin'" @click="remove_direct_mright(dn, right)">Supprimer</button></td>
-                            <td></td>
-                        </tr>
-                    </tbody>
-                  </template>
-                </table>
-            </div>
+            <SgroupRightsView v-if="rights"
+                :rights="rights"
+                :can_modify="sgroup.right == 'admin'" @remove="remove_direct_mright" />
         </div>
         <ul v-else-if="sgroup.stem">
             <div v-if="isEmpty(sgroup.stem.children)"> <i>Vide</i> </div>
@@ -227,11 +224,13 @@ const delete_sgroup = async () => {
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
-                <p><SearchSubjectToAdd @add="dn => add_direct_mright(dn, 'member')" /></p>
+                <p><SearchSubjectToAdd v-slot="{ dn, close }">
+                    <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
+                </SearchSubjectToAdd></p>
             </p>
             <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
-            <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify_member="can_modify_member"
+            <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"
                 @remove="dn => remove_direct_mright(dn, 'member')" />
         </div>
     </fieldset>

@@ -28,10 +28,6 @@ import SubjectOrGroup from "./SubjectOrGroup.vue";
 import MyIcon from "./MyIcon.vue";
 import { LdapConfigOut, PRecord, Ssdn, Subjects } from "@/my_types";
 
-let emit = defineEmits<{
-  (e: 'add', dn: string): void
-}>()
-
 let sscfgs = asyncComputed(api.config_subject_sources)
 
 interface Props {
@@ -102,12 +98,6 @@ function stopAndClose() {
     loading.value = false
 }
 
-function hit(dn: string) {
-    console.log("clicked")
-    emit('add', dn)
-    stopAndClose();
-}
-
 </script>
 
 <template>
@@ -133,7 +123,7 @@ function hit(dn: string) {
                     <tr v-for="(subject, dn) in subjects" 
                         @mousedown.prevent=""> <!-- do not blur "input" -->
                         <td><SubjectOrGroup :dn="dn" :subject="subject" :ssdn="ssdn" /></td>
-                        <td><button @click.prevent="hit(dn)">Ajouter</button></td>
+                        <td><slot :close="stopAndClose" :dn="dn" /></td>
                     </tr>
                 </tbody>
             </template>
