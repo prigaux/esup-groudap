@@ -9,6 +9,16 @@ import { LdapConfigOut, Mright, MyMod, PRecord, Right, Subjects, SubjectsAndCoun
 import { right2text } from '@/lib';
 import * as api from '@/api'
 
+// call API + add flag "indirect" if indirect + add "sscfg_dn"
+async function group_flattened_mright(id: string, mright: Mright, search_token: string, directs: Subjects) {
+    const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id, mright, sizelimit: 100, search_token });
+    forEach(r.subjects, (attrs, dn) => {
+        attrs.indirect = !(dn in directs);
+    });
+    await api.add_sscfg_dns(r.subjects);
+    return r;
+}
+
 const flat_mrights_show_search = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
     let show = ref(false)
     let searching = ref(false)
@@ -17,14 +27,7 @@ const flat_mrights_show_search = (props: Readonly<{ id: string; }>, mright: Mrig
         if (!show.value) return;
         const search_token_ = search_token.throttled || ''
         //if (search_token_.length < 3) return;
-
-        const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id: props.id, mright, sizelimit: 100, search_token: search_token_ })
-        let directs_ = directs()
-        forEach(r.subjects, (attrs, dn) => {
-            attrs.indirect = !(dn in directs_)
-        })
-        await api.add_sscfg_dns(r.subjects)
-        return r
+        return await group_flattened_mright(props.id, mright, search_token_, directs());
     }, undefined, searching)
     return { show, searching, search_token, results }
 }
@@ -167,6 +170,7 @@ const delete_sgroup = async () => {
         router.push(parent?.right ? { path: '/sgroup', query: { id: parent.sgroup_id } } : { path: "/" })
     }
 }
+
 </script>
 
 <template>
