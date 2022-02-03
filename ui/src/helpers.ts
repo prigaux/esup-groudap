@@ -21,7 +21,7 @@ export const forEachAsync = async <K extends keyof any, V>(o: PRecord<K, V>, f :
     }
 }
 
-export const objectSortBy = <V>(o: Record<string, V>, f : (v: V, k: string) => string): Record<string, V> => {
+export const objectSortBy = <V>(o: Record<string, V>, f : (v: V, k: string) => string | undefined): Record<string, V> => {
     const sorted_keys = sortBy(Object.keys(o), key => f(o[key] as V, key))
     return pick(o, sorted_keys)
 }

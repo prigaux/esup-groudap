@@ -1,4 +1,4 @@
-import { pickBy } from "lodash";
+import { at, pickBy } from "lodash";
 import { forEach } from "./helpers";
 import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
 
@@ -99,8 +99,19 @@ export const config_subject_sources = () : Promise<LdapConfigOut> => (
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {
-    let sscfgs = (await config_subject_sources()).subject_sources
+    const sscfgs = (await config_subject_sources()).subject_sources
     forEach(subjects as Subjects_with_more, (attrs, dn) => {
         attrs.sscfg_dn = sscfgs.find(one => dn?.endsWith(one.dn))?.dn
+    })
+}
+export async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
+    const sscfgs = (await config_subject_sources()).subject_sources
+    forEach(subjects as Subjects_with_more, (subject, dn) => {
+        const i = sscfgs.findIndex(one => dn?.endsWith(one.dn))
+        if (i >= 0) {
+            const sscfg = sscfgs[i]
+            subject.sscfg_dn = sscfg.dn
+            subject.sort_field = i + ';' + at(subject.attrs, sscfg.display_attrs).join(';')
+        }
     })
 }
