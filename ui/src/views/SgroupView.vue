@@ -1,6 +1,6 @@
 <script lang="ts">
 import { fromPairs, isEmpty, last, size } from 'lodash'
-import { computed, reactive, Ref, ref, toRef } from 'vue'
+import { computed, reactive, Ref, ref } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { new_ref_watching, throttled_ref } from '@/vue_helpers';
@@ -31,7 +31,7 @@ const flat_ = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => 
 
 const flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
     let flat = flat_(props, mright, directs)
-    let subjects = computed(() => {
+    let results = computed(() => {
         if (flat.show.value) {
             return flat.results.value
         } else {
@@ -40,15 +40,15 @@ const flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }
         }
     })
     let details = computed(() => {
-        if (!subjects.value || !sscfgs.value) return;
-        const real_count = size(subjects.value.subjects);
+        if (!results.value || !sscfgs.value) return;
+        const real_count = size(results.value.subjects);
         return {
             real_count,
-            limited: subjects.value.count !== real_count,
-            may_have_indirects: some(subjects.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.value.groups_dn)
+            limited: results.value.count !== real_count,
+            may_have_indirects: some(results.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.value.groups_dn)
         }
     })
-    return reactive({ subjects, details, ...flat })
+    return reactive({ flat, results, details })
 }
 
 const list_of_rights: Right[] = ['reader', 'updater', 'admin']
@@ -92,9 +92,7 @@ let sgroup = asyncComputed(async () => {
     return sgroup
 })
 
-let flat_members = flat_or_not(sscfgs, props, 'member', () => sgroup.value?.group?.direct_members || {})
-let members = toRef(flat_members, 'subjects')
-let members_details = toRef(flat_members, 'details')
+let members = flat_or_not(sscfgs, props, 'member', () => sgroup.value?.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
     ['updater', 'admin'].includes(sgroup.value?.right))
@@ -271,22 +269,22 @@ const delete_sgroup = async () => {
                 Recherchez un utilisateur/groupe/...<br>
                 <p><SearchSubject @add="dn => add_direct_mright(dn, 'member')" /></p>
             </p>
-            <button class="float-right" @click="flat_members.show = !flat_members.show" v-if="members_details?.may_have_indirects">{{flat_members.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
+            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
-            <div v-if="!members || flat_members.searching">Veuillez patentier...</div>
+            <div v-if="!members || members.flat.searching">Veuillez patentier...</div>
             <div v-else-if="members">
-                <p>Nombre : {{members_details?.real_count}}
-                    <span v-if="members_details?.limited"> / {{members?.count}}</span>
+                <p>Nombre : {{members.details?.real_count}}
+                    <span v-if="members.details?.limited"> / {{members.results?.count}}</span>
                 </p>
 
-                    <div v-if="flat_members.show">
-                        <div v-if="members_details?.limited && !flat_members.search_token.real">Affichage limité, chercher dans les membres</div>
+                    <div v-if="members.flat.show">
+                        <div v-if="members.details?.limited && !members.flat.search_token.real">Affichage limité, chercher dans les membres</div>
                         <div v-else>Filtrer les membres</div>
-                        <input class="search_token" v-model="flat_members.search_token.real">
+                        <input class="search_token" v-model="members.flat.search_token.real">
                     </div>
-                <div v-if="isEmpty(members?.subjects)"> <i>Aucun</i> </div>
+                <div v-if="isEmpty(members.results?.subjects)"> <i>Aucun</i> </div>
                 <table>
-                    <tr v-for="(attrs, dn) in members?.subjects">
+                    <tr v-for="(attrs, dn) in members.results?.subjects">
                         <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
                         <td>
                             <i v-if="attrs.indirect">Indirect</i>
