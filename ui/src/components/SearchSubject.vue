@@ -147,7 +147,9 @@ table tr.divider {
 }
 
 input {
-    padding-right: 18px
+    padding-right: 18px;
+    width: 100%;
+    box-sizing: border-box;
 }
 .my-icon.end-of-input {
   margin-left: -18px;
