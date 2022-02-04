@@ -13,7 +13,7 @@ use rocket::serde::json::{json, Json};
 use rocket::tokio::io;
 
 use crate::helpers::{parse_host_and_port, build_url_from_parts};
-use crate::ldap_wrapper::Result;
+use crate::my_err::Result;
 use crate::my_types::{Config, CfgAndLU, LoggedUser};
 
 pub struct IsJsUiRoute;

@@ -9,6 +9,7 @@ extern crate rocket;
 mod helpers;
 mod systemd_calendar_events;
 mod my_types;
+mod my_err;
 mod ldap_filter;
 mod ldap_wrapper;
 mod api_get;

@@ -4,31 +4,9 @@ use ldap3::{Scope, LdapConnAsync, ResultEntry, SearchResult, SearchEntry, Search
 use ldap3::result::{LdapError};
 
 use crate::my_types::*;
+use crate::my_err::{Result, MyErr};
 use crate::ldap_filter;
 
-#[derive(Debug)]
-pub enum MyErr {
-    Msg(String),
-    Ldap(LdapError),
-}
-
-impl ToString for MyErr {
-    fn to_string(&self) -> String {
-        match self {
-            MyErr::Msg(err) => err.to_owned(),
-            MyErr::Ldap(err) => err.to_string(),
-        }
-    }
-}
-
-
-impl From<LdapError> for MyErr {
-    fn from(err: LdapError) -> Self {
-        MyErr::Ldap(err)
-    }
-}
-
-pub type Result<T> = std::result::Result<T, MyErr>;
 
 pub type LdapAttrs = HashMap<String, Vec<String>>;
 

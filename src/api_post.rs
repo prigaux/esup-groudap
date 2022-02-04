@@ -6,7 +6,8 @@ use ldap3::{Mod};
 
 
 use crate::my_types::*;
-use crate::ldap_wrapper::{LdapW, Result, MyErr};
+use crate::my_err::{Result, MyErr};
+use crate::ldap_wrapper::{LdapW, mono_attrs};
 use crate::my_ldap::{self, user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap::{url_to_dn, url_to_dn_};
 use crate::ldap_filter;

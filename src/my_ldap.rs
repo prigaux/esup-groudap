@@ -3,7 +3,8 @@ use ldap3::{SearchEntry, Mod};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::helpers::before_and_after;
-use crate::ldap_wrapper::{mono_attrs, MyErr, Result};
+use crate::my_err::{Result, MyErr};
+use crate::ldap_wrapper::{mono_attrs};
 
 use crate::ldap_wrapper::LdapW;
 use crate::my_types::*;

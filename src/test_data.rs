@@ -4,7 +4,8 @@ use ldap3::result::{LdapResult};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::my_types::*;
-use crate::ldap_wrapper::{LdapW, Result};
+use crate::my_err::{Result};
+use crate::ldap_wrapper::{LdapW};
 use crate::ldap_filter;
 use crate::my_ldap;
 use crate::my_ldap::{dn_to_url};

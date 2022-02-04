@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, HashSet, HashMap};
 
 use crate::helpers::{after_last};
 use crate::my_types::*;
-use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs, Result, MyErr};
+use crate::my_err::{Result, MyErr};
+use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
 use crate::my_ldap::{dn_to_rdn_and_parent_dn, user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap::{url_to_dn_};
 use crate::ldap_filter;

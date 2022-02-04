@@ -3,7 +3,8 @@ use std::thread;
 
 use crate::my_types::{Config, LoggedUser};
 use crate::rocket_helpers::Cache;
-use crate::ldap_wrapper::{LdapW, Result};
+use crate::my_err::{Result};
+use crate::ldap_wrapper::{LdapW};
 
 #[tokio::main]
 pub async fn the_loop(config: Config, cache: Cache) -> Result<()> {
