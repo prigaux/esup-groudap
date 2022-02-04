@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::result::Result;
 
 use std::time::SystemTime;
-use std::{sync::{Arc}};
+use std::sync::Arc;
 
 use rocket::{Route, State};
 
@@ -12,7 +12,6 @@ use rocket::http::{Cookie, CookieJar};
 use rocket::response::{Redirect};
 use rocket::serde::json::{Json, Value};
 use serde_json::json;
-
 
 
 use crate::helpers::{before};
