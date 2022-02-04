@@ -79,15 +79,20 @@ pub async fn create(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Res
     cfg_and_lu.cfg.ldap.validate_sgroups_attrs(&attrs)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::Admin).await?;
-    my_ldap::create_sgroup(ldp, id, attrs).await?;
+    my_ldap::create_sgroup(ldp, id, &attrs).await?;
+    api_log::sgroup(&cfg_and_lu, id, "create", &None, serde_json::to_value(attrs)?).await?;
     Ok(())
 }
 
+async fn current_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str) -> Result<MonoAttrs> {
+    let attrs = ldp.config.sgroup_attrs.keys().collect();
+    let e = ldp.read_sgroup(id, attrs).await?
+        .ok_or_else(|| MyErr::Msg("internal error".to_owned()))?;
+    Ok(mono_attrs(e.attrs))
+}
+
 async fn remove_non_modified_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: MonoAttrs) -> Result<MonoAttrs> {
-    let current = {
-        let e = ldp.read_sgroup(id, attrs.keys().collect()).await?.ok_or_else(|| MyErr::Msg("internal error".to_owned()))?;
-        mono_attrs(e.attrs)
-    };
+    let current = current_sgroup_attrs(ldp, id).await?;
     Ok(attrs.into_iter().filter(|(attr, val)| 
         Some(val) != current.get(attr)
     ).collect())
@@ -103,7 +108,7 @@ pub async fn modify_sgroup_attrs(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: Mono
 
     let attrs = remove_non_modified_attrs(ldp, id, attrs).await?;
 
-    my_ldap::modify_sgroup_attrs(ldp, id, attrs.clone()).await?;
+    my_ldap::modify_sgroup_attrs(ldp, id, &attrs).await?;
     api_log::sgroup(&cfg_and_lu, id, "modify_attrs", &None, serde_json::to_value(attrs)?).await?;
 
     Ok(())
@@ -118,8 +123,12 @@ pub async fn delete(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<()> {
     if ldp.one_group_matches_filter(&ldap_filter::sgroup_children(id)).await? { 
         return Err(MyErr::Msg("can not remove stem with existing children".to_owned()))
     }
+    // save last attrs for logging
+    let current = current_sgroup_attrs(ldp, id).await?;
+
     // ok, do it:
     ldp.delete_sgroup(id).await?;
+    api_log::sgroup(&cfg_and_lu, id, "delete", &None, serde_json::to_value(current)?).await?;
     Ok(())
 }
 

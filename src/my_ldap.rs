@@ -242,12 +242,12 @@ fn mono_to_multi_attrs(attrs: &MonoAttrs) -> CreateLdapAttrs<'_> {
     ).collect()
 }
 
-pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {    
-    ldp.ldap_add_group(id, mono_to_multi_attrs(&attrs)).await
+pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: &MonoAttrs) -> Result<()> {
+    ldp.ldap_add_group(id, mono_to_multi_attrs(attrs)).await
 }
 
-pub async fn modify_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {    
-    let mods = attrs.into_iter().map(|(attr, val)| {
+pub async fn modify_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: &MonoAttrs) -> Result<()> {
+    let mods = attrs.iter().map(|(attr, val)| {
         Mod::Replace(attr, hashset![val])
     }).collect();
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
