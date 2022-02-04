@@ -35,7 +35,7 @@ fn ldap_config_checker<'de, D>(d: D) -> Result<LdapConfig, D::Error>
 {
     let cfg : LdapConfig = LdapConfig::deserialize(d)?;
     
-    if cfg.sgroup_sscfg().is_none() {
+    if cfg.sgroup_sscfg_raw().is_none() {
         let msg = "''ldap.groups_dn'' to be listed in ''ldap.subject_sources''".to_owned();
         return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.groups_dn), &msg.as_str()));
     }
@@ -98,8 +98,11 @@ pub struct LdapConfigOut<'a> {
 }
 
 impl LdapConfig {
-    pub fn sgroup_sscfg(&self) -> Option<&SubjectSourceConfig> {
+    pub fn sgroup_sscfg_raw(&self) -> Option<&SubjectSourceConfig> {
         self.subject_sources.iter().find(|sscfg| sscfg.dn == self.groups_dn)
+    }
+    pub fn sgroup_sscfg(&self) -> &SubjectSourceConfig {
+        self.sgroup_sscfg_raw().expect("internal error (should be checked as startup)")
     }
 
     pub fn to_js_ui(&self) -> LdapConfigOut {

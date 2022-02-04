@@ -343,7 +343,7 @@ pub async fn search_sgroups(cfg_and_lu: CfgAndLU<'_>, right: Right, search_token
     eprintln!("search_sgroups({}, {:?})", search_token, right);
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
 
-    let term_filter = ldp.config.sgroup_sscfg().unwrap().search_filter_(&search_token);
+    let term_filter = ldp.config.sgroup_sscfg().search_filter_(&search_token);
 
     let group_filter = match &cfg_and_lu.user {
         LoggedUser::TrustedAdmin => term_filter,
