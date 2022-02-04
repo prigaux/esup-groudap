@@ -3,11 +3,10 @@
 use std::collections::{HashSet};
 
 use ldap3::{Mod};
-use ldap3::result::{Result, LdapError};
 
 
 use crate::my_types::*;
-use crate::ldap_wrapper::{LdapW};
+use crate::ldap_wrapper::{LdapW, Result, MyErr};
 use crate::my_ldap::{self, user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap::{url_to_dn, url_to_dn_};
 use crate::ldap_filter;
@@ -33,7 +32,7 @@ async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right)
         LoggedUser::TrustedAdmin => {
             if let Some(parent_stem) = ldp.config.stem.parent_stem(id) {
                 if !ldp.is_sgroup_existing(parent_stem).await? { 
-                    return Err(LdapError::AdapterInit(format!("stem {} does not exist", parent_stem)))
+                    return Err(MyErr::Msg(format!("stem {} does not exist", parent_stem)))
                 }    
             }
             Ok(())
@@ -45,7 +44,7 @@ async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right)
             if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, parents, &right).await? {
                 Ok(())
             } else {
-                Err(LdapError::AdapterInit(format!("no right on {} parents", id)))
+                Err(MyErr::Msg(format!("no right on {} parents", id)))
             }
         }
     }
@@ -66,7 +65,7 @@ async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right
             if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, self_and_parents, &right).await? {
                 Ok(())
             } else {
-                Err(LdapError::AdapterInit(format!("no right on {}", id)))
+                Err(MyErr::Msg(format!("no right on {}", id)))
             }
         }
     }
@@ -78,7 +77,8 @@ pub async fn create(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Res
     cfg_and_lu.cfg.ldap.validate_sgroups_attrs(&attrs)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::Admin).await?;
-    my_ldap::create_sgroup(ldp, id, attrs).await
+    my_ldap::create_sgroup(ldp, id, attrs).await?;
+    Ok(())
 }
 
 pub async fn modify_sgroup_attrs(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {
@@ -87,7 +87,8 @@ pub async fn modify_sgroup_attrs(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: Mono
     cfg_and_lu.cfg.ldap.validate_sgroups_attrs(&attrs)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_self_or_any_parents(ldp, id, Right::Admin).await?;
-    my_ldap::modify_sgroup_attrs(ldp, id, attrs).await
+    my_ldap::modify_sgroup_attrs(ldp, id, attrs).await?;
+    Ok(())
 }
 
 pub async fn delete(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<()> {
@@ -97,7 +98,7 @@ pub async fn delete(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<()> {
     check_right_on_self_or_any_parents(ldp, id, Right::Admin).await?;
     // is it possible?
     if ldp.one_group_matches_filter(&ldap_filter::sgroup_children(id)).await? { 
-        return Err(LdapError::AdapterInit("can not remove stem with existing children".to_owned()))
+        return Err(MyErr::Msg("can not remove stem with existing children".to_owned()))
     }
     // ok, do it:
     ldp.delete_sgroup(id).await?;
@@ -123,13 +124,13 @@ fn my_mods_to_right(my_mods: &MyMods) -> Right {
 fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
     for (right, submods) in my_mods {
         if right == &Mright::Member && is_stem {
-            return Err(LdapError::AdapterInit("members are not allowed for stems".to_owned()))
+            return Err(MyErr::Msg("members are not allowed for stems".to_owned()))
         }
         for (action, list) in submods {
             if action == &MyMod::Replace && list.len() == 1 && right == &Mright::Member {
                 // only case where non DNs are allowed!
             } else if let Some(url) = list.iter().find(|url| url_to_dn(url).is_none()) {
-                return Err(LdapError::AdapterInit(format!("non DN URL {} is now allowed", url)))
+                return Err(MyErr::Msg(format!("non DN URL {} is now allowed", url)))
             }
         }
     }
@@ -161,7 +162,7 @@ async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mr
     }
     let res = dbg!(ldp.ldap.modify(dbg!(&ldp.config.sgroup_id_to_dn(id)), dbg!(mods)).await?);
     if res.rc != 0 {
-        Err(LdapError::AdapterInit(format!("update_flattened_mright failed on {}: {}", id, res)))
+        Err(MyErr::Msg(format!("update_flattened_mright failed on {}: {}", id, res)))
     } else {
         Ok(UpResult::Modified)
     }

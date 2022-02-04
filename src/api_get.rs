@@ -2,12 +2,9 @@
 
 use std::collections::{BTreeMap, HashSet, HashMap};
 
-
-use ldap3::result::{Result, LdapError};
-
 use crate::helpers::{after_last};
 use crate::my_types::*;
-use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
+use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs, Result, MyErr};
 use crate::my_ldap::{dn_to_rdn_and_parent_dn, user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap::{url_to_dn_};
 use crate::ldap_filter;
@@ -178,7 +175,7 @@ async fn get_right_and_parents(ldp: &mut LdapW<'_>, id: &str, self_attrs: &mut L
         }
     }
     eprintln!("  best_right_on_self_or_any_parents({}) with user {:?} => {:?}", id, ldp.logged_user, best);
-    let best = best.ok_or_else(|| LdapError::AdapterInit(format!("not right to read sgroup {}", id)))?;
+    let best = best.ok_or_else(|| MyErr::Msg(format!("not right to read sgroup {}", id)))?;
     Ok((best, parents))
 }
 
@@ -215,7 +212,7 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         };
         Ok(SgroupAndMoreOut { attrs, right, more, parents })
     } else {
-        Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
+        Err(MyErr::Msg(format!("sgroup {} does not exist", id)))
     }
 }
 
@@ -235,7 +232,7 @@ pub async fn get_sgroup_direct_rights(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Res
         }
         Ok(r)
     } else {
-        Err(LdapError::AdapterInit(format!("sgroup {} does not exist", id)))
+        Err(MyErr::Msg(format!("sgroup {} does not exist", id)))
     }
 }
 
@@ -244,7 +241,7 @@ pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mrig
     eprintln!("get_group_flattened_mright({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     if cfg_and_lu.cfg.ldap.stem.is_stem(id) {
-        return Err(LdapError::AdapterInit("get_group_flattened_mright works only on groups, not stems".to_owned()))
+        return Err(MyErr::Msg("get_group_flattened_mright works only on groups, not stems".to_owned()))
     }
 
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -321,7 +318,7 @@ fn to_sgroup_attrs(id: &str, attrs: LdapAttrs) -> MonoAttrs {
 pub async fn mygroups(cfg_and_lu: CfgAndLU<'_>) -> Result<SgroupsWithAttrs> {
     eprintln!("mygroups()");
     match &cfg_and_lu.user {
-        LoggedUser::TrustedAdmin => Err(LdapError::AdapterInit("mygroups need a real user".to_owned())),
+        LoggedUser::TrustedAdmin => Err(MyErr::Msg("mygroups need a real user".to_owned())),
         LoggedUser::User(user) => {
             let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
             let filter = ldp.config.user_has_direct_right_on_group_filter(&ldp.config.people_id_to_dn(user), &Right::Updater);

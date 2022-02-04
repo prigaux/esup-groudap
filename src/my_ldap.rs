@@ -1,10 +1,9 @@
 use std::collections::{HashSet};
 use ldap3::{SearchEntry, Mod};
-use ldap3::result::{Result, LdapError};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::helpers::before_and_after;
-use crate::ldap_wrapper::{mono_attrs};
+use crate::ldap_wrapper::{mono_attrs, MyErr, Result};
 
 use crate::ldap_wrapper::LdapW;
 use crate::my_types::*;
@@ -46,7 +45,7 @@ impl StemConfig {
         let id = id.strip_suffix(&self.separator).unwrap_or(id);
         for one in id.split(&self.separator) {
             if one.is_empty() || one.contains(|c: char| !c.is_alphanumeric() && c != '_' && c != '-') {
-                return Err(LdapError::AdapterInit("invalid sgroup id".to_owned()))
+                return Err(MyErr::Msg("invalid sgroup id".to_owned()))
             }
         }
         Ok(())
@@ -101,7 +100,7 @@ impl LdapConfig {
     pub fn validate_sgroups_attrs(&self, attrs: &MonoAttrs) -> Result<()> {
         for attr in attrs.keys() {
             if !self.sgroup_attrs.contains_key(attr) {
-                return Err(LdapError::AdapterInit(format!("sgroup attr {} is not listed in conf [ldap.sgroup_attrs]", attr)))
+                return Err(MyErr::Msg(format!("sgroup attr {} is not listed in conf [ldap.sgroup_attrs]", attr)))
             }
         }
         Ok(())
@@ -268,7 +267,7 @@ fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
 
 pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: MyMods) -> Result<()> {
     if ldp.config.stem.is_stem(id) && my_mods.contains_key(&Mright::Member) { 
-        Err(LdapError::AdapterInit("Member not allowed for stems".to_owned()))
+        Err(MyErr::Msg("Member not allowed for stems".to_owned()))
     } else {
         let mods = to_ldap_mods(my_mods);
         ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;

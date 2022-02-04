@@ -1,6 +1,4 @@
 
-use std::result::Result;
-
 use std::time::SystemTime;
 use std::{sync::{Arc, Mutex}, collections::HashMap};
 
@@ -14,11 +12,9 @@ use rocket::response::{self, Responder, Response};
 use rocket::serde::json::{json, Json};
 use rocket::tokio::io;
 
-use ldap3::result::LdapError;
-
 use crate::helpers::{parse_host_and_port, build_url_from_parts};
+use crate::ldap_wrapper::Result;
 use crate::my_types::{Config, CfgAndLU, LoggedUser};
-
 
 pub struct IsJsUiRoute;
 
@@ -114,11 +110,11 @@ pub fn err_to_json(err: impl ToString + std::fmt::Debug) -> MyJson {
     MyJson::new(Status::InternalServerError, body.to_string())
 }
 
-pub fn to_json<T>(r: Result<T, LdapError>) -> Result<Json<T>, MyJson> {
+pub fn to_json<T>(r: Result<T>) -> std::result::Result<Json<T>, MyJson> {
     r.map(Json).map_err(err_to_json)
 }
 
-pub fn action_result(r : Result<(), LdapError>) -> MyJson {
+pub fn action_result(r : Result<()>) -> MyJson {
     match r {
         Err(err) => err_to_json(err),
         Ok(_) => {

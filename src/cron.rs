@@ -1,10 +1,9 @@
 use core::time;
 use std::thread;
-use ldap3::result::Result;
 
 use crate::my_types::{Config, LoggedUser};
 use crate::rocket_helpers::Cache;
-use crate::ldap_wrapper::LdapW;
+use crate::ldap_wrapper::{LdapW, Result};
 
 #[tokio::main]
 pub async fn the_loop(config: Config, cache: Cache) -> Result<()> {

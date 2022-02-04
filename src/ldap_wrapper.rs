@@ -1,10 +1,34 @@
 use std::collections::{HashMap};
 
 use ldap3::{Scope, LdapConnAsync, ResultEntry, SearchResult, SearchEntry, SearchOptions, Ldap};
-use ldap3::result::{Result, LdapError};
+use ldap3::result::{LdapError};
 
 use crate::my_types::*;
 use crate::ldap_filter;
+
+#[derive(Debug)]
+pub enum MyErr {
+    Msg(String),
+    Ldap(LdapError),
+}
+
+impl ToString for MyErr {
+    fn to_string(&self) -> String {
+        match self {
+            MyErr::Msg(err) => err.to_owned(),
+            MyErr::Ldap(err) => err.to_string(),
+        }
+    }
+}
+
+
+impl From<LdapError> for MyErr {
+    fn from(err: LdapError) -> Self {
+        MyErr::Ldap(err)
+    }
+}
+
+pub type Result<T> = std::result::Result<T, MyErr>;
 
 pub type LdapAttrs = HashMap<String, Vec<String>>;
 
@@ -21,7 +45,7 @@ fn handle_read_one_search_result(res : SearchResult) -> Result<Option<ResultEntr
     } else if res.1.rc == 32 /* NoSuchObject */ {
         Ok(None)
     } else {
-        Err(LdapError::from(res.1))
+        Err(MyErr::Ldap(LdapError::from(res.1)))
     }
 }
 
@@ -34,7 +58,7 @@ pub fn handle_sizelimited_search(res : SearchResult) -> Result<Vec<ResultEntry>>
     if res.1.rc == 0 || res.1.rc == 4 {
         Ok(res.0)
     } else {
-        Err(LdapError::from(res.1))
+        Err(MyErr::Ldap(LdapError::from(res.1)))
     }
 }
 
@@ -71,7 +95,7 @@ impl LdapW<'_> {
     #[allow(non_snake_case)]
     pub async fn read_one_multi_attr__or_err(&mut self, dn: &str, attr: &str) -> Result<Vec<String>> {
         self.read_one_multi_attr(dn, attr).await?.ok_or_else(
-            || LdapError::AdapterInit(format!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
+            || MyErr::Msg(format!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
         )
     }
 

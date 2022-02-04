@@ -1,10 +1,10 @@
 use std::collections::{HashSet};
 use ldap3::{Scope, SearchEntry, SearchOptions, Ldap, Mod};
-use ldap3::result::{Result, LdapResult};
+use ldap3::result::{LdapResult};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
 use crate::my_types::*;
-use crate::ldap_wrapper::LdapW;
+use crate::ldap_wrapper::{LdapW, Result};
 use crate::ldap_filter;
 use crate::my_ldap;
 use crate::my_ldap::{dn_to_url};
@@ -13,11 +13,11 @@ use crate::api_post;
 
 async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str, description: &str) -> Result<LdapResult> {
     let dn = format!("ou={},dc=nodomain", ou);
-    ldap.add(&dn, vec![
+    Ok(ldap.add(&dn, vec![
         ("objectClass", hashset!{"organizationalUnit"}),
         ("ou", hashset!{ou}),
         ("description", hashset!{description}),
-    ]).await
+    ]).await?)
 }
 
 fn sort(mut v : Vec<String>) -> Vec<String> {
@@ -31,7 +31,7 @@ async fn ldap_add_people(ldap: &mut Ldap, uid: &str, attrs: CreateLdapAttrs<'_>)
         ("objectClass", hashset!{"inetOrgPerson", "shadowAccount"}),
         ("uid", hashset!{uid}),
     ], attrs ].concat();
-    ldap.add(&dn, all_attrs).await
+    Ok(ldap.add(&dn, all_attrs).await?)
 }
 
 pub async fn clear(cfg_and_lu: &CfgAndLU<'_>) -> Result<()> {
