@@ -95,7 +95,7 @@ impl LdapConfig {
     }
     
     pub fn to_flattened_attr(&self, mright: Mright) -> &str {
-        self.groups_flattened_attr.get(&mright).expect(&format!("missing {:?} key in ldap.groups_flattened_attr configuration", mright))
+        self.groups_flattened_attr.get(&mright).unwrap_or_else(|| panic!("missing {:?} key in ldap.groups_flattened_attr configuration", mright))
     }
 
     pub fn validate_sgroups_attrs(&self, attrs: &MonoAttrs) -> Result<()> {
