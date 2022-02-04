@@ -12,6 +12,7 @@ mod my_types;
 mod my_err;
 mod ldap_filter;
 mod ldap_wrapper;
+mod api_log;
 mod api_get;
 mod api_post;
 mod my_ldap;

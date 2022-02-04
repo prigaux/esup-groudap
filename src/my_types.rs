@@ -131,6 +131,7 @@ pub struct RemoteConfig {
 #[derive(Deserialize)]
 pub struct Config {
     pub trusted_auth_bearer: Option<String>,
+    pub log_dir: Option<String>,
     pub cas: CasConfig,
     #[serde(deserialize_with = "ldap_config_checker")] 
     pub ldap: LdapConfig,
@@ -248,6 +249,15 @@ pub enum LoggedUser {
     TrustedAdmin,
     User(String),
 }
+
+impl LoggedUser {
+    pub fn to_str(&self) -> &str {
+        match self {
+            LoggedUser::TrustedAdmin => "TrustedAdmin",
+            LoggedUser::User(user) => user,
+        }
+    }
+} 
 
 #[derive(Debug)]
 pub enum LoggedUserUrls {

@@ -11,6 +11,7 @@ use crate::ldap_wrapper::{LdapW, mono_attrs};
 use crate::my_ldap::{self, user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap::{url_to_dn, url_to_dn_};
 use crate::ldap_filter;
+use crate::api_log;
 
 async fn user_has_right_on_at_least_one_sgroups(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, ids: Vec<&str>, right: &Right) -> Result<bool> {    
     let ids_filter = ldap_filter::or(ids.into_iter().map(|id| ldp.config.sgroup_filter(id)).collect());
@@ -82,13 +83,29 @@ pub async fn create(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Res
     Ok(())
 }
 
+async fn remove_non_modified_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: MonoAttrs) -> Result<MonoAttrs> {
+    let current = {
+        let e = ldp.read_sgroup(id, attrs.keys().collect()).await?.ok_or_else(|| MyErr::Msg("internal error".to_owned()))?;
+        mono_attrs(e.attrs)
+    };
+    Ok(attrs.into_iter().filter(|(attr, val)| 
+        Some(val) != current.get(attr)
+    ).collect())
+}
+
 pub async fn modify_sgroup_attrs(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {
     eprintln!("modify_attrs({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     cfg_and_lu.cfg.ldap.validate_sgroups_attrs(&attrs)?;
+    
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_self_or_any_parents(ldp, id, Right::Admin).await?;
-    my_ldap::modify_sgroup_attrs(ldp, id, attrs).await?;
+
+    let attrs = remove_non_modified_attrs(ldp, id, attrs).await?;
+
+    my_ldap::modify_sgroup_attrs(ldp, id, attrs.clone()).await?;
+    api_log::sgroup(&cfg_and_lu, id, "modify_attrs", &None, serde_json::to_value(attrs)?).await?;
+
     Ok(())
 }
 
