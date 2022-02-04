@@ -139,7 +139,7 @@ pub struct Config {
     pub remotes: BTreeMap<String, RemoteConfig>,
 }
 
-#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum Mright { Member, Reader, Updater, Admin }
 

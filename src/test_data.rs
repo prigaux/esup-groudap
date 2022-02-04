@@ -92,7 +92,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
         Mod::Add("objectClass", hashset!["up1SyncGroup"])
     ]).await?;
 
-    my_ldap::modify_direct_members_or_rights(ldp, "", btreemap!{
+    my_ldap::modify_direct_members_or_rights(ldp, "", &btreemap!{
         Mright::Admin => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
     }).await?;
 

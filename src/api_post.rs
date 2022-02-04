@@ -253,8 +253,13 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
         my_mods.keys().map(|mright| (id.to_owned(), *mright)).collect()
     };
 
+    // TODO transform Replace into Add/Delete
+
     // ok, let's do update direct mrights:
-    my_ldap::modify_direct_members_or_rights(ldp, id, my_mods).await?;
+    my_ldap::modify_direct_members_or_rights(ldp, id, &my_mods).await?;
+
+    api_log::sgroup(&cfg_and_lu, id, "modify_members_or_rights", &None, serde_json::to_value(my_mods)?).await?;
+
     // then update flattened groups mrights
     may_update_flattened_mrights_rec(ldp, todo_flattened).await?;
 

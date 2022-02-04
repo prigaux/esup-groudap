@@ -254,23 +254,23 @@ pub async fn modify_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: &MonoAttr
     Ok(())
 }
 
-fn to_ldap_mods(mods : MyMods) -> Vec<Mod<String>> {
+fn to_ldap_mods(mods : &MyMods) -> Vec<Mod<String>> {
     let mut r = vec![];
     for (right, submods) in mods {
         let attr = right.to_attr();
         for (action, list) in submods {
             let mod_ = match action { MyMod::Add => Mod::Add, MyMod::Delete => Mod::Delete, MyMod::Replace => Mod::Replace };
-            r.push(mod_(attr.to_string(), list));
+            r.push(mod_(attr.to_string(), list.clone()));
         }
     }
     r
 }
 
-pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: MyMods) -> Result<()> {
+pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_mods: &MyMods) -> Result<()> {
     if ldp.config.stem.is_stem(id) && my_mods.contains_key(&Mright::Member) { 
         Err(MyErr::Msg("Member not allowed for stems".to_owned()))
     } else {
-        let mods = to_ldap_mods(my_mods);
+        let mods = to_ldap_mods(&my_mods);
         ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
         Ok(())
     }
