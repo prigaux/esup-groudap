@@ -1,6 +1,6 @@
 #![allow(clippy::comparison_chain)]
 
-use std::collections::{HashSet};
+use std::collections::{HashSet, BTreeMap};
 
 use ldap3::{Mod};
 
@@ -142,26 +142,65 @@ fn my_mods_to_right(my_mods: &MyMods) -> Right {
     Right::Updater
 }
 
+fn check_mod_urls_are_dns(urls: &HashSet<String>) -> Result<()> {
+    for url in urls {
+        if url_to_dn(url).is_none() {
+            return Err(MyErr::Msg(format!("non DN URL {} is not allowed", url)))
+        }
+    }
+    Ok(())
+}
+
+fn to_submods(add: HashSet<String>, delete: HashSet<String>, replace: HashSet<String>) -> BTreeMap<MyMod, HashSet<String>> {
+    btreemap! {
+        MyMod::Add => add,
+        MyMod::Delete => delete,
+        MyMod::Replace => replace,
+    }.into_iter().filter(|(_, urls)| !urls.is_empty()).collect()
+}
+fn from_submods(mut submods: BTreeMap<MyMod, HashSet<String>>) -> [HashSet<String>; 3] {
+    [ MyMod::Add, MyMod::Delete, MyMod::Replace ].map(|right| submods.remove(&right).unwrap_or_default())
+}
+
+async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<String>>) -> Result<BTreeMap<MyMod, HashSet<String>>> {
+    let [ mut add, mut delete, mut replace ] = from_submods(submods);
+
+    if replace.len() == 1 && mright == Mright::Member {
+        // only case where non DNs are allowed!
+    } else {
+        check_mod_urls_are_dns(&add)?;
+        check_mod_urls_are_dns(&delete)?;
+        check_mod_urls_are_dns(&replace)?;
+        if replace.len() > 4 {
+            // transform Replace into Add/Delete
+            let current_urls = {
+                let group_dn = ldp.config.sgroup_id_to_dn(id);
+                ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?
+            }.into_iter().collect();
+            add.extend(replace.difference(&current_urls).map(|e| e.to_owned()));
+            delete.extend(current_urls.difference(&replace).map(|e| e.to_owned()));
+            eprintln!("  replaced long\n    Replace {:?} with\n    Add {:?}\n    Replace {:?}", replace, add, delete);
+            replace = hashset!{};
+        }
+    }
+    Ok(to_submods(add, delete, replace))
+}
+
 // Check validity of modifications
 // - stems do not allow members
 // - "sql://xxx?..." URLs are only allowed:
 //   - as members (not updaters/admins/...)
 //   - only one URL is accepted (for simplicity in web interface + similar restriction as in Internet2 Grouper)
 //   - modification must be a Replace (checking mods is simpler that way)
-fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
-    for (right, submods) in my_mods {
-        if right == &Mright::Member && is_stem {
+async fn check_and_simplify_mods(ldp: &mut LdapW<'_>, is_stem: bool, id: &str, my_mods: MyMods) -> Result<MyMods> {
+    let mut r: MyMods = btreemap!{};
+    for (mright, submods) in my_mods {
+        if mright == Mright::Member && is_stem {
             return Err(MyErr::Msg("members are not allowed for stems".to_owned()))
         }
-        for (action, list) in submods {
-            if action == &MyMod::Replace && list.len() == 1 && right == &Mright::Member {
-                // only case where non DNs are allowed!
-            } else if let Some(url) = list.iter().find(|url| url_to_dn(url).is_none()) {
-                return Err(MyErr::Msg(format!("non DN URL {} is not allowed", url)))
-            }
-        }
+        r.insert(mright, check_and_simplify_mods_(ldp, id, mright, submods).await?);
     }
-    Ok(())
+    Ok(r)
 }
 
 // Search for groups having this group DN in their member/supannGroupeLecteurDN/supannAdminDN/owner
@@ -247,7 +286,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
     // are the modifications valid?
     let is_stem = ldp.config.stem.is_stem(id);
-    check_mods(is_stem, &my_mods)?;
+    let my_mods = check_and_simplify_mods(ldp, is_stem, id, my_mods).await?;
 
     let todo_flattened = if is_stem { vec![] } else {
         my_mods.keys().map(|mright| (id.to_owned(), *mright)).collect()
