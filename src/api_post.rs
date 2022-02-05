@@ -157,7 +157,7 @@ fn check_mods(is_stem: bool, my_mods: &MyMods) -> Result<()> {
             if action == &MyMod::Replace && list.len() == 1 && right == &Mright::Member {
                 // only case where non DNs are allowed!
             } else if let Some(url) = list.iter().find(|url| url_to_dn(url).is_none()) {
-                return Err(MyErr::Msg(format!("non DN URL {} is now allowed", url)))
+                return Err(MyErr::Msg(format!("non DN URL {} is not allowed", url)))
             }
         }
     }
