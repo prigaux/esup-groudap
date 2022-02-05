@@ -239,7 +239,7 @@ async fn may_update_flattened_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(St
     Ok(())
 }
 
-pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mods: MyMods) -> Result<()> {
+pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mods: MyMods, msg: &Option<String>) -> Result<()> {
     eprintln!("modify_members_or_rights({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
@@ -258,7 +258,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     // ok, let's do update direct mrights:
     my_ldap::modify_direct_members_or_rights(ldp, id, &my_mods).await?;
 
-    api_log::sgroup(&cfg_and_lu, id, "modify_members_or_rights", &None, serde_json::to_value(my_mods)?).await?;
+    api_log::sgroup(&cfg_and_lu, id, "modify_members_or_rights", msg, serde_json::to_value(my_mods)?).await?;
 
     // then update flattened groups mrights
     may_update_flattened_mrights_rec(ldp, todo_flattened).await?;

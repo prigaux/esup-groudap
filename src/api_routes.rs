@@ -66,9 +66,9 @@ async fn delete(id: String, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
     action_result(api_post::delete(cfg_and_lu, &id).await)
 }
 
-#[post("/modify_members_or_rights?<id>", data = "<mods>")]
-async fn modify_members_or_rights(id: String, mods: Json<MyMods>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
-    action_result(api_post::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner()).await)
+#[post("/modify_members_or_rights?<id>&<msg>", data = "<mods>")]
+async fn modify_members_or_rights(id: String, msg: Option<String>, mods: Json<MyMods>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
+    action_result(api_post::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner(), &msg).await)
 }
 
 #[get("/sgroup?<id>")]

@@ -270,7 +270,7 @@ pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_m
     if ldp.config.stem.is_stem(id) && my_mods.contains_key(&Mright::Member) { 
         Err(MyErr::Msg("Member not allowed for stems".to_owned()))
     } else {
-        let mods = to_ldap_mods(&my_mods);
+        let mods = to_ldap_mods(my_mods);
         ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
         Ok(())
     }

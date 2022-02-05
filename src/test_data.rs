@@ -140,7 +140,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     api_post::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
         Mright::Updater => btreemap!{ MyMod::Add => hashset![dn_to_url(&aanli_dn())] },
-    }).await?;
+    }, &None).await?;
 
     assert_eq!(api_get::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
                SgroupAndMoreOut { right: Right::Updater, more: SgroupOutMore::Group { direct_members: prigaux_subject() }, parents: vec![ 
@@ -163,7 +163,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     }).await?;
     api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
-    }).await?;
+    }, &None).await?;
     assert_eq!(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), Mright::Member).await?, vec![prigaux_dn()]);
 
     api_post::modify_members_or_rights(cfg_and_prigaux(), "", btreemap!{
@@ -171,7 +171,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
             MyMod::Delete => hashset![dn_to_url(&prigaux_dn())],
             MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"))],
         },
-    }).await?;
+    }, &None).await?;
 
     // prigaux is still admin... via group "super-admins"
     assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.").await?, 
@@ -186,7 +186,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     api_post::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
     api_post::modify_members_or_rights(cfg_and_prigaux(), "collab.foo", btreemap!{
         Mright::Admin => btreemap!{ MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
-    }).await?;
+    }, &None).await?;
     assert_eq!(sort(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::Admin).await?), vec![
         ldp.config.sgroup_id_to_dn("collab.DSIUN"), prigaux_dn(),
     ]);
@@ -194,7 +194,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     eprintln!(r#"remove last "member". Need to put an empty member back"#);
     api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Delete => hashset![dn_to_url(&prigaux_dn())] },
-    }).await?;
+    }, &None).await?;
     assert_eq!(ldp.read_one_multi_attr__or_err(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), "member").await?, vec![""]);
     eprintln!(r#"prigaux is no more admin..."#);
     assert!(api_get::get_sgroup(cfg_and_prigaux(), "collab.").await.is_err());
@@ -202,7 +202,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     eprintln!(r#"add group in group "super-admins""#);
     api_post::modify_members_or_rights(cfg_and_trusted(), "applications.grouper.super-admins", btreemap!{
         Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
-    }).await?;
+    }, &None).await?;
     assert_eq!(HashSet::from_iter(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), Mright::Member).await?), 
                hashset![ prigaux_dn(), ldp.config.sgroup_id_to_dn("collab.DSIUN") ]);
     eprintln!(r#"prigaux shoud be admin via stem "" via applications.grouper.super-admins via collab.DSIUN"#);
