@@ -1,3 +1,8 @@
+pub fn after_char<'a>(s: &'a str, start: char) -> Option<&'a str> {
+    let pos = s.find(start)?;
+    Some(&s[pos + 1..])
+}
+
 pub fn after<'a>(s : &'a str, start: &'a str) -> Option<&'a str> {
     let pos = s.find(start)?;
     Some(&s[pos + start.len() ..])

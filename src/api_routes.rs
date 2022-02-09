@@ -16,7 +16,7 @@ use serde_json::json;
 
 use crate::helpers::{before};
 use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut};
-use crate::api_get;
+use crate::{api_get, api_log};
 use crate::api_post;
 use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json, Cache};
 use crate::test_data;
@@ -87,6 +87,11 @@ async fn group_flattened_mright(id: String, mright: String, search_token: Option
     to_json(api_get::get_group_flattened_mright(cfg_and_lu, &id, mright, search_token, sizelimit).await)
 }
 
+#[get("/sgroup_logs?<id>&<bytes>")]
+async fn sgroup_logs(id: String, bytes: i64, cfg_and_lu : CfgAndLU<'_>) -> Result<Value, MyJson> {
+    api_log::get_sgroup_logs(&cfg_and_lu.cfg.log_dir, &id, bytes).await.map_err(err_to_json)
+}
+
 #[get("/search_sgroups?<right>&<search_token>&<sizelimit>")]
 async fn search_sgroups(right: String, search_token: String, sizelimit: i32, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupsWithAttrs>, MyJson> {
     let right = Right::from_string(&right).map_err(err_to_json)?;
@@ -129,7 +134,8 @@ pub fn routes() -> Vec<Route> {
         login,
         clear_cache,
         clear_test_data, add_test_data, set_test_data, 
-        sgroup, sgroup_direct_rights, group_flattened_mright, search_sgroups, search_subjects, mygroups,
+        sgroup, sgroup_direct_rights, group_flattened_mright, sgroup_logs,
+        search_sgroups, search_subjects, mygroups, 
         config_public, config_subject_sources, config_remotes,
         create, modify_sgroup_attrs, delete, modify_members_or_rights,
     ]

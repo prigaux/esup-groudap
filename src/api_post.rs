@@ -80,7 +80,7 @@ pub async fn create(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Res
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     check_right_on_any_parents(ldp, id, Right::Admin).await?;
     my_ldap::create_sgroup(ldp, id, &attrs).await?;
-    api_log::sgroup(&cfg_and_lu, id, "create", &None, serde_json::to_value(attrs)?).await?;
+    api_log::log_sgroup_action(&cfg_and_lu, id, "create", &None, serde_json::to_value(attrs)?).await?;
     Ok(())
 }
 
@@ -109,7 +109,7 @@ pub async fn modify_sgroup_attrs(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: Mono
     let attrs = remove_non_modified_attrs(ldp, id, attrs).await?;
 
     my_ldap::modify_sgroup_attrs(ldp, id, &attrs).await?;
-    api_log::sgroup(&cfg_and_lu, id, "modify_attrs", &None, serde_json::to_value(attrs)?).await?;
+    api_log::log_sgroup_action(&cfg_and_lu, id, "modify_attrs", &None, serde_json::to_value(attrs)?).await?;
 
     Ok(())
 }
@@ -128,7 +128,7 @@ pub async fn delete(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<()> {
 
     // ok, do it:
     ldp.delete_sgroup(id).await?;
-    api_log::sgroup(&cfg_and_lu, id, "delete", &None, serde_json::to_value(current)?).await?;
+    api_log::log_sgroup_action(&cfg_and_lu, id, "delete", &None, serde_json::to_value(current)?).await?;
     Ok(())
 }
 
@@ -297,7 +297,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     // ok, let's do update direct mrights:
     my_ldap::modify_direct_members_or_rights(ldp, id, &my_mods).await?;
 
-    api_log::sgroup(&cfg_and_lu, id, "modify_members_or_rights", msg, serde_json::to_value(my_mods)?).await?;
+    api_log::log_sgroup_action(&cfg_and_lu, id, "modify_members_or_rights", msg, serde_json::to_value(my_mods)?).await?;
 
     // then update flattened groups mrights
     may_update_flattened_mrights_rec(ldp, todo_flattened).await?;
