@@ -16,6 +16,7 @@ mod api_log;
 mod api_get;
 mod api_post;
 mod my_ldap;
+mod my_ldap_check_rights;
 mod test_data;
 mod api_routes;
 mod cas_auth;

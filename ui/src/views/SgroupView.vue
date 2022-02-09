@@ -235,8 +235,8 @@ const delete_sgroup = async () => {
         </div>
     </fieldset>
 
-    <ul class="inline">
-        <template v-if="sgroup.stem && sgroup.right === 'admin'">
+    <ul class="inline" v-if="sgroup.right === 'admin'">
+        <template v-if="sgroup.stem">
             <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id } }">
                 <button>Créer un groupe</button>
             </RouterLink></li>
@@ -249,6 +249,11 @@ const delete_sgroup = async () => {
         <template v-if="!sgroup.stem || isEmpty(sgroup.stem.children)">
             <li><button @click="delete_sgroup">Supprimer le {{sgroup.stem ? 'dossier' : 'groupe'}}</button></li>
         </template>
+
+        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id } }">
+            <button>Historique</button>
+        </RouterLink></li>
+
     </ul>
 
     <p><i>Mes droits sur ce {{sgroup.stem ? 'dossier' : 'groupe'}} : {{right2text[sgroup.right]}}</i></p>

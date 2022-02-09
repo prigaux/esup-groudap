@@ -62,3 +62,5 @@ export interface LdapConfigOut {
 }
 
 export type Ssdn = string
+
+export type SgroupLog = { who: string, when: Date, action: string } & Record<string, string>

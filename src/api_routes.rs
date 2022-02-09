@@ -16,7 +16,7 @@ use serde_json::json;
 
 use crate::helpers::{before};
 use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut};
-use crate::{api_get, api_log};
+use crate::api_get;
 use crate::api_post;
 use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json, Cache};
 use crate::test_data;
@@ -89,7 +89,7 @@ async fn group_flattened_mright(id: String, mright: String, search_token: Option
 
 #[get("/sgroup_logs?<id>&<bytes>")]
 async fn sgroup_logs(id: String, bytes: i64, cfg_and_lu : CfgAndLU<'_>) -> Result<Value, MyJson> {
-    api_log::get_sgroup_logs(&cfg_and_lu.cfg.log_dir, &id, bytes).await.map_err(err_to_json)
+    api_get::get_sgroup_logs(cfg_and_lu, &id, bytes).await.map_err(err_to_json)
 }
 
 #[get("/search_sgroups?<right>&<search_token>&<sizelimit>")]

@@ -2,12 +2,16 @@
 
 use std::collections::{BTreeMap, HashSet, HashMap};
 
+use serde_json::Value;
+
 use crate::helpers::{after_last};
 use crate::my_types::*;
+use crate::api_log;
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
 use crate::my_ldap::{dn_to_rdn_and_parent_dn, user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap::{url_to_dn_};
+use crate::my_ldap_check_rights::check_right_on_self_or_any_parents;
 use crate::ldap_filter;
 
 fn is_disjoint(vals: &[String], set: &HashSet<String>) -> bool {
@@ -377,3 +381,12 @@ pub async fn search_sgroups(cfg_and_lu: CfgAndLU<'_>, right: Right, search_token
     search_sgroups_with_attrs(ldp, &group_filter, Some(sizelimit)).await
 }
 
+pub async fn get_sgroup_logs(cfg_and_lu: CfgAndLU<'_>, id: &str, bytes: i64) -> Result<Value> {
+    eprintln!("get_sgroup_logs({}, {:?})", id, bytes);   
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    check_right_on_self_or_any_parents(ldp, id, Right::Admin).await?;
+
+    api_log::get_sgroup_logs(&cfg_and_lu.cfg.log_dir, id, bytes).await
+}

@@ -8,70 +8,11 @@ use ldap3::{Mod};
 use crate::my_types::*;
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs};
-use crate::my_ldap::{self, user_urls_, user_has_right_on_sgroup_filter};
+use crate::my_ldap;
+use crate::my_ldap_check_rights::{check_right_on_self_or_any_parents, check_right_on_any_parents};
 use crate::my_ldap::{url_to_dn, url_to_dn_};
 use crate::ldap_filter;
 use crate::api_log;
-
-async fn user_has_right_on_at_least_one_sgroups(ldp: &mut LdapW<'_>, user_urls: &HashSet<String>, ids: Vec<&str>, right: &Right) -> Result<bool> {    
-    let ids_filter = ldap_filter::or(ids.into_iter().map(|id| ldp.config.sgroup_filter(id)).collect());
-    let filter = ldap_filter::and2(
-        &ids_filter,
-        &user_has_right_on_sgroup_filter(user_urls, right),
-    );
-    
-    //user_has_right_on_sgroup_filter(right);
-    Ok(ldp.one_group_matches_filter(&filter).await?)
-}
-
-/*async fn user_has_right_on_group(ldp: &mut LdapW<'_>, user: &str, id: &str, right: &Right) -> Result<bool> {    
-    let filter = user_has_direct_right_on_group_filter(&ldp.config.people_id_to_dn(user), right);
-    ldp.is_sgroup_matching_filter(id, &filter).await
-}*/
-
-async fn check_right_on_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right) -> Result<()> {
-    match ldp.logged_user {
-        LoggedUser::TrustedAdmin => {
-            if let Some(parent_stem) = ldp.config.stem.parent_stem(id) {
-                if !ldp.is_sgroup_existing(parent_stem).await? { 
-                    return Err(MyErr::Msg(format!("stem {} does not exist", parent_stem)))
-                }    
-            }
-            Ok(())
-        },
-        LoggedUser::User(user) => {
-            eprintln!("  check_right_on_any_parents({}, {:?})", id, right);
-            let user_urls = user_urls_(ldp, user).await?;
-            let parents = ldp.config.stem.parent_stems(id);
-            if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, parents, &right).await? {
-                Ok(())
-            } else {
-                Err(MyErr::Msg(format!("no right on {} parents", id)))
-            }
-        }
-    }
-}
-
-async fn check_right_on_self_or_any_parents(ldp: &mut LdapW<'_>, id: &str, right: Right) -> Result<()> {
-    match ldp.logged_user {
-        LoggedUser::TrustedAdmin => {
-            Ok(())
-        },
-        LoggedUser::User(user) => {
-            eprintln!("  check_right_on_self_or_any_parents({}, {:?})", id, right);
-            let user_urls = user_urls_(ldp, user).await?;
-            let self_and_parents = [
-                vec![id],
-                ldp.config.stem.parent_stems(id),
-            ].concat();
-            if user_has_right_on_at_least_one_sgroups(ldp, &user_urls, self_and_parents, &right).await? {
-                Ok(())
-            } else {
-                Err(MyErr::Msg(format!("no right on {}", id)))
-            }
-        }
-    }
-}
 
 pub async fn create(cfg_and_lu: CfgAndLU<'_>, id: &str, attrs: MonoAttrs) -> Result<()> {
     eprintln!("create({}, _)", id);
@@ -198,7 +139,10 @@ async fn check_and_simplify_mods(ldp: &mut LdapW<'_>, is_stem: bool, id: &str, m
         if mright == Mright::Member && is_stem {
             return Err(MyErr::Msg("members are not allowed for stems".to_owned()))
         }
-        r.insert(mright, check_and_simplify_mods_(ldp, id, mright, submods).await?);
+        let submods = check_and_simplify_mods_(ldp, id, mright, submods).await?;
+        if !submods.is_empty() {
+            r.insert(mright, submods);
+        }
     }
     Ok(r)
 }
@@ -287,6 +231,9 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     // are the modifications valid?
     let is_stem = ldp.config.stem.is_stem(id);
     let my_mods = check_and_simplify_mods(ldp, is_stem, id, my_mods).await?;
+    if my_mods.is_empty() {
+        return Ok(())
+    }
 
     let todo_flattened = if is_stem { vec![] } else {
         my_mods.keys().map(|mright| (id.to_owned(), *mright)).collect()

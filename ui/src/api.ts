@@ -1,6 +1,6 @@
 import { at, pickBy } from "lodash";
 import { forEach } from "./helpers";
-import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
+import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -91,6 +91,11 @@ export const sgroup_direct_rights = (id: string) : Promise<PRecord<Right, Subjec
 export const sgroup = (id: string) : Promise<SgroupAndMoreOut> => (
     api_get("sgroup", { id }, {})
 )
+export const sgroup_logs = async (id: string, bytes: number) : Promise<SgroupLog[]> => {
+    const l = await api_get("sgroup_logs", { id, bytes: ""+bytes }, {})
+    // @ts-expect-error
+    return l.map(({ when, ...o }) => ({ when: new Date(when), ...o }))
+}
 export const mygroups = () : Promise<SgroupsWithAttrs> => (
     api_get("mygroups", {}, {})
 )
