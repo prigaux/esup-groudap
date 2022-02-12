@@ -15,6 +15,7 @@ fn sgroup_log_file(log_dir: &str, id: &str) -> String {
     format!("{}/{}.jsonl", log_dir, id)
 }
 
+#[allow(clippy::needless_lifetimes)]
 async fn read_full_lines<'b>(file_path: &str, bytes: i64, buffer: &'b mut String) -> io::Result<&'b str> {
     let mut f = File::open(file_path).await?;
     let whole_file = f.seek(SeekFrom::End(-bytes)).await.is_err(); // ignore error which means "bytes" > file size
@@ -24,7 +25,7 @@ async fn read_full_lines<'b>(file_path: &str, bytes: i64, buffer: &'b mut String
 
 fn parse_jsonl(jsonl: &str) -> Result<Vec<Value>> {
     Ok(if jsonl.is_empty() { vec![] } else {
-        jsonl.split_terminator('\n').map(|s| serde_json::from_str(s)).collect::<serde_json::Result<_>>()?
+        jsonl.split_terminator('\n').map(serde_json::from_str).collect::<serde_json::Result<_>>()?
     })
 }
 
