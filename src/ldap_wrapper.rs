@@ -59,6 +59,13 @@ impl LdapW<'_> {
             .search(base, Scope::Subtree, filter, attrs).await?)?)
     }
 
+    pub async fn search_one<'a, S: AsRef<str> + Send + Sync + 'a>(
+        &mut self, base: &str, filter: &str, attrs: Vec<S>
+    ) -> Result<Option<SearchEntry>> {
+        let mut res = self.search_raw(base, filter, attrs, Some(1)).await?;
+        Ok(res.pop().map(SearchEntry::construct))
+    }
+
     pub async fn read<'a, S: AsRef<str> + Send + Sync + 'a>(&mut self, dn: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
         let res = self.ldap.search(dn, Scope::Base, ldap_filter::true_(), attrs).await?;
         let res = handle_read_one_search_result(res)?;
