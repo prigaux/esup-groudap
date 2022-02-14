@@ -65,6 +65,7 @@ host = "apogee.univ.fr"
 #port = 3306
 user = "user"
 password = "xxx"
+db_name = "g2t"
 
 [default.remotes.foo]
 periodicity = "hourly"
