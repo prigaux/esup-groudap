@@ -1,6 +1,6 @@
 import { at, pickBy } from "lodash";
 import { forEach } from "./helpers";
-import { LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Ssdn, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
+import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -77,7 +77,7 @@ export const search_sgroups = (search_params: { right: Right, search_token: stri
     let search_params_ = { ...search_params, sizelimit: "" + search_params.sizelimit }
     return api_get("search_sgroups", search_params_, {})
 }
-export const search_subjects = (search_params: { search_token: string, sizelimit: number, source_dn?: string }) : Promise<PRecord<Ssdn, Subjects>> => {
+export const search_subjects = (search_params: { search_token: string, sizelimit: number, source_dn?: Dn }) : Promise<PRecord<Dn, Subjects>> => {
     let search_params_ = { ...search_params, sizelimit: "" + search_params.sizelimit }
     return api_get("search_subjects", search_params_, {})
 }

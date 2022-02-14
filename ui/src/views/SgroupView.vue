@@ -5,7 +5,7 @@ import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { new_ref_watching } from '@/vue_helpers';
 import { forEachAsync } from '@/helpers';
-import { Mright, MyMod, PRecord } from '@/my_types';
+import { Dn, Mright, MyMod, PRecord } from '@/my_types';
 import { list_of_rights, right2text } from '@/lib';
 import { flat_mrights_show_search, mrights_flat_or_not } from '@/composition/SgroupSubjects';
 
@@ -59,7 +59,7 @@ let can_modify_member = computed(() => (
 
 let add_member_show = ref(false)
 
-async function add_remove_direct_mright(dn: string, mright: Mright, mod: MyMod) {
+async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod) {
     console.log('add_remove_direct_mright')
     await api.modify_members_or_rights(props.id, { [mright]: { [mod]: ['ldap:///' + dn] } })
     if (mright === 'member') {
@@ -68,10 +68,10 @@ async function add_remove_direct_mright(dn: string, mright: Mright, mod: MyMod) 
         rights_force_refresh.value++
     }
 }
-function add_direct_mright(dn: string, mright: Mright) {
+function add_direct_mright(dn: Dn, mright: Mright) {
     add_remove_direct_mright(dn, mright, 'add')
 }
-function remove_direct_mright(dn: string, mright: Mright) {
+function remove_direct_mright(dn: Dn, mright: Mright) {
     add_remove_direct_mright(dn, mright, 'delete')
 }
 

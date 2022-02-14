@@ -1,5 +1,5 @@
 <script lang="ts">
-import { SubjectAttrs } from '@/my_types'
+import { Dn, SubjectAttrs } from '@/my_types'
 </script>
 
 <script setup lang="ts">
@@ -8,9 +8,9 @@ import MyIcon from './MyIcon.vue'
 import Subject from './Subject'
 
 defineProps<{
-  dn: string,
+  dn: Dn,
   subject: SubjectAttrs,
-  ssdn?: string,
+  ssdn?: Dn,
 }>()
 </script>
 

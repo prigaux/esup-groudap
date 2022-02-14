@@ -26,7 +26,7 @@ import { at, isEmpty, size } from 'lodash'
 import { forEach, objectSortBy, some } from "@/helpers";
 import SubjectOrGroup from "./SubjectOrGroup.vue";
 import MyIcon from "./MyIcon.vue";
-import { LdapConfigOut, PRecord, Ssdn, Subjects } from "@/my_types";
+import { LdapConfigOut, PRecord, Dn, Subjects } from "@/my_types";
 
 let sscfgs = asyncComputed(api.config_subject_sources)
 
@@ -46,7 +46,7 @@ let moreResultsMsg_ = computed(() => default_moreResultsMsg(props.limit))
 
 let loading = ref(false)
 let query = ref('')
-let items = ref({} as PRecord<Ssdn, Subjects>)
+let items = ref({} as PRecord<Dn, Subjects>)
 let noResults = ref(false)
 let moreResults = ref(false)
 let current = ref(0)
@@ -75,12 +75,12 @@ function open() {
             search_subjects(sscfgs.value, query.value, props.limit+1),
         ]).then((data) => {
             if (!data) return; // canceled
-            setOptions(data as PRecord<Ssdn, Subjects>)
+            setOptions(data as PRecord<Dn, Subjects>)
         })
     }, 500)
 }
 
-function setOptions(data: PRecord<Ssdn, Subjects>) {
+function setOptions(data: PRecord<Dn, Subjects>) {
     current.value = 0
     items.value = data
     moreResults.value = some(data, (subjects, _) => (

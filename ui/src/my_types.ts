@@ -2,6 +2,8 @@ export type PRecord<K extends keyof any, T> = {
     [P in K]?: T;
 };
 
+export type Dn = string
+
 export type Right = 'reader' | 'updater' | 'admin'
 export type Mright = 'member' | Right
 
@@ -14,12 +16,12 @@ export interface SubjectAttrs {
     attrs: MonoAttrs
     sgroup_id?: string
 }
-export type SubjectAttrs_with_more = SubjectAttrs & { sscfg_dn?: string, indirect?: boolean, sort_field?: string }
+export type SubjectAttrs_with_more = SubjectAttrs & { sscfg_dn?: Dn, indirect?: boolean, sort_field?: string }
 
 export type SgroupsWithAttrs = Record<string, MonoAttrs>
 
-export type Subjects = Record<string, SubjectAttrs>;
-export type Subjects_with_more = Record<string, SubjectAttrs_with_more>;
+export type Subjects = Record<Dn, SubjectAttrs>;
+export type Subjects_with_more = Record<Dn, SubjectAttrs_with_more>;
 
 export interface SgroupOutAndRight {
     attrs: MonoAttrs
@@ -50,17 +52,15 @@ export interface SubjectsAndCount_with_more {
 
 
 export interface SubjectSourceConfig {
-    dn : string
+    dn : Dn
     name : string
     vue_template? : string
     display_attrs : string[]
 }
 
 export interface LdapConfigOut {
-    groups_dn: string
+    groups_dn: Dn
     subject_sources: SubjectSourceConfig[]
 }
-
-export type Ssdn = string
 
 export type SgroupLog = { who: string, when: Date, action: string } & Record<string, string>
