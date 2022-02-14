@@ -1,6 +1,6 @@
 use std::collections::{HashSet, BTreeMap};
 
-use crate::{my_types::{RemoteConfig, RemoteDriver, RemoteSqlQuery, ToSubjectSource}, my_err::{Result, MyErr}, ldap_filter, ldap_wrapper::LdapW, helpers::{before_and_after_char}};
+use crate::{my_types::{RemoteConfig, RemoteDriver, RemoteSqlQuery, ToSubjectSource, Dn}, my_err::{Result, MyErr}, ldap_filter, ldap_wrapper::LdapW, helpers::{before_and_after_char}};
 
 #[cfg(feature = "mysql")]
 mod mysql {
@@ -49,11 +49,11 @@ fn raw_query(remote: &RemoteConfig, db_name: &str, select_query: &str) -> Result
     }
 }
 
-async fn entries_to_dns(ldp: &mut LdapW<'_>, ssdn: &str, id_attr: &str, entries: Vec<String>) -> Result<HashSet<String>> {
+async fn entries_to_dns(ldp: &mut LdapW<'_>, ssdn: &Dn, id_attr: &str, entries: Vec<String>) -> Result<HashSet<Dn>> {
     let mut r = hashset![];
     for entry in entries {
-        if let Some(e) = ldp.search_one(&ssdn,&ldap_filter::eq(id_attr, &entry), vec![""]).await? {
-            r.insert(e.dn);
+        if let Some(e) = ldp.search_one(&ssdn.0,&ldap_filter::eq(id_attr, &entry), vec![""]).await? {
+            r.insert(Dn(e.dn));
         } else {
 
         }
@@ -63,7 +63,7 @@ async fn entries_to_dns(ldp: &mut LdapW<'_>, ssdn: &str, id_attr: &str, entries:
 
 impl From<&ToSubjectSource> for String {   
     fn from(tss: &ToSubjectSource) -> Self {
-        format!("{}?{}", tss.ssdn, tss.id_attr)
+        format!("{}?{}", tss.ssdn.0, tss.id_attr)
     }
 }
 
@@ -100,7 +100,7 @@ fn optional_param<'a>(param_name: &str, s: &'a str) -> (Option<&'a str>, &'a str
 fn parse_to_subject_source(s: &str) -> Result<ToSubjectSource> {
     let (ssdn, id_attr) = before_and_after_char(s, '?')
         .ok_or(MyErr::Msg(format!("expected ou=xxx,dc=xxx?uid, got {}", s)))?;
-    Ok(ToSubjectSource { ssdn: ssdn.to_owned(), id_attr: id_attr.to_owned() })
+    Ok(ToSubjectSource { ssdn: Dn::from(ssdn), id_attr: id_attr.to_owned() })
 }
 pub fn parse_sql_url(url: String) -> Result<Option<RemoteSqlQuery>> {
     Ok(if let Some(rest) = strip_prefix_and_trim(&url, "sql:") {        
@@ -119,13 +119,14 @@ pub fn parse_sql_url(url: String) -> Result<Option<RemoteSqlQuery>> {
 }
 
 // return subject DNs
-pub async fn query(ldp: &mut LdapW<'_>, remotes_cfg: &BTreeMap<String, RemoteConfig>, remote: &RemoteSqlQuery) -> Result<HashSet<String>> {
+pub async fn query(ldp: &mut LdapW<'_>, remotes_cfg: &BTreeMap<String, RemoteConfig>, remote: &RemoteSqlQuery) -> Result<HashSet<Dn>> {
     let remote_cfg = remotes_cfg.get(&remote.remote_cfg_name).ok_or(MyErr::Msg(format!("internal error: unknown remote {}", remote.remote_cfg_name)))?;
     let entries = raw_query(remote_cfg, &remote_cfg.db_name, &remote.select_query)?;
     if let Some(to_ss) = &remote.to_subject_source {
         entries_to_dns(ldp, &to_ss.ssdn, &to_ss.id_attr, entries).await
     } else {
-        Ok(entries.into_iter().collect())
+        // the SQL query must return DNs
+        Ok(entries.into_iter().map(Dn::from).collect())
     }
 }
 

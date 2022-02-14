@@ -82,18 +82,18 @@ fn my_mods_to_right(my_mods: &MyMods) -> Right {
     Right::Updater
 }
 
-fn to_submods(add: HashSet<String>, delete: HashSet<String>, replace: HashSet<String>) -> BTreeMap<MyMod, HashSet<String>> {
+fn to_submods(add: HashSet<Dn>, delete: HashSet<Dn>, replace: HashSet<Dn>) -> BTreeMap<MyMod, HashSet<Dn>> {
     btreemap! {
         MyMod::Add => add,
         MyMod::Delete => delete,
         MyMod::Replace => replace,
     }.into_iter().filter(|(_, urls)| !urls.is_empty()).collect()
 }
-fn from_submods(mut submods: BTreeMap<MyMod, HashSet<String>>) -> [HashSet<String>; 3] {
+fn from_submods(mut submods: BTreeMap<MyMod, HashSet<Dn>>) -> [HashSet<Dn>; 3] {
     [ MyMod::Add, MyMod::Delete, MyMod::Replace ].map(|right| submods.remove(&right).unwrap_or_default())
 }
 
-async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<String>>) -> Result<BTreeMap<MyMod, HashSet<String>>> {
+async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<Dn>>) -> Result<BTreeMap<MyMod, HashSet<Dn>>> {
     let [ mut add, mut delete, mut replace ] = from_submods(submods);
 
     if replace.len() > 4 {
@@ -102,8 +102,8 @@ async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright,
             ldp.read_direct_mright(&group_dn, mright).await?
         } {
             // transform Replace into Add/Delete
-            add.extend(replace.difference(&current_dns).map(|e| e.to_owned()));
-            delete.extend(current_dns.difference(&replace).map(|e| e.to_owned()));
+            add.extend(replace.difference(&current_dns).map(|e| e.clone()));
+            delete.extend(current_dns.difference(&replace).map(|e| e.clone()));
             eprintln!("  replaced long\n    Replace {:?} with\n    Add {:?}\n    Replace {:?}", replace, add, delete);
             replace = hashset!{};
         }
@@ -136,7 +136,7 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
     let mut r = vec![];
     let group_dn = ldp.config.sgroup_id_to_dn(id);
     for mright in Mright::list() {
-        for id in ldp.search_sgroups_id(&ldap_filter::eq(ldp.config.to_flattened_attr(mright), &group_dn)).await? {
+        for id in ldp.search_sgroups_id(&ldap_filter::eq(ldp.config.to_flattened_attr(mright), &group_dn.0)).await? {
             r.push((id, mright));
         }
     }
@@ -145,16 +145,20 @@ async fn search_groups_mrights_depending_on_this_group(ldp: &mut LdapW<'_>, id: 
 
 enum UpResult { Modified, Unchanged }
 
-async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, to_add: HashSet<&str>, to_remove: HashSet<&str>) -> Result<UpResult> {
+fn dns_to_strs(dns: HashSet<&Dn>) -> HashSet<&str> {
+    dns.iter().map(|dn| dn.0.as_ref()).collect()
+}
+
+async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, to_add: HashSet<&Dn>, to_remove: HashSet<&Dn>) -> Result<UpResult> {
     let attr = ldp.config.to_flattened_attr(mright);
     let mods = [
-        if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, to_add) ] },
-        if to_remove.is_empty() { vec![] } else { vec![ Mod::Delete(attr, to_remove) ] },
+        if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, dns_to_strs(to_add)) ] },
+        if to_remove.is_empty() { vec![] } else { vec![ Mod::Delete(attr, dns_to_strs(to_remove)) ] },
     ].concat();
     if mods.is_empty() {
         return Ok(UpResult::Unchanged)
     }
-    let res = dbg!(ldp.ldap.modify(dbg!(&ldp.config.sgroup_id_to_dn(id)), dbg!(mods)).await?);
+    let res = dbg!(ldp.ldap.modify(dbg!(&ldp.config.sgroup_id_to_dn(id).0), dbg!(mods)).await?);
     if res.rc != 0 {
         Err(MyErr::Msg(format!("update_flattened_mright failed on {}: {}", id, res)))
     } else {
@@ -162,7 +166,7 @@ async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mr
     }
 }
 
-async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) -> Result<HashSet<String>> {
+async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<Dn>) -> Result<HashSet<Dn>> {
     let mut r = direct_dns.clone();
     for dn in direct_dns {
         if ldp.config.dn_is_sgroup(dn) {
@@ -181,13 +185,13 @@ async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mri
     if let Some(direct_dns) = ldp.read_direct_mright(&group_dn, mright).await? {
         let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
         if flattened_dns.is_empty() && mright == Mright::Member {
-            flattened_dns.insert("".to_owned());
+            flattened_dns.insert(Dn::from(""));
         }
         let current_flattened_dns = HashSet::from_iter(
-            ldp.read_one_multi_attr__or_err(&group_dn, ldp.config.to_flattened_attr(mright)).await?
+            ldp.read_flattened_mright(&group_dn, mright).await?
         );
-        let to_add = flattened_dns.difference(&current_flattened_dns).map(|s| s.as_str()).collect();
-        let to_remove = current_flattened_dns.difference(&flattened_dns).map(|s| s.as_str()).collect();
+        let to_add = flattened_dns.difference(&current_flattened_dns).collect();
+        let to_remove = current_flattened_dns.difference(&flattened_dns).collect();
         may_update_flattened_mrights_(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
     } else {
         // TODO: non DN URL

@@ -48,7 +48,7 @@ impl LdapW<'_> {
     pub async fn open<'a>(config: &'a LdapConfig, logged_user: &'a LoggedUser) -> Result<LdapW<'a>> {
         let (conn, mut ldap) = LdapConnAsync::new(&config.url).await?;
         ldap3::drive!(conn);
-        ldap.simple_bind(&config.bind_dn, &config.bind_password).await?;
+        ldap.simple_bind(&config.bind_dn.0, &config.bind_password).await?;
         Ok(LdapW { ldap, config, logged_user })
     }
 
@@ -66,45 +66,45 @@ impl LdapW<'_> {
         Ok(res.pop().map(SearchEntry::construct))
     }
 
-    pub async fn read<'a, S: AsRef<str> + Send + Sync + 'a>(&mut self, dn: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
-        let res = self.ldap.search(dn, Scope::Base, ldap_filter::true_(), attrs).await?;
+    pub async fn read<'a, S: AsRef<str> + Send + Sync + 'a>(&mut self, dn: &Dn, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
+        let res = self.ldap.search(&dn.0, Scope::Base, ldap_filter::true_(), attrs).await?;
         let res = handle_read_one_search_result(res)?;
         Ok(res.map(SearchEntry::construct))
     }
 
-    pub async fn read_one_multi_attr(&mut self, dn: &str, attr: &str) -> Result<Option<Vec<String>>> {
+    pub async fn read_one_multi_attr(&mut self, dn: &Dn, attr: &str) -> Result<Option<Vec<String>>> {
         let entry = self.read(dn, vec![attr]).await?;
         Ok(entry.map(|e| get_consume(e.attrs, attr)))
     }
 
     #[allow(non_snake_case)]
-    pub async fn read_one_multi_attr__or_err(&mut self, dn: &str, attr: &str) -> Result<Vec<String>> {
+    pub async fn read_one_multi_attr__or_err(&mut self, dn: &Dn, attr: &str) -> Result<Vec<String>> {
         self.read_one_multi_attr(dn, attr).await?.ok_or_else(
-            || MyErr::Msg(format!("internal error (read_one_multi_attr__or_err expects {} to exist)", dn))
+            || MyErr::Msg(format!("internal error (read_one_multi_attr__or_err expects {:?} to exist)", dn))
         )
     }
 
-    pub async fn read_flattened_mright(&mut self, dn: &str, mright: Mright) -> Result<Vec<String>> {
+    pub async fn read_flattened_mright(&mut self, dn: &Dn, mright: Mright) -> Result<Vec<Dn>> {
         let l = self.read_one_multi_attr__or_err(dn, self.config.to_flattened_attr(mright)).await?;
         // turn [""] into []
         Ok(match l.first() {
             Some(s) if s.is_empty() => vec![],
-            _ => l
+            _ => l.into_iter().map(|dn| Dn(dn)).collect()
         })
     }
 
-    pub async fn is_dn_matching_filter(&mut self, dn: &str, filter: &str) -> Result<bool> {
-        let res = self.ldap.search(dn, Scope::Base, dbg!(filter), vec![""]).await?;
+    pub async fn is_dn_matching_filter(&mut self, dn: &Dn, filter: &str) -> Result<bool> {
+        let res = self.ldap.search(&dn.0, Scope::Base, dbg!(filter), vec![""]).await?;
         let res = handle_read_one_search_result(res)?;
         Ok(res.is_some())
     }
 
-    pub async fn is_dn_existing(&mut self, dn: &str) -> Result<bool> {
+    pub async fn is_dn_existing(&mut self, dn: &Dn) -> Result<bool> {
         self.is_dn_matching_filter(dn, ldap_filter::true_()).await
     }
 
     pub async fn one_group_matches_filter(&mut self, filter: &str) -> Result<bool> {
-        let rs = self.search_raw(&self.config.groups_dn, dbg!(filter), vec![""], Some(1)).await?;
+        let rs = self.search_raw(&self.config.groups_dn.0, dbg!(filter), vec![""], Some(1)).await?;
         Ok(!rs.is_empty())
     }
 

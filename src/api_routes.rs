@@ -15,7 +15,7 @@ use serde_json::json;
 
 
 use crate::helpers::{before};
-use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut};
+use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut, Dn};
 use crate::api_get;
 use crate::api_post;
 use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json, Cache};
@@ -110,7 +110,8 @@ async fn clear_cache(cache : &State<Cache>) {
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
-async fn search_subjects(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<&String /* ssdn */, Subjects>>, MyJson> {
+async fn search_subjects(search_token: String, sizelimit: i32, source_dn: Option<String>, cfg_and_lu : CfgAndLU<'_>) -> Result<Json<BTreeMap<&Dn /* ssdn */, Subjects>>, MyJson> {
+    let source_dn = source_dn.map(Dn::from);
     to_json(api_get::search_subjects(cfg_and_lu, search_token, sizelimit, source_dn).await)
 }
 

@@ -68,30 +68,33 @@ impl StemConfig {
 }
 
 impl LdapConfig {
-    pub fn sgroup_id_to_dn<S : AsRef<str>>(&self, cn: S) -> String {
+    pub fn sgroup_id_to_dn<S : AsRef<str>>(&self, cn: S) -> Dn {
         let cn = cn.as_ref();
         if cn == self.stem.root_id {
             self.groups_dn.to_owned()
         } else {
-            format!("cn={},{}", cn, self.groups_dn)
+            Dn(format!("cn={},{}", cn, self.groups_dn.0))
         }
     }
-    pub fn people_id_to_dn(&self, cn: &str) -> String {
-        format!("uid={},ou=people,{}", cn, self.base_dn)
+    pub fn people_id_to_dn(&self, cn: &str) -> Dn {
+        Dn(format!("uid={},ou=people,{}", cn, self.base_dn.0))
+    }
+    pub fn dn_to_sgroup_id_(&self, dn: &Dn) -> Option<String> {
+        self.dn_to_sgroup_id(&dn.0)
     }
     pub fn dn_to_sgroup_id(&self, dn: &str) -> Option<String> {
-        if dn == self.groups_dn {
+        if dn == self.groups_dn.0 {
             Some("".to_owned())
         } else {
-            Some(dn.strip_suffix(&self.groups_dn)?.strip_suffix(',')?.strip_prefix("cn=")?.to_owned())
+            Some(dn.strip_suffix(&self.groups_dn.0)?.strip_suffix(',')?.strip_prefix("cn=")?.to_owned())
         }
     }
-    pub fn dn_is_sgroup(&self, dn: &str) -> bool {
-        dn.ends_with(&self.groups_dn)
+    pub fn dn_is_sgroup(&self, dn: &Dn) -> bool {
+        dn.0.ends_with(&self.groups_dn.0)
     }
 
-    pub fn dn_to_subject_source_cfg(&self, dn: &str) -> Option<&SubjectSourceConfig> {
-        self.subject_sources.iter().find(|sscfg| dn.ends_with(&sscfg.dn))
+    pub fn dn_to_subject_source_cfg(&self, dn: &Dn) -> Option<&SubjectSourceConfig> {
+        self.subject_sources.iter().find(|sscfg| dn.0.ends_with(&sscfg.dn.0))
     }
     
     pub fn to_flattened_attr(&self, mright: Mright) -> &str {
@@ -107,9 +110,9 @@ impl LdapConfig {
         Ok(())
     }
 
-    pub fn user_has_direct_right_on_group_filter(&self, user_dn: &str, right: &Right) -> String {
+    pub fn user_has_direct_right_on_group_filter(&self, user_dn: &Dn, right: &Right) -> String {
         ldap_filter::or(right.to_allowed_rights().into_iter().map(|r| 
-            ldap_filter::eq(self.to_flattened_attr(r.to_mright()), user_dn)
+            ldap_filter::eq(self.to_flattened_attr(r.to_mright()), &user_dn.0)
         ).collect())
     }    
     
@@ -124,20 +127,20 @@ impl LdapConfig {
     
 }
 
-pub fn dn_to_rdn_and_parent_dn(dn: &str) -> Option<(&str, &str)> {
-    before_and_after(dn, ",")
+pub fn dn_to_rdn_and_parent_dn(dn: &Dn) -> Option<(&str, &str)> {
+    before_and_after(&dn.0, ",")
 }
 
-pub fn dn_to_url(dn: &str) -> String {
-    format!("ldap:///{}", dn)
+pub fn dn_to_url(dn: &Dn) -> String {
+    format!("ldap:///{}", dn.0)
 }
 
 pub fn url_to_dn(url: &str) -> Option<&str> {
     url.strip_prefix("ldap:///").filter(|dn| !dn.contains('?'))
 }
 
-pub fn url_to_dn_(url: String) -> Option<String> {
-    url_to_dn(&url).map(String::from)
+pub fn url_to_dn_(url: String) -> Option<Dn> {
+    url_to_dn(&url).map(Dn::from)
 }
 
 // wow, it is complex...
@@ -178,16 +181,16 @@ impl LdapW<'_> {
             vec![("member", hashset!{""})]  // "member" is requested...
         };
         let all_attrs = [ base_attrs, attrs, member_attr ].concat();
-        self.ldap.add(&self.config.sgroup_id_to_dn(cn), all_attrs).await?.success()?;
+        self.ldap.add(&self.config.sgroup_id_to_dn(cn).0, all_attrs).await?.success()?;
         Ok(())
     }
 
     pub async fn delete_sgroup(&mut self, id: &str) -> Result<()> {
-        self.ldap.delete(&self.config.sgroup_id_to_dn(id)).await?.success()?;
+        self.ldap.delete(&self.config.sgroup_id_to_dn(id).0).await?.success()?;
         Ok(())
     }
  
-    pub async fn read_direct_mright(&mut self, group_dn: &str, mright: Mright) -> Result<Option<HashSet<String>>> {
+    pub async fn read_direct_mright(&mut self, group_dn: &Dn, mright: Mright) -> Result<Option<HashSet<Dn>>> {
         let direct_urls = self.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
         Ok(direct_urls.into_iter().map(url_to_dn_).collect::<Option<HashSet<_>>>())
     }
@@ -198,42 +201,42 @@ impl LdapW<'_> {
     }
 
     pub async fn search_sgroups(&mut self, filter: &str, attrs: Vec<&String>, sizelimit: Option<i32>) -> Result<impl Iterator<Item = SearchEntry>> {
-        let rs = self.search_raw(&self.config.groups_dn, dbg!(filter), attrs, sizelimit).await?;
+        let rs = self.search_raw(&self.config.groups_dn.0, dbg!(filter), attrs, sizelimit).await?;
         let z = rs.into_iter().map(|r| { SearchEntry::construct(r) });
         Ok(z)
     }   
 
-    pub async fn search_sgroups_dn(&mut self, filter: &str) -> Result<impl Iterator<Item = String>> {
-        Ok(self.search_sgroups(dbg!(filter), vec![&"".to_owned()], None).await?.map(|e| { e.dn }))
+    pub async fn search_sgroups_dn(&mut self, filter: &str) -> Result<impl Iterator<Item = Dn>> {
+        Ok(self.search_sgroups(dbg!(filter), vec![&"".to_owned()], None).await?.map(|e| { Dn(e.dn) }))
     }
     
     pub async fn search_sgroups_id(&mut self, filter: &str) -> Result<HashSet<String>> {
         Ok(self.search_sgroups_dn(filter).await?.map(|dn| {
-            self.config.dn_to_sgroup_id(&dn).unwrap_or_else(|| panic!("weird DN {}", dn))
+            self.config.dn_to_sgroup_id_(&dn).unwrap_or_else(|| panic!("weird DN {}", dn.0))
         }).collect())
     }
 
-    async fn user_groups_dn(&mut self, user_dn: &str) -> Result<HashSet<String>> {
+    async fn user_groups_dn(&mut self, user_dn: &Dn) -> Result<HashSet<Dn>> {
         let filter = ldap_filter::member(user_dn);
         let l = self.search_sgroups_dn(&filter).await?.collect();
         Ok(l)
     }
 
     // returns DNs
-    pub async fn user_groups_and_user_dn(&mut self, user: &str) -> Result<HashSet<String>> {
+    pub async fn user_groups_and_user_dn(&mut self, user: &str) -> Result<HashSet<Dn>> {
         let user_dn = self.config.people_id_to_dn(user);
         let mut user_groups: HashSet<_> = self.user_groups_dn(&user_dn).await?;
         user_groups.insert(user_dn);
         Ok(user_groups)
     }
 
-    pub async fn search_subjects(&mut self, base_dn: &str, attrs: &[String], filter: &str, sizelimit: Option<i32>) -> Result<Subjects> {
+    pub async fn search_subjects(&mut self, base_dn: &Dn, attrs: &[String], filter: &str, sizelimit: Option<i32>) -> Result<Subjects> {
         let attrs = shallow_copy_vec(attrs);
-        let rs = self.search_raw(base_dn, dbg!(filter), attrs, sizelimit).await?;
+        let rs = self.search_raw(&base_dn.0, dbg!(filter), attrs, sizelimit).await?;
         Ok(rs.into_iter().map(|r| { 
             let entry = SearchEntry::construct(r);
             let sgroup_id = self.config.dn_to_sgroup_id(&entry.dn);
-            (entry.dn, SubjectAttrs { attrs: mono_attrs(entry.attrs), sgroup_id })
+            (Dn(entry.dn), SubjectAttrs { attrs: mono_attrs(entry.attrs), sgroup_id })
         }).collect())
     }   
 
@@ -255,7 +258,7 @@ pub async fn modify_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: &MonoAttr
     let mods = attrs.iter().map(|(attr, val)| {
         Mod::Replace(attr, hashset![val])
     }).collect();
-    ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
+    ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, mods).await?.success()?;
     Ok(())
 }
 
@@ -276,7 +279,7 @@ pub async fn modify_direct_members_or_rights(ldp: &mut LdapW<'_>, id: &str, my_m
         Err(MyErr::Msg("Member not allowed for stems".to_owned()))
     } else {
         let mods = to_ldap_mods(my_mods);
-        ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id), mods).await?.success()?;
+        ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, mods).await?.success()?;
         Ok(())
     }
 }
@@ -354,10 +357,10 @@ mod tests {
     fn ldap_config() -> LdapConfig {
         LdapConfig { 
             url: "".to_owned(),
-            bind_dn: "".to_owned(),
+            bind_dn: Dn::from(""),
             bind_password: "".to_owned(),
-            base_dn: "dc=nodomain".to_owned(),
-            groups_dn: "ou=groups,dc=nodomain".to_owned(),
+            base_dn: Dn::from("dc=nodomain"),
+            groups_dn: Dn::from("ou=groups,dc=nodomain"),
             stem_object_classes: hashset![],
             group_object_classes: hashset![],
             sgroup_filter: None,
@@ -376,8 +379,8 @@ mod tests {
     #[test]
     fn sgroup_id_to_dn() {
         let cfg = ldap_config();
-        assert_eq!(cfg.sgroup_id_to_dn("a"), "cn=a,ou=groups,dc=nodomain");
-        assert_eq!(cfg.sgroup_id_to_dn(""), "ou=groups,dc=nodomain");
+        assert_eq!(cfg.sgroup_id_to_dn("a").0, "cn=a,ou=groups,dc=nodomain");
+        assert_eq!(cfg.sgroup_id_to_dn("").0, "ou=groups,dc=nodomain");
     }
 
     #[test]

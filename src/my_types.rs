@@ -37,7 +37,7 @@ fn ldap_config_checker<'de, D>(d: D) -> Result<LdapConfig, D::Error>
     
     if cfg.sgroup_sscfg_raw().is_none() {
         let msg = "''ldap.groups_dn'' to be listed in ''ldap.subject_sources''".to_owned();
-        return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.groups_dn), &msg.as_str()));
+        return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.groups_dn.0), &msg.as_str()));
     }
     Ok(cfg)
 }
@@ -58,7 +58,7 @@ pub struct SubjectSourceFlattenConfig {
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct SubjectSourceConfig {
-    pub dn : String,
+    pub dn : Dn,
     pub name : String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub vue_template : Option<String>,
@@ -80,10 +80,10 @@ pub struct AttrTexts {
 #[derive(Deserialize)]
 pub struct LdapConfig {
     pub url: String,
-    pub bind_dn: String,
+    pub bind_dn: Dn,
     pub bind_password: String,
-    pub base_dn: String,
-    pub groups_dn: String,
+    pub base_dn: Dn,
+    pub groups_dn: Dn,
     pub stem_object_classes: HashSet<String>,
     pub group_object_classes: HashSet<String>,
     pub sgroup_filter: Option<String>, // needed if groupad does not own all groups in groups_dn
@@ -94,7 +94,7 @@ pub struct LdapConfig {
 }
 #[derive(Serialize)]
 pub struct LdapConfigOut<'a> {
-    pub groups_dn: &'a str,
+    pub groups_dn: &'a Dn,
     pub subject_sources: &'a Vec<SubjectSourceConfig>,
 }
 
@@ -159,8 +159,20 @@ pub enum Right { Reader, Updater, Admin }
 #[serde(rename_all = "lowercase")]
 pub enum MyMod { Add, Delete, Replace }
 
-pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<String>>>;
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Hash, Clone, PartialOrd, Ord)]
+pub struct Dn(pub String);
+pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<Dn>>>;
 
+impl From<String> for Dn {
+    fn from(dn: String) -> Self {
+        Dn(dn)
+    }
+}
+impl From<&str> for Dn {
+    fn from(dn: &str) -> Self {
+        Dn(dn.to_owned())
+    }
+}
 
 pub type MonoAttrs = BTreeMap<String, String>;
 
@@ -174,7 +186,7 @@ pub struct SubjectAttrs {
     pub sgroup_id: Option<String>,
 }
 
-pub type Subjects = BTreeMap<String, SubjectAttrs>;
+pub type Subjects = BTreeMap<Dn, SubjectAttrs>;
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SubjectsAndCount {
@@ -280,7 +292,7 @@ pub struct CfgAndLU<'a> {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ToSubjectSource {
-    pub ssdn: String,
+    pub ssdn: Dn,
     pub id_attr: String,
 }
 

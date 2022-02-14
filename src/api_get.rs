@@ -42,7 +42,7 @@ impl SubjectSourceConfig {
     }
 }
 
-async fn get_subjects_from_same_branch(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, base_dn: &str, rdns: &[&str], search_token: &Option<String>) -> Result<Subjects> {
+async fn get_subjects_from_same_branch(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, base_dn: &Dn, rdns: &[&str], search_token: &Option<String>) -> Result<Subjects> {
     let rdns_filter = ldap_filter::or(rdns.iter().map(|rdn| ldap_filter::rdn(rdn)).collect());
     let filter = if let Some(term) = search_token {
         ldap_filter::and2(&rdns_filter,&sscfg.search_filter_(term))
@@ -62,7 +62,7 @@ fn into_group_map<K: Eq + std::hash::Hash, V, I: Iterator<Item = (K, V)>>(iter: 
         map
     })
 }
-async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
+async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<Dn>, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
     let mut r = BTreeMap::new();
 
 
@@ -72,10 +72,11 @@ async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<String>, search_token: &Opti
     }));
         
     for (parent_dn, rdns) in parent_dn_to_rdns {
-        if let Some(sscfg) = ldp.config.dn_to_subject_source_cfg(parent_dn) {
+        let parent_dn = Dn::from(parent_dn);
+        if let Some(sscfg) = ldp.config.dn_to_subject_source_cfg(&parent_dn) {
             let mut count = 0;
             for rdns_ in rdns.chunks(10) {
-                let subjects = &mut get_subjects_from_same_branch(ldp, sscfg, parent_dn, rdns_, search_token).await?;
+                let subjects = &mut get_subjects_from_same_branch(ldp, sscfg, &parent_dn, rdns_, search_token).await?;
                 count += subjects.len();
                 r.append(subjects);
                 if let Some(limit) = sizelimit {
@@ -272,7 +273,7 @@ pub async fn group_uses(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupsWit
 }
 */
 
-pub async fn search_subjects(cfg_and_lu: CfgAndLU<'_>, search_token: String, sizelimit: i32, source_dn: Option<String>) -> Result<BTreeMap<&String, Subjects>> {
+pub async fn search_subjects(cfg_and_lu: CfgAndLU<'_>, search_token: String, sizelimit: i32, source_dn: Option<Dn>) -> Result<BTreeMap<&Dn, Subjects>> {
     eprintln!("search_subjects({}, {:?})", search_token, source_dn);
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     let mut r = btreemap![];

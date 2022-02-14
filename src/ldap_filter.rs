@@ -2,6 +2,8 @@ use std::borrow::Cow;
 
 use ldap3::{ldap_escape};
 
+use crate::my_types::Dn;
+
 pub fn true_() -> &'static str {
     "(objectClass=*)"
 }
@@ -40,8 +42,8 @@ pub fn rdn(rdn: &str) -> String {
     format!("({})", rdn)
 }
 
-pub fn member(dn: &str) -> String {
-    eq("member", dn)
+pub fn member(dn: &Dn) -> String {
+    eq("member", &dn.0)
 }
 
 pub fn sgroup_self_and_children(id: &str) -> String {

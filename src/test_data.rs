@@ -20,7 +20,7 @@ async fn ldap_add_ou_branch(ldap: &mut Ldap, ou: &str, description: &str) -> Res
     ]).await?)
 }
 
-fn sort(mut v : Vec<String>) -> Vec<String> {
+fn sort(mut v : Vec<Dn>) -> Vec<Dn> {
     v.sort_unstable();
     v
 }
@@ -38,12 +38,12 @@ pub async fn clear(cfg_and_lu: &CfgAndLU<'_>) -> Result<()> {
     let ldp = &mut LdapW::open_(cfg_and_lu).await?;
 
     for user in [ "aanli", "prigaux" ] {
-        let _res = ldp.ldap.delete(&ldp.config.people_id_to_dn(user)).await; // ignore error
+        let _res = ldp.ldap.delete(&ldp.config.people_id_to_dn(user).0).await; // ignore error
     }
     let _res = ldp.ldap.delete("ou=people,dc=nodomain").await; // ignore error
     let _res = ldp.ldap.delete("ou=admin,dc=nodomain").await; // ignore error
 
-    if ldp.is_dn_existing("ou=groups,dc=nodomain").await? {
+    if ldp.is_dn_existing(&Dn::from("ou=groups,dc=nodomain")).await? {
         eprintln!("deleting ou=groups entries");
         let ids = ldp.search_sgroups_id(ldap_filter::true_()).await?;
         for id in ids {
@@ -87,7 +87,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
         sgroup_id: None,
     } };
 
-    ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(""), vec![
+    ldp.ldap.modify(&ldp.config.sgroup_id_to_dn("").0, vec![
         Mod::Add("objectClass", hashset!["up1SyncGroup"])
     ]).await?;
 
