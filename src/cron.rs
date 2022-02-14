@@ -2,6 +2,7 @@ use core::time;
 use std::thread;
 
 use crate::my_types::{Config, LoggedUser};
+use crate::remote_query;
 use crate::rocket_helpers::Cache;
 use crate::my_err::{Result};
 use crate::ldap_wrapper::{LdapW};
@@ -9,8 +10,11 @@ use crate::ldap_wrapper::{LdapW};
 #[tokio::main]
 pub async fn the_loop(config: Config, cache: Cache) -> Result<()> {
     let ldp = &mut LdapW::open(&config.ldap, &LoggedUser::TrustedAdmin).await?;
-    let test_sgroup = ldp.read_sgroup("collab.", vec!["description"]).await?;
-    eprintln!("in thread {:?}", test_sgroup);
+
+    let remote = remote_query::parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users".to_owned())?.unwrap();
+
+    let dns = remote_query::query(ldp, &config.remotes, &remote).await?;
+    eprintln!("in thread {:?}", dns);
     loop {
         thread::sleep(time::Duration::from_secs(500));
         let map = cache.synchronized_groups.lock().unwrap().clone();

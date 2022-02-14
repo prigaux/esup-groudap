@@ -181,6 +181,18 @@ const delete_sgroup = async () => {
         </div>
     </fieldset>
 
+    <fieldset v-if="sgroup.remote">
+        <legend>
+            <h4>Synchronisation</h4>
+            <template v-if="">
+                <template v-if="modify_attrs.description">
+                    <MyIcon name="check" class="on-the-right" @click="send_modify_attr('description')" />
+                    <MyIcon name="close" class="on-the-right" @click="cancel_modify_attr('description', 'force')" />
+                </template>
+            </template>
+        </legend>
+    </fieldset>
+
     <p></p>
     <fieldset>
         <legend>
@@ -253,6 +265,10 @@ const delete_sgroup = async () => {
         <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id } }">
             <button>Historique</button>
         </RouterLink></li>
+
+        <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
+            <button @click="add_remote">Synchroniser</button>
+        </li>
 
     </ul>
 

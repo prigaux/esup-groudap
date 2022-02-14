@@ -65,6 +65,7 @@ pub struct SubjectSourceConfig {
     #[serde(skip_serializing_if="Option::is_none")]
     pub vue_template_if_ambiguous : Option<String>,    
     pub display_attrs : Vec<String>,
+    pub id_attrs : Option<Vec<String>>,
 
     #[serde(skip_serializing)]
     pub search_filter : String,
@@ -112,7 +113,12 @@ impl LdapConfig {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
-pub enum RemoteDriver { Mysql }
+pub enum RemoteDriver {
+    #[cfg(feature = "mysql")]
+    Mysql,
+    #[cfg(feature = "oracle")]
+    Oracle,
+}
 
 #[derive(Deserialize, Serialize)]
 pub struct RemoteConfig {
@@ -121,10 +127,12 @@ pub struct RemoteConfig {
     pub port: Option<u16>,
     pub driver: RemoteDriver,
 
+    pub db_name: String,
+
     #[serde(skip_serializing)]
     pub user: String,
     #[serde(skip_serializing)]
-    pub password: String,    
+    pub password: String,
     
     pub periodicity: String, // NB: checked by "remotes_periodicity_checker" below
 }
@@ -268,4 +276,17 @@ pub enum LoggedUserUrls {
 pub struct CfgAndLU<'a> {
     pub cfg: &'a Config,
     pub user: LoggedUser,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ToSubjectSource {
+    pub ssdn: String,
+    pub id_attr: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RemoteSqlQuery {
+    pub remote_cfg_name: String, 
+    pub select_query: String, // query returns either a DN or a string to transform into DN using ToSubjectSource
+    pub to_subject_source: Option<ToSubjectSource>,
 }

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use ldap3::LdapError;
 
 #[derive(Debug)]
@@ -8,17 +10,16 @@ pub enum MyErr {
     SerdeJson(serde_json::Error),
 }
 
-impl ToString for MyErr {
-    fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for MyErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
             MyErr::Msg(err) => err.to_owned(),
             MyErr::Ldap(err) => err.to_string(),
             MyErr::Io(err) => err.to_string(),
             MyErr::SerdeJson(err) => err.to_string(),
-        }
+        })
     }
 }
-
 
 impl From<LdapError> for MyErr {
     fn from(err: LdapError) -> Self {

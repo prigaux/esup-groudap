@@ -21,6 +21,7 @@ mod test_data;
 mod api_routes;
 mod cas_auth;
 mod cron;
+mod remote_query;
 mod rocket_helpers;
 
 use rocket::{fairing::AdHoc, fs::FileServer, fs::relative};

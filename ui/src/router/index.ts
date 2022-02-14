@@ -30,6 +30,7 @@ const router = createRouter({
       component: SgroupHistoryView,
       props: route => ({ id: route.query.id }),
     },
+    // must be kept in sync with isJsUiRoute in Rust code
   ]
 })
 

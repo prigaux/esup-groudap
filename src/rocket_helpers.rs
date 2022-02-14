@@ -25,7 +25,7 @@ impl<'r> FromRequest<'r> for IsJsUiRoute {
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, ()> {
         match req.uri().path().as_str() {
             // keep in sync with ui/src/router/index.ts "routes" "path"
-            "/" | "/sgroup" => Outcome::Success(IsJsUiRoute),
+            "/" | "/sgroup" | "/new_sgroup" | "/sgroup_history" => Outcome::Success(IsJsUiRoute),
             _ => Outcome::Forward(()),
         }
     }
