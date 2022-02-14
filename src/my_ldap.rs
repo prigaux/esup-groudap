@@ -193,7 +193,7 @@ impl LdapW<'_> {
     }
 
     pub async fn search_sgroups(&mut self, filter: &str, attrs: Vec<&String>, sizelimit: Option<i32>) -> Result<impl Iterator<Item = SearchEntry>> {
-        let rs = self.search(&self.config.groups_dn, dbg!(filter), attrs, sizelimit).await?;
+        let rs = self.search_raw(&self.config.groups_dn, dbg!(filter), attrs, sizelimit).await?;
         let z = rs.into_iter().map(|r| { SearchEntry::construct(r) });
         Ok(z)
     }   
@@ -224,7 +224,7 @@ impl LdapW<'_> {
 
     pub async fn search_subjects(&mut self, base_dn: &str, attrs: &[String], filter: &str, sizelimit: Option<i32>) -> Result<Subjects> {
         let attrs = shallow_copy_vec(attrs);
-        let rs = self.search(base_dn, dbg!(filter), attrs, sizelimit).await?;
+        let rs = self.search_raw(base_dn, dbg!(filter), attrs, sizelimit).await?;
         Ok(rs.into_iter().map(|r| { 
             let entry = SearchEntry::construct(r);
             let sgroup_id = self.config.dn_to_sgroup_id(&entry.dn);

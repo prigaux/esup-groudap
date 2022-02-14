@@ -52,7 +52,7 @@ impl LdapW<'_> {
         Ok(LdapW { ldap, config, logged_user })
     }
 
-    pub async fn search<'a, S: AsRef<str> + Send + Sync + 'a>(
+    pub async fn search_raw<'a, S: AsRef<str> + Send + Sync + 'a>(
         &mut self, base: &str, filter: &str, attrs: Vec<S>, sizelimit: Option<i32>
     ) -> Result<Vec<ResultEntry>> {
         Ok(handle_sizelimited_search(self.ldap.with_search_options(search_options(sizelimit))
@@ -97,7 +97,7 @@ impl LdapW<'_> {
     }
 
     pub async fn one_group_matches_filter(&mut self, filter: &str) -> Result<bool> {
-        let rs = self.search(&self.config.groups_dn, dbg!(filter), vec![""], Some(1)).await?;
+        let rs = self.search_raw(&self.config.groups_dn, dbg!(filter), vec![""], Some(1)).await?;
         Ok(!rs.is_empty())
     }
 
