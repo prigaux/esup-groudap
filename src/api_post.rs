@@ -10,7 +10,6 @@ use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs};
 use crate::my_ldap;
 use crate::my_ldap_check_rights::{check_right_on_self_or_any_parents, check_right_on_any_parents};
-use crate::my_ldap::{url_to_dn, url_to_dn_};
 use crate::ldap_filter;
 use crate::api_log;
 
@@ -83,15 +82,6 @@ fn my_mods_to_right(my_mods: &MyMods) -> Right {
     Right::Updater
 }
 
-fn check_mod_urls_are_dns(urls: &HashSet<String>) -> Result<()> {
-    for url in urls {
-        if url_to_dn(url).is_none() {
-            return Err(MyErr::Msg(format!("non DN URL {} is not allowed", url)))
-        }
-    }
-    Ok(())
-}
-
 fn to_submods(add: HashSet<String>, delete: HashSet<String>, replace: HashSet<String>) -> BTreeMap<MyMod, HashSet<String>> {
     btreemap! {
         MyMod::Add => add,
@@ -106,20 +96,14 @@ fn from_submods(mut submods: BTreeMap<MyMod, HashSet<String>>) -> [HashSet<Strin
 async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<String>>) -> Result<BTreeMap<MyMod, HashSet<String>>> {
     let [ mut add, mut delete, mut replace ] = from_submods(submods);
 
-    if replace.len() == 1 && mright == Mright::Member {
-        // only case where non DNs are allowed!
-    } else {
-        check_mod_urls_are_dns(&add)?;
-        check_mod_urls_are_dns(&delete)?;
-        check_mod_urls_are_dns(&replace)?;
-        if replace.len() > 4 {
+    if replace.len() > 4 {
+        if let Some(current_dns) = {
+            let group_dn = ldp.config.sgroup_id_to_dn(id);
+            ldp.read_direct_mright(&group_dn, mright).await?
+        } {
             // transform Replace into Add/Delete
-            let current_urls = {
-                let group_dn = ldp.config.sgroup_id_to_dn(id);
-                ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?
-            }.into_iter().collect();
-            add.extend(replace.difference(&current_urls).map(|e| e.to_owned()));
-            delete.extend(current_urls.difference(&replace).map(|e| e.to_owned()));
+            add.extend(replace.difference(&current_dns).map(|e| e.to_owned()));
+            delete.extend(current_dns.difference(&replace).map(|e| e.to_owned()));
             eprintln!("  replaced long\n    Replace {:?} with\n    Add {:?}\n    Replace {:?}", replace, add, delete);
             replace = hashset!{};
         }
@@ -194,8 +178,7 @@ async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<String>) ->
 async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mright) -> Result<UpResult> {
     eprintln!("  may_update_flattened_mrights({}, {:?})", id, mright);
     let group_dn = ldp.config.sgroup_id_to_dn(id);
-    let direct_urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
-    if let Some(direct_dns) = direct_urls.into_iter().map(url_to_dn_).collect::<Option<HashSet<_>>>() {
+    if let Some(direct_dns) = ldp.read_direct_mright(&group_dn, mright).await? {
         let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
         if flattened_dns.is_empty() && mright == Mright::Member {
             flattened_dns.insert("".to_owned());

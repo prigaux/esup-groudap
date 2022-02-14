@@ -187,6 +187,11 @@ impl LdapW<'_> {
         Ok(())
     }
  
+    pub async fn read_direct_mright(&mut self, group_dn: &str, mright: Mright) -> Result<Option<HashSet<String>>> {
+        let direct_urls = self.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
+        Ok(direct_urls.into_iter().map(url_to_dn_).collect::<Option<HashSet<_>>>())
+    }
+
     pub async fn read_sgroup<'a, S: AsRef<str> + Send + Sync + 'a>(&mut self, id: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {
         let dn = self.config.sgroup_id_to_dn(id);
         self.read(&dn, attrs).await
@@ -260,7 +265,7 @@ fn to_ldap_mods(mods : &MyMods) -> Vec<Mod<String>> {
         let attr = right.to_attr();
         for (action, list) in submods {
             let mod_ = match action { MyMod::Add => Mod::Add, MyMod::Delete => Mod::Delete, MyMod::Replace => Mod::Replace };
-            r.push(mod_(attr.to_string(), list.clone()));
+            r.push(mod_(attr.to_string(), list.iter().map(|dn| dn_to_url(dn)).collect()));
         }
     }
     r

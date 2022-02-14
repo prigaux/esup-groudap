@@ -8,7 +8,6 @@ use crate::my_err::{Result};
 use crate::ldap_wrapper::{LdapW};
 use crate::ldap_filter;
 use crate::my_ldap;
-use crate::my_ldap::{dn_to_url};
 use crate::api_get;
 use crate::api_post;
 
@@ -93,7 +92,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     ]).await?;
 
     my_ldap::modify_direct_members_or_rights(ldp, "", &btreemap!{
-        Mright::Admin => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
+        Mright::Admin => btreemap!{ MyMod::Add => hashset![prigaux_dn()] },
     }).await?;
 
     let cfg_and_trusted = || CfgAndLU { user: LoggedUser::TrustedAdmin, ..cfg_and_lu };
@@ -138,8 +137,8 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     assert!(api_get::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await.is_err());
 
     api_post::modify_members_or_rights(cfg_and_prigaux(), "collab.DSIUN", btreemap!{
-        Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
-        Mright::Updater => btreemap!{ MyMod::Add => hashset![dn_to_url(&aanli_dn())] },
+        Mright::Member => btreemap!{ MyMod::Add => hashset![prigaux_dn()] },
+        Mright::Updater => btreemap!{ MyMod::Add => hashset![aanli_dn()] },
     }, &None).await?;
 
     assert_eq!(api_get::get_sgroup(cfg_and_aanli(), "collab.DSIUN").await?, 
@@ -162,14 +161,14 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
         "description".to_owned() => "Grouper admins de toute l'arborescence\n\nTicket truc".to_owned(),
     }).await?;
     api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
-        Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&prigaux_dn())] },
+        Mright::Member => btreemap!{ MyMod::Add => hashset![prigaux_dn()] },
     }, &None).await?;
     assert_eq!(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), Mright::Member).await?, vec![prigaux_dn()]);
 
     api_post::modify_members_or_rights(cfg_and_prigaux(), "", btreemap!{
         Mright::Admin => btreemap!{ 
-            MyMod::Delete => hashset![dn_to_url(&prigaux_dn())],
-            MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"))],
+            MyMod::Delete => hashset![prigaux_dn()],
+            MyMod::Add => hashset![ldp.config.sgroup_id_to_dn("applications.grouper.super-admins")],
         },
     }, &None).await?;
 
@@ -185,7 +184,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     };
     api_post::create(cfg_and_prigaux(), "collab.foo", collab_foo_attrs()).await?;
     api_post::modify_members_or_rights(cfg_and_prigaux(), "collab.foo", btreemap!{
-        Mright::Admin => btreemap!{ MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
+        Mright::Admin => btreemap!{ MyMod::Add => hashset![ldp.config.sgroup_id_to_dn("collab.DSIUN")] },
     }, &None).await?;
     assert_eq!(sort(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::Admin).await?), vec![
         ldp.config.sgroup_id_to_dn("collab.DSIUN"), prigaux_dn(),
@@ -193,7 +192,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
 
     eprintln!(r#"remove last "member". Need to put an empty member back"#);
     api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
-        Mright::Member => btreemap!{ MyMod::Delete => hashset![dn_to_url(&prigaux_dn())] },
+        Mright::Member => btreemap!{ MyMod::Delete => hashset![prigaux_dn()] },
     }, &None).await?;
     assert_eq!(ldp.read_one_multi_attr__or_err(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), "member").await?, vec![""]);
     eprintln!(r#"prigaux is no more admin..."#);
@@ -201,7 +200,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
 
     eprintln!(r#"add group in group "super-admins""#);
     api_post::modify_members_or_rights(cfg_and_trusted(), "applications.grouper.super-admins", btreemap!{
-        Mright::Member => btreemap!{ MyMod::Add => hashset![dn_to_url(&ldp.config.sgroup_id_to_dn("collab.DSIUN"))] },
+        Mright::Member => btreemap!{ MyMod::Add => hashset![ldp.config.sgroup_id_to_dn("collab.DSIUN")] },
     }, &None).await?;
     assert_eq!(HashSet::from_iter(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("applications.grouper.super-admins"), Mright::Member).await?), 
                hashset![ prigaux_dn(), ldp.config.sgroup_id_to_dn("collab.DSIUN") ]);
