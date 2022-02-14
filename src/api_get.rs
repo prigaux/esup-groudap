@@ -254,7 +254,7 @@ pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mrig
 
     let flattened_dns = {
         let dn = ldp.config.sgroup_id_to_dn(id);
-        ldp.read_flattened_mright(&dn, mright).await?
+        ldp.read_flattened_mright_raw(&dn, mright).await?
     };
     let count = flattened_dns.len();
     let subjects = get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await?;

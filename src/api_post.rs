@@ -188,7 +188,7 @@ async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mri
             flattened_dns.insert(Dn::from(""));
         }
         let current_flattened_dns = HashSet::from_iter(
-            ldp.read_flattened_mright(&group_dn, mright).await?
+            ldp.read_flattened_mright_raw(&group_dn, mright).await?
         );
         let to_add = flattened_dns.difference(&current_flattened_dns).collect();
         let to_remove = current_flattened_dns.difference(&flattened_dns).collect();

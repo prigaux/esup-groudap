@@ -84,12 +84,17 @@ impl LdapW<'_> {
         )
     }
 
-    pub async fn read_flattened_mright(&mut self, dn: &Dn, mright: Mright) -> Result<Vec<Dn>> {
+    pub async fn read_flattened_mright_raw(&mut self, dn: &Dn, mright: Mright) -> Result<Vec<Dn>> {
         let l = self.read_one_multi_attr__or_err(dn, self.config.to_flattened_attr(mright)).await?;
+        Ok(l.into_iter().map(|dn| Dn(dn)).collect())
+    }
+
+    pub async fn read_flattened_mright(&mut self, dn: &Dn, mright: Mright) -> Result<Vec<Dn>> {
+        let l = self.read_flattened_mright_raw(dn, mright).await?;
         // turn [""] into []
         Ok(match l.first() {
-            Some(s) if s.is_empty() => vec![],
-            _ => l.into_iter().map(|dn| Dn(dn)).collect()
+            Some(s) if s.0.is_empty() => vec![],
+            _ => l
         })
     }
 

@@ -160,7 +160,9 @@ pub enum Right { Reader, Updater, Admin }
 pub enum MyMod { Add, Delete, Replace }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Hash, Clone, PartialOrd, Ord)]
+#[serde(transparent)] 
 pub struct Dn(pub String);
+
 pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<Dn>>>;
 
 impl From<String> for Dn {
