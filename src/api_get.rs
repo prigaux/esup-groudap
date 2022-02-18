@@ -13,6 +13,7 @@ use crate::my_ldap::{dn_to_rdn_and_parent_dn, user_urls_, user_has_right_on_sgro
 use crate::my_ldap::{url_to_dn_};
 use crate::my_ldap_check_rights::check_right_on_self_or_any_parents;
 use crate::ldap_filter;
+use crate::remote_query;
 
 fn is_disjoint(vals: &[String], set: &HashSet<String>) -> bool {
     !vals.iter().any(|val| set.contains(val))
@@ -185,6 +186,14 @@ async fn get_right_and_parents(ldp: &mut LdapW<'_>, id: &str, self_attrs: &mut L
     Ok((best, parents))
 }
 
+fn direct_members_to_remote_sql_query(l : &Vec<String>) -> Result<Option<RemoteSqlQuery>> {
+    if let [e] = l.as_slice() {
+        remote_query::parse_sql_url(e)
+    } else {
+        Ok(None)
+    }
+}
+
 pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndMoreOut> {
     eprintln!("get_sgroup({})", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
@@ -203,7 +212,7 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         // use the 3 attrs kinds:
         let mut attrs = entry.attrs;
         // #1 direct members
-        let direct_members = attrs.remove(&Mright::Member.to_attr());
+        let direct_members = attrs.remove(&Mright::Member.to_attr()).unwrap_or_default();
         // #2 compute rights (also computing parents because both require user_urls)
         let (right, parents) = get_right_and_parents(ldp, id, &mut attrs).await?;
         // #3 pack the remaining attrs:
@@ -212,8 +221,10 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         let more = if is_stem { 
             let children = get_children(ldp, id).await?;
             SgroupOutMore::Stem { children }
+        } else if let Some(remote_sql_query) = direct_members_to_remote_sql_query(&direct_members)? {
+            SgroupOutMore::RemoteGroup { remote_sql_query }
         } else { 
-            let direct_members = get_subjects_from_urls(ldp, direct_members.unwrap_or_default()).await?;
+            let direct_members = get_subjects_from_urls(ldp, direct_members).await?;
             SgroupOutMore::Group { direct_members }
         };
         Ok(SgroupAndMoreOut { attrs, right, more, parents })
@@ -254,7 +265,7 @@ pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mrig
 
     let flattened_dns = {
         let dn = ldp.config.sgroup_id_to_dn(id);
-        ldp.read_flattened_mright_raw(&dn, mright).await?
+        ldp.read_flattened_mright(&dn, mright).await?
     };
     let count = flattened_dns.len();
     let subjects = get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await?;

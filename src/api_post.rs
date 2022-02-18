@@ -239,3 +239,25 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     Ok(())
 }
 
+pub async fn modify_remote_sql_query(cfg_and_lu: CfgAndLU<'_>, id: &str, remote: RemoteSqlQuery, msg: &Option<String>) -> Result<()> {
+    eprintln!("modify_remote_sql_query({}, _)", id);
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    if !cfg_and_lu.cfg.remotes.contains_key(&remote.remote_cfg_name) {
+        return Err(MyErr::Msg(format!("unknown remove_cfg_name {}", remote.remote_cfg_name)))
+    }
+    if let Some(to_ss) = &remote.to_subject_source {
+        if !cfg_and_lu.cfg.ldap.subject_sources.iter().any(|ss| ss.dn == to_ss.ssdn) {
+            return Err(MyErr::Msg(format!("unknown to_subject_source.ssdn {:?}", to_ss.ssdn)))
+        }
+    }
+    
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, vec![
+        Mod::Replace(Mright::Member.to_attr(), hashset![ String::from(&remote) ]),
+    ]).await?.success()?;
+
+    api_log::log_sgroup_action(&cfg_and_lu, id, "modify_remote_sql_query", msg, serde_json::to_value(remote)?).await?;
+
+    Ok(())
+}
+

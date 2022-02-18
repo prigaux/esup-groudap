@@ -15,7 +15,7 @@ use serde_json::json;
 
 
 use crate::helpers::{before};
-use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut, Dn};
+use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut, Dn, RemoteSqlQuery};
 use crate::api_get;
 use crate::api_post;
 use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json, Cache};
@@ -69,6 +69,11 @@ async fn delete(id: String, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
 #[post("/modify_members_or_rights?<id>&<msg>", data = "<mods>")]
 async fn modify_members_or_rights(id: String, msg: Option<String>, mods: Json<MyMods>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
     action_result(api_post::modify_members_or_rights(cfg_and_lu, &id, mods.into_inner(), &msg).await)
+}
+
+#[post("/modify_remote_sql_query?<id>&<msg>", data = "<remote>")]
+async fn modify_remote_sql_query(id: String, msg: Option<String>, remote: Json<RemoteSqlQuery>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
+    action_result(api_post::modify_remote_sql_query(cfg_and_lu, &id, remote.into_inner(), &msg).await)
 }
 
 #[get("/sgroup?<id>")]
@@ -138,6 +143,6 @@ pub fn routes() -> Vec<Route> {
         sgroup, sgroup_direct_rights, group_flattened_mright, sgroup_logs,
         search_sgroups, search_subjects, mygroups, 
         config_public, config_subject_sources, config_remotes,
-        create, modify_sgroup_attrs, delete, modify_members_or_rights,
+        create, modify_sgroup_attrs, delete, modify_members_or_rights, modify_remote_sql_query,
     ]
 }

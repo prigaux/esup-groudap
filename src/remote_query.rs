@@ -67,9 +67,9 @@ impl From<&ToSubjectSource> for String {
     }
 }
 
-impl From<RemoteSqlQuery> for String {
+impl From<&RemoteSqlQuery> for String {
 
-    fn from(rsq: RemoteSqlQuery) -> Self {
+    fn from(rsq: &RemoteSqlQuery) -> Self {
         let opt = 
             if let Some(subject) = rsq.to_subject_source.as_ref().map(String::from) {
                 format!(" : subject={}", subject)
@@ -77,6 +77,11 @@ impl From<RemoteSqlQuery> for String {
                 "".to_owned()
             };
         format!("sql: remote={}{} : {}", rsq.remote_cfg_name, opt, rsq.select_query)
+    }
+}
+impl From<RemoteSqlQuery> for String {
+    fn from(rsq: RemoteSqlQuery) -> Self {
+        String::from(&rsq)
     }
 }
 
@@ -102,8 +107,8 @@ fn parse_to_subject_source(s: &str) -> Result<ToSubjectSource> {
         .ok_or(MyErr::Msg(format!("expected ou=xxx,dc=xxx?uid, got {}", s)))?;
     Ok(ToSubjectSource { ssdn: Dn::from(ssdn), id_attr: id_attr.to_owned() })
 }
-pub fn parse_sql_url(url: String) -> Result<Option<RemoteSqlQuery>> {
-    Ok(if let Some(rest) = strip_prefix_and_trim(&url, "sql:") {        
+pub fn parse_sql_url(url: &str) -> Result<Option<RemoteSqlQuery>> {
+    Ok(if let Some(rest) = strip_prefix_and_trim(url, "sql:") {        
         let (remote_cfg_name, rest) = get_param("remote", rest)
             .ok_or(MyErr::Msg(format!("remote= is missing in {}", url)))?;
         let (subject, select) = optional_param("subject", rest);
@@ -137,12 +142,12 @@ mod tests {
     #[test]
     fn test_parse_sql_url() -> Result<()> {
         fn test_ok(url: &str) -> Result<()> {
-            let remote = parse_sql_url(url.to_owned())?;
+            let remote = parse_sql_url(url)?;
             assert_eq!(remote.map(String::from), Some(String::from(url)));
             Ok(())
         }
         fn test_err(url: &str) {
-            if let Ok(remote) = parse_sql_url(url.to_owned()) {
+            if let Ok(remote) = parse_sql_url(url) {
                 assert!(false, "unexpected success {:?}", remote);
             }
         }

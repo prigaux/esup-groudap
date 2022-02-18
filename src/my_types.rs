@@ -210,6 +210,7 @@ pub struct SgroupOutAndRight {
 pub enum SgroupOutMore {
     Stem { children: SgroupsWithAttrs },
     Group { direct_members: Subjects },
+    RemoteGroup { remote_sql_query: RemoteSqlQuery },
 }
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
@@ -292,13 +293,13 @@ pub struct CfgAndLU<'a> {
     pub user: LoggedUser,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ToSubjectSource {
     pub ssdn: Dn,
     pub id_attr: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct RemoteSqlQuery {
     pub remote_cfg_name: String, 
     pub select_query: String, // query returns either a DN or a string to transform into DN using ToSubjectSource

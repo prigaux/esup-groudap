@@ -11,7 +11,7 @@ use crate::ldap_wrapper::{LdapW};
 pub async fn the_loop(config: Config, cache: Cache) -> Result<()> {
     let ldp = &mut LdapW::open(&config.ldap, &LoggedUser::TrustedAdmin).await?;
 
-    let remote = remote_query::parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users".to_owned())?.unwrap();
+    let remote = remote_query::parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users")?.unwrap();
 
     let dns = remote_query::query(ldp, &config.remotes, &remote).await?;
     eprintln!("in thread {:?}", dns);

@@ -7,6 +7,7 @@ use crate::my_types::*;
 use crate::my_err::{Result};
 use crate::ldap_wrapper::{LdapW};
 use crate::ldap_filter;
+use crate::remote_query;
 use crate::my_ldap;
 use crate::api_get;
 use crate::api_post;
@@ -189,6 +190,15 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     assert_eq!(sort(ldp.read_flattened_mright(&ldp.config.sgroup_id_to_dn("collab.foo"), Mright::Admin).await?), vec![
         ldp.config.sgroup_id_to_dn("collab.DSIUN"), prigaux_dn(),
     ]);
+    let remote_sql_query = || remote_query::parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users").unwrap().unwrap();
+    api_post::modify_remote_sql_query(cfg_and_prigaux(), "collab.foo", remote_sql_query(), &None).await?;
+    assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.foo").await?,
+        SgroupAndMoreOut { 
+            attrs: collab_foo_attrs(), more: SgroupOutMore::RemoteGroup { remote_sql_query: remote_sql_query() }, 
+            parents: vec![ 
+                root_with_id(Some(Right::Admin)), collab_with_id(Some(Right::Admin)) 
+            ], right: Right::Admin }
+    );
 
     eprintln!(r#"remove last "member". Need to put an empty member back"#);
     api_post::modify_members_or_rights(cfg_and_prigaux(), "applications.grouper.super-admins", btreemap!{
