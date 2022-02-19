@@ -33,7 +33,7 @@ const goto = (sgroup: UnknownT) => {
 
 <fieldset>
     <legend><h3>Recherche</h3></legend>
-    <Typeahead :focus="true" @update:model-value="goto" :minChars="3" :limit="search_limit" :editable="false" :options="search" v-slot="{ item: sgroup }">
+    <Typeahead :focus="true" @update:model-value="goto" :minChars="3" :limit="search_limit" :options="search" v-slot="{ item: sgroup }">
         <MyIcon :name="sgroup.sgroup_id.endsWith('.') ? 'folder' : 'users'" class="on-the-left" />
         <SgroupLink :sgroup="sgroup" />
     </Typeahead>

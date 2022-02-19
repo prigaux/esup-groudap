@@ -29,9 +29,32 @@ export interface SgroupOutAndRight {
     right?: Right
 }
 
+export interface ToSubjectSource {
+    ssdn: Dn
+    id_attr: string
+}
+
+export interface RemoteConfig {
+    host: string,
+    port?: number,
+    driver: string,
+    db_name: string,
+    periodicity: string,
+}
+
+export interface RemoteSqlQuery {
+    remote_cfg_name: string
+    select_query: string // query returns either a DN or a string to transform into DN using ToSubjectSource
+    to_subject_source: ToSubjectSource
+}
+
 export interface SgroupOutMore {
     stem?: { children: SgroupsWithAttrs }
     group?: { direct_members: Subjects }
+    remotegroup: { remote_sql_query: RemoteSqlQuery }
+
+    // internal
+    remotegroup_orig?: { remote_sql_query: RemoteSqlQuery }
 }
 
 export type SgroupAndMoreOut = SgroupOutMore & {

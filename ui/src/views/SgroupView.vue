@@ -1,5 +1,5 @@
 <script lang="ts">
-import { fromPairs, isEmpty, last } from 'lodash'
+import { cloneDeep, fromPairs, isEmpty, isEqual, last } from 'lodash'
 import { computed, ref } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
@@ -20,6 +20,7 @@ import MyIcon from '@/components/MyIcon.vue';
 import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 import SgroupRightsView from './SgroupRightsView.vue';
+import RemoteGroupView from './RemoteGroupView.vue';
 
 const props = withDefaults(defineProps<{
   id: string,
@@ -33,7 +34,7 @@ const set_tabToDisplay = (tabToDisplay: 'direct'|'rights') => {
 
 let tabs = computed(() => {
     return {
-        direct: sgroup.value?.group ? "Membres" : "Contenu du dossier",
+        direct: sgroup.value?.stem ? "Contenu du dossier" : "Membres",
         rights: 'Privilèges',
     }
 })
@@ -48,6 +49,10 @@ let sgroup = asyncComputed(async () => {
     if (sgroup.group) {
         await api.add_sscfg_dns(sgroup.group.direct_members)
     }
+    if (sgroup.remotegroup) {
+        sgroup.remotegroup.remote_sql_query.to_subject_source ||= { ssdn: '', id_attr: '' }
+        sgroup.remotegroup_orig = cloneDeep(sgroup.remotegroup)
+    }
     return sgroup
 })
 
@@ -61,7 +66,7 @@ let add_member_show = ref(false)
 
 async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod) {
     console.log('add_remove_direct_mright')
-    await api.modify_members_or_rights(props.id, { [mright]: { [mod]: ['ldap:///' + dn] } })
+    await api.modify_members_or_rights(props.id, { [mright]: { [mod]: [dn] } })
     if (mright === 'member') {
         sgroup_force_refresh.value++
     } else {
@@ -128,6 +133,27 @@ const delete_sgroup = async () => {
     }
 }
 
+const send_modify_remotegroup = async () => {
+    let remote_sql_query = { ...sgroup.value.remotegroup.remote_sql_query }
+    const to_ss = remote_sql_query.to_subject_source
+    // @ts-expect-error: internally in Vue.js, "to_subject_source" field is always there, but we add/hide it before API calls
+    if (!to_ss.ssdn || !to_ss.id_attr) delete remote_sql_query.to_subject_source;
+    await api.modify_remote_sql_query(props.id, remote_sql_query)
+    sgroup_force_refresh.value++
+}
+const cancel_modify_remotegroup = () => {
+    sgroup_force_refresh.value++
+}
+
+const transform_group_into_RemoteGroup = () => {
+    delete sgroup.value.group;
+    sgroup.value.remotegroup = { remote_sql_query: {
+        remote_cfg_name: '',
+        select_query: '',
+        to_subject_source: { ssdn: '', id_attr: '' },
+    } }
+}
+
 </script>
 
 <template>
@@ -181,16 +207,16 @@ const delete_sgroup = async () => {
         </div>
     </fieldset>
 
-    <fieldset v-if="sgroup.remote">
+    <fieldset v-if="sgroup.remotegroup">
         <legend>
             <h4>Synchronisation</h4>
-            <template v-if="">
-                <template v-if="modify_attrs.description">
-                    <MyIcon name="check" class="on-the-right" @click="send_modify_attr('description')" />
-                    <MyIcon name="close" class="on-the-right" @click="cancel_modify_attr('description', 'force')" />
-                </template>
+            <template v-if="!isEqual(sgroup.remotegroup, sgroup.remotegroup_orig)">
+                <MyIcon name="check" class="on-the-right" @click="send_modify_remotegroup" />
+                <MyIcon name="close" class="on-the-right" @click="cancel_modify_remotegroup" />
             </template>
         </legend>
+
+        <RemoteGroupView :remote_sql_query="sgroup.remotegroup.remote_sql_query" @save="send_modify_remotegroup" />
     </fieldset>
 
     <p></p>
@@ -267,7 +293,7 @@ const delete_sgroup = async () => {
         </RouterLink></li>
 
         <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
-            <button @click="add_remote">Synchroniser</button>
+            <button @click="transform_group_into_RemoteGroup">Transformer en un groupe synchroniser</button>
         </li>
 
     </ul>

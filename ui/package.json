@@ -13,6 +13,7 @@
     "@types/lodash": "^4.14.178",
     "@vueuse/core": "^7.5.4",
     "lodash": "^4.17.21",
+    "prismjs": "^1.27.0",
     "vue": "^3.2.27",
     "vue-router": "^4.0.12"
   },

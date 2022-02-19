@@ -1,6 +1,6 @@
 import { at, pickBy } from "lodash";
 import { forEach } from "./helpers";
-import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
+import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, RemoteConfig, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -62,6 +62,9 @@ const api_post = (api_function: string, search_params: Record<string, string>, j
 export const modify_members_or_rights = (id: string, mods: MyMods) => (
     api_post("modify_members_or_rights", { id }, mods)
 )
+export const modify_remote_sql_query = (id: string, remote: RemoteSqlQuery) => (
+    api_post("modify_remote_sql_query", { id }, remote)
+)
 
 export const delete_sgroup = (id: string) => (
     api_post('delete', { id }, {})
@@ -101,6 +104,9 @@ export const mygroups = () : Promise<SgroupsWithAttrs> => (
 )
 export const config_subject_sources = () : Promise<LdapConfigOut> => (
     api_get("config/subject_sources", {}, { memoize: true })
+)
+export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
+    api_get("config/remotes", {}, { memoize: true })
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {
