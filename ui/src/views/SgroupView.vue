@@ -1,6 +1,6 @@
 <script lang="ts">
 import { cloneDeep, fromPairs, isEmpty, isEqual, last } from 'lodash'
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import router from '@/router';
 import { asyncComputed } from '@vueuse/core'
 import { new_ref_watching } from '@/vue_helpers';
@@ -20,7 +20,7 @@ import MyIcon from '@/components/MyIcon.vue';
 import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 import SgroupRightsView from './SgroupRightsView.vue';
-import RemoteGroupView from './RemoteGroupView.vue';
+const RemoteGroupView = defineAsyncComponent(() => import('./RemoteGroupView.vue'));
 
 const props = withDefaults(defineProps<{
   id: string,

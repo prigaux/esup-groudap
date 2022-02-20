@@ -122,6 +122,7 @@ export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
 export interface TestRemoteQuerySql {
     count: number,
     values: string[],
+    values_truncated: boolean,
     ss_guess?: [ToSubjectSource, Subjects],
 }
 export const test_remote_query_sql = (id: string, remote_sql_query: RemoteSqlQuery): Promise<TestRemoteQuerySql> => (

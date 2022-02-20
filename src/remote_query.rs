@@ -181,6 +181,7 @@ pub async fn query_subjects(
 pub struct TestRemoteQuerySql {
     pub count: usize,
     pub values: Vec<String>,
+    pub values_truncated: bool,
     pub ss_guess: Option<(ToSubjectSource, Subjects)>,
 }
 
@@ -191,8 +192,9 @@ pub async fn test_remote_query_sql(
 ) -> Result<TestRemoteQuerySql> {
     let mut values = query(&cfg_and_lu.cfg.remotes, &remote_sql_query)?;
     let count = values.len();
-    values.truncate(10); // return an extract
-    let ss_guess = if count > 3 {
+    let max_values = 10;    
+    values.truncate(max_values); // return an extract
+    let ss_guess = if count > 0 {
         guest_subject_source(ldp, &values).await?
     } else {
         None
@@ -200,6 +202,7 @@ pub async fn test_remote_query_sql(
     Ok(TestRemoteQuerySql {
         count,
         values,
+        values_truncated: count > max_values,
         ss_guess,
     })
 }

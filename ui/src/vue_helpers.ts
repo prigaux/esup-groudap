@@ -1,5 +1,22 @@
-import { debouncedWatch } from "@vueuse/core"
-import { FunctionDirective, reactive, ref, UnwrapRef, watch } from "vue"
+import { debouncedWatch, watchOnce } from "@vueuse/core"
+import { FunctionDirective, reactive, Ref, ref, UnwrapRef, watch, WatchOptions, WatchSource } from "vue"
+
+export const maySingleton = <T>(val: T | undefined): T[] => (
+    val ? [val] : []
+)
+
+// alike asyncComputed, but can be used with an existing Ref (alternative would be syncRef, but the lifetime is different)
+export function setRefAsync<T>(ref: Ref<T>, asyncValue: Promise<T>, initialValue: T) {
+    ref.value = initialValue
+    asyncValue.then(value => ref.value = value)
+}
+
+// alike watchOnce but return a Promise
+export const watchOnceP = <T, R>(source: WatchSource<T>, cb: () => R, options?: WatchOptions<boolean>): Promise<R> => (
+    new Promise((resolve) => {
+        watchOnce(source, () => resolve(cb()), options)
+    })
+)
 
 export function throttled_ref(initial_val: string, min_length?: number) {
     let real = ref(initial_val)

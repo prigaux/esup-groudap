@@ -7,12 +7,14 @@ import 'prismjs/components/prism-sql'
 import 'prismjs/themes/prism.css'
 
 import * as api from '@/api'
-import { computed } from 'vue';
+import { computed, ref } from 'vue'
+import { setRefAsync, watchOnceP } from '@/vue_helpers'
 
 </script>
 
 <script setup lang="ts">
 import { isEmpty } from 'lodash'
+import { maySingleton } from '@/vue_helpers'
 
 const props = defineProps<{
     id: string,
@@ -31,27 +33,38 @@ const highlighted_select_query = computed(() => (
     Prism.highlight(props.remote_sql_query.select_query + ' ', Prism.languages.sql, 'sql')
 ))
 
+let last_test_remote_query_sql = ref(undefined as api.TestRemoteQuerySql | undefined)
 const test_remote_query_sql = async () => {
-    const { count, values, ss_guess } = await api.test_remote_query_sql(props.id, props.remote_sql_query)
-    let msg = `La requête a renvoyé ${count} valeurs.\n\nExtrait: ${values.join(' ')}`
-    if (ss_guess) {
-        props.remote_sql_query.to_subject_source = ss_guess[0]
-        msg += `\n\nUn subject source et attribut correspondent aux valeurs.`
+    const val = await api.test_remote_query_sql(props.id, props.remote_sql_query)
+    if (val.ss_guess) {
+        props.remote_sql_query.to_subject_source = val.ss_guess[0]
     }
-    alert(msg);
+    setRefAsync(last_test_remote_query_sql,
+                watchOnceP(() => props.remote_sql_query, () => undefined, { deep: true }),
+                val)
 }
 
 </script>
 
 <template>
-<form @submit.prevent="$emit('save')">
+<form @submit.prevent="$emit('save')" v-if="remotes">
     <label>
         <span class="label">Remote</span>
-        <select v-model="remote_sql_query.remote_cfg_name">
-            <option value="">Choisir</option>    
-            <option v-for="(cfg, name) in remotes" :value="name">{{name}} ({{cfg.host}}/{{cfg.db_name}} @{{cfg.periodicity}})</option>
-        </select>
+            <select v-model="remote_sql_query.remote_cfg_name">
+                <option value="">Choisir</option>    
+                <option v-for="(_cfg, name) in remotes" :value="name">{{name}}</option>
+            </select>
     </label>
+    <label class="next-to-previous"><span class="label"></span>
+        <div v-for="cfg in maySingleton(remotes[remote_sql_query.remote_cfg_name])">
+            <small>
+                <span class="key">hôte:</span> {{cfg.host}}
+                <span class="key">db:</span> {{cfg.db_name}}
+                <span class="key">periodicité:</span> {{cfg.periodicity}}
+            </small>
+        </div>
+    </label>
+
     <label>
         <span class="label">Requête</span>
 
@@ -67,7 +80,29 @@ const test_remote_query_sql = async () => {
 
     <label>
         <span class="label"></span>
-        <button v-if="remote_sql_query.remote_cfg_name && remote_sql_query.select_query" @click.prevent="test_remote_query_sql">Valider la requête et deviner les paramètres ci-dessous</button>
+        <span>
+            <button v-if="remote_sql_query.remote_cfg_name && remote_sql_query.select_query" @click.prevent="test_remote_query_sql">Valider la requête et deviner les paramètres ci-dessous</button>
+
+            <TransitionGroup>
+            <div v-for="lt in maySingleton(last_test_remote_query_sql)">
+                <p>La requête a renvoyé {{lt.count}} valeurs. 
+                    <template v-if="lt.count">
+                        <br>
+                        <template v-if="lt.values_truncated">Extrait :</template>
+                        <blockquote>
+                            <pre>{{lt.values.join("\n")}}</pre>
+                        </blockquote>
+                    </template>
+                </p>
+                <p style="margin-bottom: 0;" v-if="lt.ss_guess">
+                    Les paramètres ci-dessous ont été devinés :
+                </p>
+                <p class="warning" v-else>
+                    <span class="big">⚠</span> Aucun subject source ne correspond aux valeurs
+                </p>
+            </div>
+            </TransitionGroup>
+        </span>
     </label>
 
     <label v-if="sscfgs">
@@ -91,9 +126,11 @@ const test_remote_query_sql = async () => {
 <style scoped>
 label {
     display: flex;
-    align-items: center;
     gap: 0.5rem;
     margin-bottom: 1rem;
+}
+label.next-to-previous {
+    margin-top: -1rem;
 }
 label > * {
     flex-basis: fill;
@@ -129,7 +166,7 @@ textarea {
 
     line-height: 1.5;
 
-    color: #00000060;
+    color: transparent; /* #00000060; */
     background: transparent;
     caret-color: #333333;
 
@@ -140,4 +177,23 @@ textarea::selection {
     color: #000000A0;
 }
 
+.v-enter-active, .v-leave-active {
+  transition: all 0.5s ease;
+}
+.v-enter-from, .v-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.warning {
+    color: darkred;
+    font-weight: bold;
+}
+
+.key {
+    color: #00225E
+}
+.big {
+    font-size: 150%;
+}
 </style>
