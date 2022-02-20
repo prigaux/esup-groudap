@@ -83,19 +83,19 @@ fn my_mods_to_right(my_mods: &MyMods) -> Right {
     Right::Updater
 }
 
-fn to_submods(add: HashSet<Dn>, delete: HashSet<Dn>, replace: HashSet<Dn>) -> BTreeMap<MyMod, HashSet<Dn>> {
-    btreemap! {
-        MyMod::Add => add,
-        MyMod::Delete => delete,
-        MyMod::Replace => replace,
-    }.into_iter().filter(|(_, urls)| !urls.is_empty()).collect()
+fn to_submods(add: HashSet<Dn>, delete: HashSet<Dn>, replace: Option<HashSet<Dn>>) -> BTreeMap<MyMod, HashSet<Dn>> {
+    let mut r = btreemap! {};
+    if !add.is_empty() { r.insert(MyMod::Add, add); }
+    if !delete.is_empty() { r.insert(MyMod::Delete, delete); }
+    if let Some(replace) = replace { r.insert(MyMod::Replace, replace); }
+    r
 }
 fn from_submods(mut submods: BTreeMap<MyMod, HashSet<Dn>>) -> [HashSet<Dn>; 3] {
     [ MyMod::Add, MyMod::Delete, MyMod::Replace ].map(|right| submods.remove(&right).unwrap_or_default())
 }
 
 async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<Dn>>) -> Result<BTreeMap<MyMod, HashSet<Dn>>> {
-    let [ mut add, mut delete, mut replace ] = from_submods(submods);
+    let [ mut add, mut delete, replace ] = from_submods(submods);
 
     if replace.len() > 4 {
         if let Some(current_dns) = {
@@ -106,10 +106,10 @@ async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright,
             add.extend(replace.difference(&current_dns).map(|e| e.clone()));
             delete.extend(current_dns.difference(&replace).map(|e| e.clone()));
             eprintln!("  replaced long\n    Replace {:?} with\n    Add {:?}\n    Replace {:?}", replace, add, delete);
-            replace = hashset!{};
+            return Ok(to_submods(add, delete, None))
         }
     }
-    Ok(to_submods(add, delete, replace))
+    Ok(to_submods(add, delete, Some(replace)))
 }
 
 // Check validity of modifications

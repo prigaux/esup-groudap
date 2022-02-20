@@ -155,7 +155,7 @@ pub enum Mright { Member, Reader, Updater, Admin }
 #[serde(rename_all = "lowercase")]
 pub enum Right { Reader, Updater, Admin }
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum MyMod { Add, Delete, Replace }
 

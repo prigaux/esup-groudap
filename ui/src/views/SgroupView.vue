@@ -134,8 +134,10 @@ const delete_sgroup = async () => {
 }
 
 const send_modify_remotegroup = async () => {
-    await api.modify_remote_sql_query(props.id, sgroup.value.remotegroup.remote_sql_query);
-    sgroup_force_refresh.value++
+    if (sgroup.value.remotegroup) {
+        await api.modify_remote_sql_query(props.id, sgroup.value.remotegroup.remote_sql_query);
+        sgroup_force_refresh.value++
+    }
 }
 const cancel_modify_remotegroup = () => {
     sgroup_force_refresh.value++
@@ -148,6 +150,12 @@ const transform_group_into_RemoteGroup = () => {
         select_query: '',
         to_subject_source: { ssdn: '', id_attr: '' },
     } }
+}
+const transform_RemoteGroup_into_group = async () => {
+    if (confirm("Le groupe sera vide. Ok ?")) {
+        await api.modify_members_or_rights(props.id, { member: { replace: [] } })
+        sgroup_force_refresh.value++
+    }
 }
 
 </script>
@@ -288,6 +296,9 @@ const transform_group_into_RemoteGroup = () => {
             <button>Historique</button>
         </RouterLink></li>
 
+        <li v-if="sgroup.remotegroup && sgroup.right === 'admin'">
+            <button @click="transform_RemoteGroup_into_group">Ne plus synchroniser ce groupe</button>
+        </li>
         <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
             <button @click="transform_group_into_RemoteGroup">Transformer en un groupe synchroniser</button>
         </li>
