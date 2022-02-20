@@ -37,6 +37,7 @@ dn = "ou=admin,dc=nodomain"
 name = "Applications"
 search_filter = "(|(cn=%TERM%)(displayName=*%TERM%*))"
 display_attrs = ["displayName", "description", "cn"]
+id_attrs = ["cn"]
 vue_template = """<MyIcon name="cogs" /> <span :title='attrs.description'>{{attrs.cn}} - {{attrs.displayName || first_line(attrs.description)}}</span>"""
 # default template is "display first non empty attr value"
 
@@ -45,6 +46,7 @@ dn = "ou=groups,dc=nodomain"
 name = "Groupe"
 search_filter = "(& (|(cn=*%TERM%*)(ou=*%TERM%*)(description=*%TERM%*)) (objectClass=groupOfNames) )"
 display_attrs = ["ou", "description", "cn"]
+id_attrs = ["cn"]
 # default template is "display first non empty attr value"
 
 [[default.ldap.subject_sources]]
@@ -52,6 +54,7 @@ dn = "ou=people,dc=nodomain"
 name = "Personnes"
 search_filter = "(& (|(uid=%TERM%)(cn=*%TERM%*)(displayName=*%TERM%*)) )" # (!(accountStatus=disabled))
 display_attrs = ["displayName", "mail", "eduPersonPrimaryAffiliation", "uid" ]
+id_attrs = ["mail", "uid", "eduPersonPrincipalName"]
 # below is sent to UI which decide what to do with it. category.attr should be listed in "display_attrs" above
 labels = { eduPersonPrimaryAffiliation = { student = "étudiant", staff = "biatss", teacher = "enseignant", _ = "autre" } }
 vue_template = """<MyIcon name="user" /> {{ 

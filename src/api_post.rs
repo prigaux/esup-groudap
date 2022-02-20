@@ -5,6 +5,7 @@ use std::collections::{HashSet, BTreeMap};
 use ldap3::{Mod};
 
 
+use crate::api_get::validate_remote;
 use crate::my_types::*;
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs};
@@ -242,14 +243,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
 pub async fn modify_remote_sql_query(cfg_and_lu: CfgAndLU<'_>, id: &str, remote: RemoteSqlQuery, msg: &Option<String>) -> Result<()> {
     eprintln!("modify_remote_sql_query({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
-    if !cfg_and_lu.cfg.remotes.contains_key(&remote.remote_cfg_name) {
-        return Err(MyErr::Msg(format!("unknown remove_cfg_name {}", remote.remote_cfg_name)))
-    }
-    if let Some(to_ss) = &remote.to_subject_source {
-        if !cfg_and_lu.cfg.ldap.subject_sources.iter().any(|ss| ss.dn == to_ss.ssdn) {
-            return Err(MyErr::Msg(format!("unknown to_subject_source.ssdn {:?}", to_ss.ssdn)))
-        }
-    }
+    validate_remote(&cfg_and_lu, &remote)?;
     
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, vec![

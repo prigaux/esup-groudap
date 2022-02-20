@@ -108,6 +108,9 @@ export const config_subject_sources = () : Promise<LdapConfigOut> => (
 export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
     api_get("config/remotes", {}, { memoize: true })
 )
+export const test_remote_query_sql = (id: string, remote_sql_query: RemoteSqlQuery): Promise<string> => (
+    api_get('test_remote_query_sql', { id, remote_sql_query: JSON.stringify(remote_sql_query) }, {})
+)
 
 export async function add_sscfg_dns(subjects: Subjects) {
     const sscfgs = (await config_subject_sources()).subject_sources
@@ -126,3 +129,4 @@ export async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
         }
     })
 }
+

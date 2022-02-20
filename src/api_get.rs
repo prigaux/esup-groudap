@@ -1,19 +1,19 @@
 #![allow(clippy::comparison_chain)]
 
-use std::collections::{BTreeMap, HashSet, HashMap};
+use std::collections::{BTreeMap, HashSet};
 
 use serde_json::Value;
 
 use crate::helpers::{after_last};
+use crate::my_ldap_subjects::{get_subjects_from_urls, get_subjects};
 use crate::my_types::*;
 use crate::api_log;
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
-use crate::my_ldap::{dn_to_rdn_and_parent_dn, user_urls_, user_has_right_on_sgroup_filter};
-use crate::my_ldap::{url_to_dn_};
+use crate::my_ldap::{user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap_check_rights::check_right_on_self_or_any_parents;
 use crate::ldap_filter;
-use crate::remote_query;
+use crate::remote_query::{self, TestRemoteQuerySql};
 
 fn is_disjoint(vals: &[String], set: &HashSet<String>) -> bool {
     !vals.iter().any(|val| set.contains(val))
@@ -35,59 +35,6 @@ fn user_highest_right(sgroup_attrs: &mut LdapAttrs, user_urls: &HashSet<String>)
         }
     }
     None
-}
-
-impl SubjectSourceConfig {
-    fn search_filter_(&self, term: &str) -> String {
-        self.search_filter.replace("%TERM%", term).replace(" ", "")
-    }
-}
-
-async fn get_subjects_from_same_branch(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, base_dn: &Dn, rdns: &[&str], search_token: &Option<String>) -> Result<Subjects> {
-    let rdns_filter = ldap_filter::or(rdns.iter().map(|rdn| ldap_filter::rdn(rdn)).collect());
-    let filter = if let Some(term) = search_token {
-        ldap_filter::and2(&rdns_filter,&sscfg.search_filter_(term))
-    } else {
-        rdns_filter
-    };
-    Ok(ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await?)
-}
-
-async fn get_subjects_from_urls(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
-    get_subjects(ldp, urls.into_iter().filter_map(url_to_dn_).collect(), &None, &None).await
-}
-
-fn into_group_map<K: Eq + std::hash::Hash, V, I: Iterator<Item = (K, V)>>(iter: I) -> HashMap<K, Vec<V>> {
-    iter.fold(HashMap::new(), |mut map, (k, v)| {
-        map.entry(k).or_insert_with(|| Vec::new()).push(v);
-        map
-    })
-}
-async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<Dn>, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
-    let mut r = BTreeMap::new();
-
-
-    let parent_dn_to_rdns = into_group_map(dns.iter().filter_map(|dn| {
-        let (rdn, parent_dn) = dn_to_rdn_and_parent_dn(dn)?;
-        Some((parent_dn, rdn))
-    }));
-        
-    for (parent_dn, rdns) in parent_dn_to_rdns {
-        let parent_dn = Dn::from(parent_dn);
-        if let Some(sscfg) = ldp.config.dn_to_subject_source_cfg(&parent_dn) {
-            let mut count = 0;
-            for rdns_ in rdns.chunks(10) {
-                let subjects = &mut get_subjects_from_same_branch(ldp, sscfg, &parent_dn, rdns_, search_token).await?;
-                count += subjects.len();
-                r.append(subjects);
-                if let Some(limit) = sizelimit {
-                    if count >= *limit { break; }
-                }
-            }
-        }
-    }
-
-    Ok(r)
 }
 
 /*
@@ -401,4 +348,27 @@ pub async fn get_sgroup_logs(cfg_and_lu: CfgAndLU<'_>, id: &str, bytes: i64) -> 
     check_right_on_self_or_any_parents(ldp, id, Right::Admin).await?;
 
     api_log::get_sgroup_logs(&cfg_and_lu.cfg.log_dir, id, bytes).await
+}
+
+pub fn validate_remote(cfg_and_lu: &CfgAndLU, remote: &RemoteSqlQuery) -> Result<()> {
+    if !cfg_and_lu.cfg.remotes.contains_key(&remote.remote_cfg_name) {
+        return Err(MyErr::Msg(format!("unknown remove_cfg_name {}", remote.remote_cfg_name)))
+    }
+    if let Some(to_ss) = &remote.to_subject_source {
+        if !cfg_and_lu.cfg.ldap.subject_sources.iter().any(|ss| ss.dn == to_ss.ssdn) {
+            return Err(MyErr::Msg(format!("unknown to_subject_source.ssdn {:?}", to_ss.ssdn)))
+        }
+    }
+    Ok(())
+}
+
+pub async fn test_remote_query_sql(cfg_and_lu: CfgAndLU<'_>, id: &str, remote_sql_query: RemoteSqlQuery) -> Result<TestRemoteQuerySql> {
+    eprintln!("test_remote_query_sql({}, {:?})", id, remote_sql_query);   
+    cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
+    validate_remote(&cfg_and_lu, &remote_sql_query)?;
+
+    let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
+    check_right_on_self_or_any_parents(ldp, id, Right::Admin).await?;
+
+    remote_query::test_remote_query_sql(ldp, &cfg_and_lu, remote_sql_query).await
 }

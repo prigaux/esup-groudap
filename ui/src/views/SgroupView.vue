@@ -216,7 +216,7 @@ const transform_group_into_RemoteGroup = () => {
             </template>
         </legend>
 
-        <RemoteGroupView :remote_sql_query="sgroup.remotegroup.remote_sql_query" @save="send_modify_remotegroup" />
+        <RemoteGroupView :id="props.id" :remote_sql_query="sgroup.remotegroup.remote_sql_query" @save="send_modify_remotegroup" />
     </fieldset>
 
     <p></p>

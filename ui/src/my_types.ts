@@ -79,6 +79,7 @@ export interface SubjectSourceConfig {
     name : string
     vue_template? : string
     display_attrs : string[]
+    id_attrs?: string[]
 }
 
 export interface LdapConfigOut {

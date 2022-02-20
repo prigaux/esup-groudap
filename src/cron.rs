@@ -13,8 +13,8 @@ pub async fn the_loop(config: Config, cache: Cache) -> Result<()> {
 
     let remote = remote_query::parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users")?.unwrap();
 
-    let dns = remote_query::query(ldp, &config.remotes, &remote).await?;
-    eprintln!("in thread {:?}", dns);
+    let dns = remote_query::query_subjects(ldp, &config.remotes, &remote).await.unwrap();
+    eprintln!(">>> in thread {:?}", dns);
     loop {
         thread::sleep(time::Duration::from_secs(500));
         let map = cache.synchronized_groups.lock().unwrap().clone();
