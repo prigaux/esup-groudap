@@ -1,9 +1,9 @@
 import { size } from 'lodash'
 import { computed, reactive, Ref, ref } from 'vue'
 import { asyncComputed } from '@vueuse/core'
-import { throttled_ref } from '@/vue_helpers';
+import { new_ref_watching, throttled_ref } from '@/vue_helpers';
 import { forEach, objectSortBy, some } from '@/helpers';
-import { LdapConfigOut, Mright, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
+import { LdapConfigOut, Mright, SgroupAndMoreOut, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
 import * as api from '@/api'
 
 // call API + add flag "indirect" if indirect + add "sscfg_dn"
@@ -21,8 +21,8 @@ async function group_flattened_mright(id: string, mright: Mright, search_token: 
     return r;
 }
 
-export const flat_mrights_show_search = (props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
-    let show = ref(false)
+export const flat_mrights_show_search = (props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMoreOut>, mright: Mright, directs: () => Subjects) => {
+    let show = new_ref_watching(() => props.id, () => !sgroup.value?.remotegroup)
     let searching = ref(false)
     let search_token = throttled_ref('')
     let results = asyncComputed(async () => {
@@ -34,8 +34,8 @@ export const flat_mrights_show_search = (props: Readonly<{ id: string; }>, mrigh
     return { show, searching, search_token, results }
 }
 
-export const mrights_flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, mright: Mright, directs: () => Subjects) => {
-    let { results: flat_results, ...flat } = flat_mrights_show_search(props, mright, directs)
+export const mrights_flat_or_not = (sscfgs: Ref<LdapConfigOut>, props: Readonly<{ id: string; }>, sgroup: Ref<SgroupAndMoreOut>, mright: Mright, directs: () => Subjects) => {
+    let { results: flat_results, ...flat } = flat_mrights_show_search(props, sgroup, mright, directs)
     let results = computed(() => {
         if (flat.show.value) {
             return flat_results.value

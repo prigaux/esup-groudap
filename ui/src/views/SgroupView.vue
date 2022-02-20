@@ -56,10 +56,10 @@ let sgroup = asyncComputed(async () => {
     return sgroup
 })
 
-let members = mrights_flat_or_not(sscfgs, props, 'member', () => sgroup.value?.group?.direct_members || {})
+let members = mrights_flat_or_not(sscfgs, props, sgroup, 'member', () => sgroup.value?.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
-    ['updater', 'admin'].includes(sgroup.value?.right))
+    ['updater', 'admin'].includes(sgroup.value?.right)) && !sgroup.value.remotegroup
 )
 
 let add_member_show = ref(false)
@@ -90,7 +90,7 @@ let rights = asyncComputed(async () => {
     return r
 })
 let flat_rights = fromPairs(list_of_rights.map(right => (
-    [ right, flat_mrights_show_search(props, right, () => rights.value?.[right] || {}) ]
+    [ right, flat_mrights_show_search(props, sgroup, right, () => rights.value?.[right] || {}) ]
 )))
 
 type Attr = 'ou'|'description'
@@ -254,7 +254,7 @@ const transform_group_into_RemoteGroup = () => {
                 <SgroupLink :sgroup="{ attrs }" :id="id" />
             </li>
         </ul>
-        <div v-else-if="sgroup.group">
+        <div v-else-if="sgroup.group || sgroup.remotegroup">
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
@@ -262,7 +262,7 @@ const transform_group_into_RemoteGroup = () => {
                     <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
                 </SearchSubjectToAdd></p>
             </p>
-            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
+            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.remotegroup">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"
                 @remove="dn => remove_direct_mright(dn, 'member')" />
