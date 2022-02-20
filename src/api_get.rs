@@ -13,7 +13,7 @@ use crate::ldap_wrapper::{LdapW, mono_attrs, LdapAttrs};
 use crate::my_ldap::{user_urls_, user_has_right_on_sgroup_filter};
 use crate::my_ldap_check_rights::check_right_on_self_or_any_parents;
 use crate::ldap_filter;
-use crate::remote_query::{self, TestRemoteQuerySql};
+use crate::remote_query::{self, TestRemoteQuerySql, direct_members_to_remote_sql_query};
 
 fn is_disjoint(vals: &[String], set: &HashSet<String>) -> bool {
     !vals.iter().any(|val| set.contains(val))
@@ -131,14 +131,6 @@ async fn get_right_and_parents(ldp: &mut LdapW<'_>, id: &str, self_attrs: &mut L
     eprintln!("  best_right_on_self_or_any_parents({}) with user {:?} => {:?}", id, ldp.logged_user, best);
     let best = best.ok_or_else(|| MyErr::Msg(format!("not right to read sgroup {}", id)))?;
     Ok((best, parents))
-}
-
-fn direct_members_to_remote_sql_query(l : &Vec<String>) -> Result<Option<RemoteSqlQuery>> {
-    if let [e] = l.as_slice() {
-        remote_query::parse_sql_url(e)
-    } else {
-        Ok(None)
-    }
 }
 
 pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndMoreOut> {

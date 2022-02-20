@@ -143,6 +143,10 @@ pub fn url_to_dn_(url: String) -> Option<Dn> {
     url_to_dn(&url).map(Dn::from)
 }
 
+pub fn urls_to_dns(urls: Vec<String>) -> Option<HashSet<Dn>> {
+    urls.into_iter().map(url_to_dn_).collect::<Option<HashSet<_>>>()
+}
+
 // wow, it is complex...
 fn hashset_as_deref(elts : &HashSet<String>) -> HashSet<&str> {
     let mut set: HashSet<&str> = HashSet::new();
@@ -192,7 +196,7 @@ impl LdapW<'_> {
  
     pub async fn read_direct_mright(&mut self, group_dn: &Dn, mright: Mright) -> Result<Option<HashSet<Dn>>> {
         let direct_urls = self.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
-        Ok(direct_urls.into_iter().map(url_to_dn_).collect::<Option<HashSet<_>>>())
+        Ok(urls_to_dns(direct_urls))
     }
 
     pub async fn read_sgroup<'a, S: AsRef<str> + Send + Sync + 'a>(&mut self, id: &str, attrs: Vec<S>) -> Result<Option<SearchEntry>> {

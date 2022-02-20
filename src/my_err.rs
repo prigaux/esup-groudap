@@ -37,4 +37,10 @@ impl From<serde_json::Error> for MyErr {
     }
 }
 
+impl From<tokio::task::JoinError> for MyErr {
+    fn from(err: tokio::task::JoinError) -> Self {
+        MyErr::Msg(err.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, MyErr>;

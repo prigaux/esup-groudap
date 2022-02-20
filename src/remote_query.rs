@@ -62,7 +62,7 @@ fn raw_query(remote: &RemoteConfig, db_name: &str, select_query: &str) -> Result
     }
 }
 
-async fn sql_values_to_dns(
+async fn sql_values_to_dns_(
     ldp: &mut LdapW<'_>,
     ssdn: &Dn,
     id_attr: &str,
@@ -149,6 +149,14 @@ pub fn parse_sql_url(url: &str) -> Result<Option<RemoteSqlQuery>> {
     })
 }
 
+pub fn direct_members_to_remote_sql_query(l : &Vec<String>) -> Result<Option<RemoteSqlQuery>> {
+    if let [e] = l.as_slice() {
+        parse_sql_url(e)
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn query(
     remotes_cfg: &BTreeMap<String, RemoteConfig>,
     remote: &RemoteSqlQuery,
@@ -163,14 +171,13 @@ pub fn query(
 }
 
 // return subject DNs
-pub async fn query_subjects(
-    ldp: &mut LdapW<'_>,
-    remotes_cfg: &BTreeMap<String, RemoteConfig>,
-    remote: &RemoteSqlQuery,
-) -> Result<HashSet<Dn>> {
-    let sql_values = query(remotes_cfg, remote)?;
+pub async fn query_subjects(ldp: &mut LdapW<'_>, remotes_cfg: &BTreeMap<String, RemoteConfig>, remote: &RemoteSqlQuery) -> Result<HashSet<Dn>> {
+    sql_values_to_dns(ldp, remote, query(remotes_cfg, remote)?).await
+}
+
+pub async fn sql_values_to_dns(ldp: &mut LdapW<'_>, remote: &RemoteSqlQuery, sql_values: Vec<String>) -> Result<HashSet<Dn>> {
     if let Some(to_ss) = &remote.to_subject_source {
-        sql_values_to_dns(ldp, &to_ss.ssdn, &to_ss.id_attr, &sql_values).await
+        sql_values_to_dns_(ldp, &to_ss.ssdn, &to_ss.id_attr, &sql_values).await
     } else {
         // the SQL query must return DNs
         Ok(sql_values.into_iter().map(Dn::from).collect())
@@ -212,7 +219,7 @@ async fn guest_subject_source(ldp: &mut LdapW<'_>, values: &Vec<String>) -> Resu
     for sscfg in &ldp.config.subject_sources {
         if let Some(vec) = &sscfg.id_attrs {
             for id_attr in vec {
-                let dns = sql_values_to_dns(ldp, &sscfg.dn, id_attr, values).await?;
+                let dns = sql_values_to_dns_(ldp, &sscfg.dn, id_attr, values).await?;
                 if dns.len() > best.0 {
                     best = (dns.len(), Some((dns, &sscfg.dn, id_attr)));
                 }

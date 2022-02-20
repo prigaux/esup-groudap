@@ -111,7 +111,7 @@ impl LdapConfig {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum RemoteDriver {
     #[cfg(feature = "mysql")]
@@ -120,7 +120,7 @@ pub enum RemoteDriver {
     Oracle,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct RemoteConfig {
     pub host: String,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -293,13 +293,13 @@ pub struct CfgAndLU<'a> {
     pub user: LoggedUser,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 pub struct ToSubjectSource {
     pub ssdn: Dn,
     pub id_attr: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 pub struct RemoteSqlQuery {
     pub remote_cfg_name: String, 
     pub select_query: String, // query returns either a DN or a string to transform into DN using ToSubjectSource

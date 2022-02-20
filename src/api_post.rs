@@ -1,15 +1,18 @@
 #![allow(clippy::comparison_chain)]
 
 use std::collections::{HashSet, BTreeMap};
+use std::sync::Arc;
+use tokio::task;
 
 use ldap3::{Mod};
 
 
 use crate::api_get::validate_remote;
-use crate::my_types::*;
+use crate::remote_query::direct_members_to_remote_sql_query;
+use crate::{my_types::*, remote_query};
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs};
-use crate::my_ldap;
+use crate::my_ldap::{self, urls_to_dns};
 use crate::my_ldap_check_rights::{check_right_on_self_or_any_parents, check_right_on_any_parents};
 use crate::ldap_filter;
 use crate::api_log;
@@ -150,7 +153,7 @@ fn dns_to_strs(dns: HashSet<&Dn>) -> HashSet<&str> {
     dns.iter().map(|dn| dn.0.as_ref()).collect()
 }
 
-async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, to_add: HashSet<&Dn>, to_remove: HashSet<&Dn>) -> Result<UpResult> {
+async fn may_update_flattened_mrights__(ldp: &mut LdapW<'_>, id: &str, mright: Mright, to_add: HashSet<&Dn>, to_remove: HashSet<&Dn>) -> Result<UpResult> {
     let attr = ldp.config.to_flattened_attr(mright);
     let mods = [
         if to_add.is_empty()    { vec![] } else { vec![ Mod::Add(attr, dns_to_strs(to_add)) ] },
@@ -177,32 +180,53 @@ async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<Dn>) -> Res
     Ok(r)
 }
 
+async fn remote_sql_query_to_dns(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, remote: RemoteSqlQuery) -> Result<HashSet<Dn>> {
+    let remote = Arc::new(remote);
+    let sql_values = {
+        let remote = remote.clone();
+        let remotes = cfg_and_lu.cfg.remotes.clone();
+        task::spawn_blocking(move || remote_query::query(&remotes, &remote)).await??
+    };
+    remote_query::sql_values_to_dns(ldp, &remote, sql_values).await
+}
+
+async fn urls_to_dns_handling_remote(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mright: Mright, urls: Vec<String>) -> Result<HashSet<Dn>> {
+    if mright == Mright::Member {
+        if let Some(remote) = direct_members_to_remote_sql_query(&urls)? {
+            return remote_sql_query_to_dns(cfg_and_lu, ldp, remote).await
+        }
+    }
+    urls_to_dns(urls).ok_or(MyErr::Msg("internal error".to_owned()))
+}
+
+async fn may_update_flattened_mrights_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, group_dn: Dn, direct_dns: HashSet<Dn>) -> Result<UpResult> {
+    let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
+    if flattened_dns.is_empty() && mright == Mright::Member {
+        flattened_dns.insert(Dn::from(""));
+    }
+    let current_flattened_dns = HashSet::from_iter(
+        ldp.read_flattened_mright_raw(&group_dn, mright).await?
+    );
+    let to_add = flattened_dns.difference(&current_flattened_dns).collect();
+    let to_remove = current_flattened_dns.difference(&flattened_dns).collect();
+    may_update_flattened_mrights__(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
+}
+
 // read group direct URLs
 // diff with group flattened DNs
 // if needed, update group flattened DNs
-async fn may_update_flattened_mrights(ldp: &mut LdapW<'_>, id: &str, mright: Mright) -> Result<UpResult> {
+async fn may_update_flattened_mrights(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, id: &str, mright: Mright) -> Result<UpResult> {
     eprintln!("  may_update_flattened_mrights({}, {:?})", id, mright);
     let group_dn = ldp.config.sgroup_id_to_dn(id);
-    if let Some(direct_dns) = ldp.read_direct_mright(&group_dn, mright).await? {
-        let mut flattened_dns = get_flattened_dns(ldp, &direct_dns).await?;
-        if flattened_dns.is_empty() && mright == Mright::Member {
-            flattened_dns.insert(Dn::from(""));
-        }
-        let current_flattened_dns = HashSet::from_iter(
-            ldp.read_flattened_mright_raw(&group_dn, mright).await?
-        );
-        let to_add = flattened_dns.difference(&current_flattened_dns).collect();
-        let to_remove = current_flattened_dns.difference(&flattened_dns).collect();
-        may_update_flattened_mrights_(ldp, id, mright, dbg!(to_add), dbg!(to_remove)).await
-    } else {
-        // TODO: non DN URL
-        Ok(UpResult::Unchanged)
-    }
+
+    let urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
+    let direct_dns = urls_to_dns_handling_remote(cfg_and_lu, ldp, mright, urls).await?;        
+    may_update_flattened_mrights_(ldp, id, mright, group_dn, direct_dns).await
 }
 
-async fn may_update_flattened_mrights_rec(ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
+async fn may_update_flattened_mrights_rec(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
     while let Some((id, mright)) = todo.pop() {
-        let result = may_update_flattened_mrights(ldp, &id, mright).await?;
+        let result = may_update_flattened_mrights(cfg_and_lu, ldp, &id, mright).await?;
         if let (Mright::Member, UpResult::Modified) = (mright, &result) {
             todo.append(&mut search_groups_mrights_depending_on_this_group(ldp, &id).await?);
         }    
@@ -236,7 +260,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     api_log::log_sgroup_action(&cfg_and_lu, id, "modify_members_or_rights", msg, serde_json::to_value(my_mods)?).await?;
 
     // then update flattened groups mrights
-    may_update_flattened_mrights_rec(ldp, todo_flattened).await?;
+    may_update_flattened_mrights_rec(&cfg_and_lu, ldp, todo_flattened).await?;
 
     Ok(())
 }
@@ -251,7 +275,10 @@ pub async fn modify_remote_sql_query(cfg_and_lu: CfgAndLU<'_>, id: &str, remote:
         Mod::Replace(Mright::Member.to_attr(), hashset![ String::from(&remote) ]),
     ]).await?.success()?;
 
-    api_log::log_sgroup_action(&cfg_and_lu, id, "modify_remote_sql_query", msg, serde_json::to_value(remote)?).await?;
+    api_log::log_sgroup_action(&cfg_and_lu, id, "modify_remote_sql_query", msg, serde_json::to_value(remote.clone())?).await?;
+
+    let todo = vec![(id.to_owned(), Mright::Member)];
+    may_update_flattened_mrights_rec(&cfg_and_lu, ldp, todo).await?;
 
     Ok(())
 }
