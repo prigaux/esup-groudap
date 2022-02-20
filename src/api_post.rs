@@ -220,6 +220,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     let is_stem = ldp.config.stem.is_stem(id);
     let my_mods = check_and_simplify_mods(ldp, is_stem, id, my_mods).await?;
     if my_mods.is_empty() {
+        // it happens when a "Replace" has been simplified into 0 Add/Delete
         return Ok(())
     }
 
