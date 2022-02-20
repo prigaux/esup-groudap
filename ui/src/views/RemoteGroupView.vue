@@ -31,8 +31,14 @@ const highlighted_select_query = computed(() => (
     Prism.highlight(props.remote_sql_query.select_query + ' ', Prism.languages.sql, 'sql')
 ))
 
-const guess_to_ss_id_attr = async () => {
-    props.remote_sql_query.to_subject_source.id_attr = await api.test_remote_query_sql(props.id, props.remote_sql_query)    
+const test_remote_query_sql = async () => {
+    const { count, values, ss_guess } = await api.test_remote_query_sql(props.id, props.remote_sql_query)
+    let msg = `La requête a renvoyé ${count} valeurs.\n\nExtrait: ${values.join(' ')}`
+    if (ss_guess) {
+        props.remote_sql_query.to_subject_source = ss_guess[0]
+        msg += `\n\nUn subject source et attribut correspondent aux valeurs.`
+    }
+    alert(msg);
 }
 
 </script>
@@ -51,13 +57,19 @@ const guess_to_ss_id_attr = async () => {
 
         <div class="remote_sql_query">
         <pre class="language-sql">{{
-            }}<code class="Xlanguage-sql" v-html="highlighted_select_query"></code>{{
+            }}<code class="language-sql" v-html="highlighted_select_query"></code>{{
             }}<textarea spellcheck="false" v-model="remote_sql_query.select_query"
                 @keypress.enter.ctrl="$emit('save')"
             ></textarea>{{
         }}</pre>
         </div>
     </label>
+
+    <label>
+        <span class="label"></span>
+        <button v-if="remote_sql_query.remote_cfg_name && remote_sql_query.select_query" @click.prevent="test_remote_query_sql">Valider la requête et deviner les paramètres ci-dessous</button>
+    </label>
+
     <label v-if="sscfgs">
         <span class="label">Subject source</span>
         <select v-model="remote_sql_query.to_subject_source.ssdn">
@@ -68,8 +80,6 @@ const guess_to_ss_id_attr = async () => {
 
     <label v-if="sscfgs && remote_sql_query.to_subject_source.ssdn">
         <span class="label">Subject id attr</span>
-        <button v-if="!remote_sql_query.to_subject_source.id_attr" @click.prevent="guess_to_ss_id_attr">Valider la requête et deviner</button>
-        ou forcer
         <input v-model="remote_sql_query.to_subject_source.id_attr">
         <span v-if="!isEmpty(chosen_subject_source?.id_attrs)">
             Suggestions : {{chosen_subject_source?.id_attrs?.join(', ')}}
@@ -103,12 +113,12 @@ label > button, label > span:not(.label) {
     padding: 0 0.5rem;
 }
 
-.language-sql {
+pre.language-sql {
     position: relative;
     padding: 0;
     background-color: #fff;
 }
-.language-sql textarea {
+textarea {
     position: absolute;
     top: 0;
     right: 0;
@@ -126,12 +136,8 @@ label > button, label > span:not(.label) {
     resize: none;
     overflow: hidden; /* scrollbars make a mess, let pre grow. But sometimes a small scrollbar would like to appear... */
 }
-.language-sql textarea::selection {
+textarea::selection {
     color: #000000A0;
-}
-
-.language-sql.err {
-    border-color: red;
 }
 
 </style>

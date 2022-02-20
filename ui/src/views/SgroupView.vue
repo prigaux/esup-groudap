@@ -50,7 +50,7 @@ let sgroup = asyncComputed(async () => {
         await api.add_sscfg_dns(sgroup.group.direct_members)
     }
     if (sgroup.remotegroup) {
-        sgroup.remotegroup.remote_sql_query.to_subject_source ||= { ssdn: '', id_attr: '' }
+        api.convert.remote_sql_query.from_api(sgroup.remotegroup.remote_sql_query)
         sgroup.remotegroup_orig = cloneDeep(sgroup.remotegroup)
     }
     return sgroup
@@ -134,11 +134,7 @@ const delete_sgroup = async () => {
 }
 
 const send_modify_remotegroup = async () => {
-    let remote_sql_query = { ...sgroup.value.remotegroup.remote_sql_query }
-    const to_ss = remote_sql_query.to_subject_source
-    // @ts-expect-error: internally in Vue.js, "to_subject_source" field is always there, but we add/hide it before API calls
-    if (!to_ss.ssdn || !to_ss.id_attr) delete remote_sql_query.to_subject_source;
-    await api.modify_remote_sql_query(props.id, remote_sql_query)
+    await api.modify_remote_sql_query(props.id, sgroup.value.remotegroup.remote_sql_query);
     sgroup_force_refresh.value++
 }
 const cancel_modify_remotegroup = () => {

@@ -1,6 +1,6 @@
 import { at, pickBy } from "lodash";
 import { forEach } from "./helpers";
-import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, RemoteConfig, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more } from "./my_types";
+import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, RemoteConfig, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more, ToSubjectSource } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -21,7 +21,17 @@ async function handle_response(response: Response) {
         await login();
         return new Promise(_ => {}) // return dead promise
     }
-    throw new Error(response.toString())
+    let err = await response.text()
+    try {
+        const json_err = JSON.parse(err)
+        if (json_err.error && json_err.msg) {
+            err = json_err.msg
+        }
+    } catch {}
+    err ||= response.toString();
+    console.log(err);
+    alert(err);
+    throw new Error(err)
 }
 
 function compute_url(api_function: string, search_params: Record<string, string>) {
@@ -63,7 +73,7 @@ export const modify_members_or_rights = (id: string, mods: MyMods) => (
     api_post("modify_members_or_rights", { id }, mods)
 )
 export const modify_remote_sql_query = (id: string, remote: RemoteSqlQuery) => (
-    api_post("modify_remote_sql_query", { id }, remote)
+    api_post("modify_remote_sql_query", { id }, convert.remote_sql_query.to_api(remote))
 )
 
 export const delete_sgroup = (id: string) => (
@@ -108,8 +118,14 @@ export const config_subject_sources = () : Promise<LdapConfigOut> => (
 export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
     api_get("config/remotes", {}, { memoize: true })
 )
-export const test_remote_query_sql = (id: string, remote_sql_query: RemoteSqlQuery): Promise<string> => (
-    api_get('test_remote_query_sql', { id, remote_sql_query: JSON.stringify(remote_sql_query) }, {})
+
+export interface TestRemoteQuerySql {
+    count: number,
+    values: string[],
+    ss_guess?: [ToSubjectSource, Subjects],
+}
+export const test_remote_query_sql = (id: string, remote_sql_query: RemoteSqlQuery): Promise<TestRemoteQuerySql> => (
+    api_get('test_remote_query_sql', { id, remote_sql_query: JSON.stringify(convert.remote_sql_query.to_api(remote_sql_query)) }, {})
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {
@@ -130,3 +146,14 @@ export async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
     })
 }
 
+export const convert = {
+    remote_sql_query: {
+        from_api(remote: RemoteSqlQuery) {
+            remote.to_subject_source ||= { ssdn: '', id_attr: '' }
+        },
+        to_api(remote: RemoteSqlQuery): Partial<RemoteSqlQuery> {
+            const { to_subject_source, ...rest } = remote
+            return !to_subject_source.ssdn || !to_subject_source.id_attr ? rest : remote
+        },
+    },
+}

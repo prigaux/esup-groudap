@@ -241,7 +241,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
 }
 
 pub async fn modify_remote_sql_query(cfg_and_lu: CfgAndLU<'_>, id: &str, remote: RemoteSqlQuery, msg: &Option<String>) -> Result<()> {
-    eprintln!("modify_remote_sql_query({}, _)", id);
+    eprintln!("modify_remote_sql_query({}, {:?}, {:?})", id, remote, msg);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     validate_remote(&cfg_and_lu, &remote)?;
     
