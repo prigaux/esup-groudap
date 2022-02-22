@@ -93,14 +93,19 @@ fn to_submods(add: HashSet<Dn>, delete: HashSet<Dn>, replace: Option<HashSet<Dn>
     if let Some(replace) = replace { r.insert(MyMod::Replace, replace); }
     r
 }
-fn from_submods(mut submods: BTreeMap<MyMod, HashSet<Dn>>) -> [HashSet<Dn>; 3] {
-    [ MyMod::Add, MyMod::Delete, MyMod::Replace ].map(|right| submods.remove(&right).unwrap_or_default())
+fn from_submods(mut submods: BTreeMap<MyMod, HashSet<Dn>>) -> (HashSet<Dn>, HashSet<Dn>, Option<HashSet<Dn>>) {
+    (
+        submods.remove(&MyMod::Add).unwrap_or_default(),
+        submods.remove(&MyMod::Delete).unwrap_or_default(),
+        submods.remove(&MyMod::Replace),
+    )
 }
 
 async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<Dn>>) -> Result<BTreeMap<MyMod, HashSet<Dn>>> {
-    let [ mut add, mut delete, replace ] = from_submods(submods);
+    let (mut add, mut delete, replace) = from_submods(submods);
 
-    if replace.len() > 4 {
+    if let Some(replace) = &replace {
+      if replace.len() > 4 {
         if let Some(current_dns) = {
             let group_dn = ldp.config.sgroup_id_to_dn(id);
             ldp.read_direct_mright(&group_dn, mright).await?
@@ -111,8 +116,9 @@ async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright,
             eprintln!("  replaced long\n    Replace {:?} with\n    Add {:?}\n    Replace {:?}", replace, add, delete);
             return Ok(to_submods(add, delete, None))
         }
+      }
     }
-    Ok(to_submods(add, delete, Some(replace)))
+    Ok(to_submods(add, delete, replace))
 }
 
 // Check validity of modifications
