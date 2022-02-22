@@ -300,7 +300,7 @@ const transform_RemoteGroup_into_group = async () => {
             <button @click="transform_RemoteGroup_into_group">Ne plus synchroniser ce groupe</button>
         </li>
         <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
-            <button @click="transform_group_into_RemoteGroup">Transformer en un groupe synchroniser</button>
+            <button @click="transform_group_into_RemoteGroup">Transformer en un groupe synchronisé</button>
         </li>
 
     </ul>
