@@ -278,7 +278,7 @@ pub async fn modify_remote_sql_query(cfg_and_lu: CfgAndLU<'_>, id: &str, remote:
     
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, vec![
-        Mod::Replace(Mright::Member.to_attr(), hashset![ String::from(&remote) ]),
+        Mod::Replace(Mright::Member.to_attr_remote(), hashset![ String::from(&remote) ]),
     ]).await?.success()?;
 
     api_log::log_sgroup_action(&cfg_and_lu, id, "modify_remote_sql_query", msg, serde_json::to_value(remote.clone())?).await?;

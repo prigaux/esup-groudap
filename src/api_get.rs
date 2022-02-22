@@ -152,6 +152,7 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         let mut attrs = entry.attrs;
         // #1 direct members
         let direct_members = attrs.remove(&Mright::Member.to_attr()).unwrap_or_default();
+        let remote_query = attrs.remove(&Mright::Member.to_attr_remote()).unwrap_or_default();
         // #2 compute rights (also computing parents because both require user_urls)
         let (right, parents) = get_right_and_parents(ldp, id, &mut attrs).await?;
         // #3 pack the remaining attrs:
@@ -160,7 +161,7 @@ pub async fn get_sgroup(cfg_and_lu: CfgAndLU<'_>, id: &str) -> Result<SgroupAndM
         let more = if is_stem { 
             let children = get_children(ldp, id).await?;
             SgroupOutMore::Stem { children }
-        } else if let Some(remote_sql_query) = direct_members_to_remote_sql_query(&direct_members)? {
+        } else if let Some(remote_sql_query) = direct_members_to_remote_sql_query(&remote_query)? {
             SgroupOutMore::RemoteGroup { remote_sql_query }
         } else { 
             let direct_members = get_subjects_from_urls(ldp, direct_members).await?;

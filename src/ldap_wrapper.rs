@@ -81,7 +81,7 @@ impl LdapW<'_> {
 
     pub async fn read_one_multi_attr(&mut self, dn: &Dn, attr: &str) -> Result<Option<Vec<String>>> {
         let entry = self.read(dn, vec![attr]).await?;
-        Ok(entry.map(|e| get_consume(e.attrs, attr)))
+        Ok(entry.map(|e| get_all_values(e.attrs)))
     }
 
     #[allow(non_snake_case)]
@@ -131,8 +131,8 @@ impl LdapW<'_> {
     attrs.remove(attr)?.pop()
 }*/
 
-fn get_consume(mut map: LdapAttrs, key: &str) -> Vec<String> {
-    map.remove(key).unwrap_or_default()
+fn get_all_values(map: LdapAttrs) -> Vec<String> {
+    map.into_values().flatten().collect()
 }
 
 pub fn mono_attrs(attrs: LdapAttrs) -> MonoAttrs {

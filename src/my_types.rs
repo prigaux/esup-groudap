@@ -238,6 +238,9 @@ impl Mright {
     pub fn to_attr(self) -> String {
         format!("memberURL;x-{}", self.to_string())
     }
+    pub fn to_attr_remote(self) -> String {
+        format!("memberURL;x-{};x-remote", self.to_string())
+    }
     pub fn list() -> Vec<Self> { vec![Self::Member, Self::Reader, Self::Updater, Self::Admin] }     
 }
 impl Right {
