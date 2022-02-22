@@ -84,3 +84,8 @@ textarea.description {
     width: 100%;
     height: 10rem;
 }
+
+.warning {
+    color: darkred;
+    font-weight: bold;
+}

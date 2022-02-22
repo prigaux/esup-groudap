@@ -80,33 +80,33 @@ const test_remote_query_sql = async () => {
 
     <label>
         <span class="label"></span>
-        <span>
-            <button v-if="remote_sql_query.remote_cfg_name && remote_sql_query.select_query" @click.prevent="test_remote_query_sql">Valider la requête et deviner les paramètres ci-dessous</button>
+        <button class="warning" v-if="remote_sql_query.remote_cfg_name && remote_sql_query.select_query" @click.prevent="test_remote_query_sql">Valider la requête et deviner les paramètres ci-dessous</button>
+    </label>
 
-            <TransitionGroup>
-            <div v-for="lt in maySingleton(last_test_remote_query_sql)">
-                <p>La requête a renvoyé {{lt.count}} valeurs. 
-                    <template v-if="lt.count">
-                        <br>
-                        <template v-if="lt.values_truncated">Extrait :</template>
-                        <blockquote>
-                            <pre>{{lt.values.join("\n")}}</pre>
-                        </blockquote>
-                    </template>
-                </p>
-                <p style="margin-bottom: 0;" v-if="lt.ss_guess">
-                    Les paramètres ci-dessous ont été devinés :
-                </p>
-                <p class="warning" v-else>
-                    <span class="big">⚠</span> Aucun subject source ne correspond aux valeurs
-                </p>
-            </div>
-            </TransitionGroup>
-        </span>
+    <label class="next-to-previous"><span class="label"></span>
+        <TransitionGroup>
+        <div v-for="lt in maySingleton(last_test_remote_query_sql)">
+            <p>La requête a renvoyé {{lt.count}} valeurs. 
+                <template v-if="lt.count">
+                    <br>
+                    <template v-if="lt.values_truncated">Extrait :</template>
+                    <blockquote>
+                        <pre>{{lt.values.join("\n")}}</pre>
+                    </blockquote>
+                </template>
+            </p>
+            <p style="margin-bottom: 0;" v-if="lt.ss_guess">
+                Les paramètres ci-dessous ont été devinés ({{lt.ss_guess.length}} sujets trouvés) :
+            </p>
+            <p class="warning" v-else>
+                <span class="big">⚠</span> Aucune source de sujets ne correspond aux valeurs
+            </p>
+        </div>
+        </TransitionGroup>
     </label>
 
     <label v-if="sscfgs">
-        <span class="label">Subject source</span>
+        <span class="label">Source de sujets LDAP</span>
         <select v-model="remote_sql_query.to_subject_source.ssdn">
             <option value="">Aucun (les valeurs sont des DNs)</option>    
             <option v-for="sscfg in sscfgs.subject_sources" :value="sscfg.dn">{{sscfg.name}}</option>
@@ -114,11 +114,13 @@ const test_remote_query_sql = async () => {
     </label>
 
     <label v-if="sscfgs && remote_sql_query.to_subject_source.ssdn">
-        <span class="label">Subject id attr</span>
+        <span class="label">Attribut LDAP</span>
         <input v-model="remote_sql_query.to_subject_source.id_attr">
-        <span v-if="!isEmpty(chosen_subject_source?.id_attrs)">
+    </label>
+    <label class="next-to-previous"><span class="label"></span>
+        <small v-if="!isEmpty(chosen_subject_source?.id_attrs)">
             Suggestions : {{chosen_subject_source?.id_attrs?.join(', ')}}
-        </span>
+        </small>
     </label>
 </form>
 </template>
@@ -138,9 +140,9 @@ label > * {
 }
 label > span.label {
     display: inline-block;
-    max-width: 8rem;
+    max-width: 12rem;
 }
-label > button, label > span:not(.label) {
+label > span:not(.label) {
     flex-grow: 0;
 }
 
@@ -183,11 +185,6 @@ textarea::selection {
 .v-enter-from, .v-leave-to {
   opacity: 0;
   transform: translateX(30px);
-}
-
-.warning {
-    color: darkred;
-    font-weight: bold;
 }
 
 .key {
