@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WelcomeView from '@/views/WelcomeView.vue'
-import SgroupView from '@/views/SgroupView.vue'
+import SgroupViewVue, * as SgroupView from '@/views/SgroupView.vue'
 import NewSgroupView from '@/views/NewSgroupView.vue'
 import SgroupHistoryView from '@/views/SgroupHistoryView.vue'
 
@@ -15,8 +15,8 @@ const router = createRouter({
     {
       path: '/sgroup',
       name: 'sgroup',
-      component: SgroupView,
-      props: route => ({ id: route.query.id, tabToDisplay: route.hash.match(/tabToDisplay=(\w+)/)?.[1] }),
+      component: SgroupViewVue,
+      props: route => ({ ...route.meta, tabToDisplay: route.hash.match(/tabToDisplay=(\w+)/)?.[1] }),
     },
     {
       path: '/new_sgroup',
@@ -32,6 +32,13 @@ const router = createRouter({
     },
     // must be kept in sync with isJsUiRoute in Rust code
   ]
+})
+
+router.beforeEach(async (to) => { 
+    if (to.path === '/sgroup') {
+        to.meta = await SgroupView.computedProps(to)
+    }
+    return true
 })
 
 export default router

@@ -62,6 +62,9 @@ export type SgroupAndMoreOut = SgroupOutMore & {
     parents: SgroupOutAndRight[]
     right: Right
 }
+export type SgroupAndMoreOut_ = SgroupAndMoreOut & { 
+    id: string
+}
 
 export interface SubjectsAndCount {
     count: number

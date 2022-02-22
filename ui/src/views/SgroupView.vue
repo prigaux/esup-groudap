@@ -2,14 +2,34 @@
 import { cloneDeep, fromPairs, isEmpty, isEqual, last } from 'lodash'
 import { computed, defineAsyncComponent, ref } from 'vue'
 import router from '@/router';
-import { asyncComputed } from '@vueuse/core'
-import { new_ref_watching } from '@/vue_helpers';
+import { asyncComputed_, ref_watching } from '@/vue_helpers';
 import { forEachAsync } from '@/helpers';
-import { Dn, Mright, MyMod, PRecord } from '@/my_types';
+import { Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
 import { list_of_rights, right2text } from '@/lib';
 import { flat_mrights_show_search, mrights_flat_or_not } from '@/composition/SgroupSubjects';
 
 import * as api from '@/api'
+
+async function get_sgroup(id: string): Promise<SgroupAndMoreOut_> {
+    let sgroup = { id, ...await api.sgroup(id) }
+    if (sgroup.group) {
+        await api.add_sscfg_dns(sgroup.group.direct_members)
+    }
+    if (sgroup.remotegroup) {
+        api.convert.remote_sql_query.from_api(sgroup.remotegroup.remote_sql_query)
+        sgroup.remotegroup_orig = cloneDeep(sgroup.remotegroup)
+    }
+    return sgroup
+}
+
+export async function computedProps(to: RouteLocationNormalized) {
+    const id = to.query.id as string
+    return { 
+        id, 
+        initial_sgroup: await get_sgroup(id),
+        sscfgs: await api.config_subject_sources(),
+    }
+}
 
 </script>
 
@@ -20,12 +40,19 @@ import MyIcon from '@/components/MyIcon.vue';
 import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 import SgroupRightsView from './SgroupRightsView.vue';
+import { RouteLocationNormalized } from 'vue-router';
 const RemoteGroupView = defineAsyncComponent(() => import('./RemoteGroupView.vue'));
 
 const props = withDefaults(defineProps<{
-  id: string,
   tabToDisplay: 'direct'|'rights',
-}>(), { tabToDisplay: 'direct' })
+  // computedProps
+  id: string,
+  initial_sgroup: SgroupAndMoreOut_,
+  sscfgs: LdapConfigOut,
+}>(), { tabToDisplay: 'direct' });
+
+// check coherence of props of prefetch
+((_: Awaited<ReturnType<typeof computedProps>>) => {})(props)
 
 const set_tabToDisplay = (tabToDisplay: 'direct'|'rights') => {
     const hash = tabToDisplay !== 'direct' ? '#tabToDisplay=' + tabToDisplay : ''
@@ -34,32 +61,20 @@ const set_tabToDisplay = (tabToDisplay: 'direct'|'rights') => {
 
 let tabs = computed(() => {
     return {
-        direct: sgroup.value?.stem ? "Contenu du dossier" : "Membres",
+        direct: sgroup.value.stem ? "Contenu du dossier" : "Membres",
         rights: 'Privilèges',
     }
 })
 
-let sscfgs = asyncComputed(api.config_subject_sources)
-
-let sgroup_force_refresh = ref(0)
-let sgroup = asyncComputed(async () => {
-    // @ts-nocheck
-    sgroup_force_refresh.value // asyncComputed will know it needs to re-compute
-    let sgroup = await api.sgroup(props.id)
-    if (sgroup.group) {
-        await api.add_sscfg_dns(sgroup.group.direct_members)
-    }
-    if (sgroup.remotegroup) {
-        api.convert.remote_sql_query.from_api(sgroup.remotegroup.remote_sql_query)
-        sgroup.remotegroup_orig = cloneDeep(sgroup.remotegroup)
-    }
-    return sgroup
+let sgroup = ref_watching({ 
+    value: () => props.initial_sgroup,
+    update: () => get_sgroup(props.id),
 })
 
-let members = mrights_flat_or_not(sscfgs, props, sgroup, 'member', () => sgroup.value?.group?.direct_members || {})
+let members = mrights_flat_or_not(props.sscfgs, sgroup, 'member', () => sgroup.value.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
-    ['updater', 'admin'].includes(sgroup.value?.right)) && !sgroup.value.remotegroup
+    sgroup.value && ['updater', 'admin'].includes(sgroup.value.right)) && !sgroup.value.remotegroup
 )
 
 let add_member_show = ref(false)
@@ -68,7 +83,7 @@ async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod) {
     console.log('add_remove_direct_mright')
     await api.modify_members_or_rights(props.id, { [mright]: { [mod]: [dn] } })
     if (mright === 'member') {
-        sgroup_force_refresh.value++
+        sgroup.update()
     } else {
         rights_force_refresh.value++
     }
@@ -82,7 +97,7 @@ function remove_direct_mright(dn: Dn, mright: Mright) {
 
 let add_right_show = ref(false)
 let rights_force_refresh = ref(0)
-let rights = asyncComputed(async () => {
+let rights = asyncComputed_(async () => {
     rights_force_refresh.value // asyncComputed will know it needs to re-compute
     if (props.tabToDisplay !== 'rights') return;
     let r = await api.sgroup_direct_rights(props.id)
@@ -90,11 +105,14 @@ let rights = asyncComputed(async () => {
     return r
 })
 let flat_rights = fromPairs(list_of_rights.map(right => (
-    [ right, flat_mrights_show_search(props, sgroup, right, () => rights.value?.[right] || {}) ]
+    [ right, flat_mrights_show_search(sgroup, right, () => rights.value?.[right] || {}) ]
 )))
 
 type Attr = 'ou'|'description'
-let modify_attrs = new_ref_watching(() => props.id, () => ({} as PRecord<Attr, { prev: string, status?: 'canceling'|'saving' }>))
+let modify_attrs = ref_watching({ 
+    watch: () => props.id, 
+    value: () => ({} as PRecord<Attr, { prev: string, status?: 'canceling'|'saving' }>),
+})
 const start_modify_attr = (attr: Attr) => {
     modify_attrs.value[attr] = { prev: sgroup.value.attrs[attr] }
 }
@@ -136,11 +154,11 @@ const delete_sgroup = async () => {
 const send_modify_remotegroup = async () => {
     if (sgroup.value.remotegroup) {
         await api.modify_remote_sql_query(props.id, sgroup.value.remotegroup.remote_sql_query);
-        sgroup_force_refresh.value++
+        sgroup.update()
     }
 }
 const cancel_modify_remotegroup = () => {
-    sgroup_force_refresh.value++
+    sgroup.update()
 }
 
 const transform_group_into_RemoteGroup = () => {
@@ -154,14 +172,13 @@ const transform_group_into_RemoteGroup = () => {
 const transform_RemoteGroup_into_group = async () => {
     if (confirm("Le groupe sera vide. Ok ?")) {
         await api.modify_members_or_rights(props.id, { member: { replace: [] } })
-        sgroup_force_refresh.value++
+        sgroup.update()
     }
 }
-
 </script>
 
 <template>
-<div v-if="sgroup">
+<div>
     <small class="float-right">
         ID : {{props.id}}
     </small>
@@ -292,7 +309,7 @@ const transform_RemoteGroup_into_group = async () => {
             <li><button @click="delete_sgroup">Supprimer le {{sgroup.stem ? 'dossier' : 'groupe'}}</button></li>
         </template>
 
-        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id } }">
+        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id: props.id } }">
             <button>Historique</button>
         </RouterLink></li>
 
@@ -306,7 +323,6 @@ const transform_RemoteGroup_into_group = async () => {
     </ul>
 
     <p><i>Mes droits sur ce {{sgroup.stem ? 'dossier' : 'groupe'}} : {{right2text[sgroup.right]}}</i></p>
-
 </div>
 </template>
 

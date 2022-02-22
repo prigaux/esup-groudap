@@ -1,11 +1,21 @@
-import { debouncedWatch, watchOnce } from "@vueuse/core"
-import { FunctionDirective, reactive, Ref, ref, UnwrapRef, watch, WatchOptions, WatchSource } from "vue"
+import { asyncComputed, debouncedWatch, watchOnce } from "@vueuse/core"
+import { computed, ComputedRef, FunctionDirective, reactive, Ref, ref, UnwrapRef, watch, WatchOptions, WatchSource } from "vue"
+
+export type URef<T> = Ref<T | undefined>
 
 export const maySingleton = <T>(val: T | undefined): T[] => (
     val ? [val] : []
 )
 
-// alike asyncComputed, but can be used with an existing Ref (alternative would be syncRef, but the lifetime is different)
+// alike asyncComputed, but returns undefined during re-computation
+// (NB: "asyncComputed" type does not work show the undefined initial behaviour, where ours do)
+export const asyncComputed_ = <T>(evaluationCallback: () => Promise<T>): ComputedRef<T | undefined> => {
+    let evaluating = ref(false)
+    let asyncResult = asyncComputed(evaluationCallback)
+    return computed(() => evaluating.value ? undefined : asyncResult.value)
+}
+
+// alike asyncComputed, but not reactive => to be used with an existing Ref (alternative would be syncRef, but the lifetime is different)
 export function setRefAsync<T>(ref: Ref<T>, asyncValue: Promise<T>, initialValue: T) {
     ref.value = initialValue
     asyncValue.then(value => ref.value = value)
@@ -28,11 +38,16 @@ export function throttled_ref(initial_val: string, min_length?: number) {
     return reactive({ real, throttled })
 }
 
-export function new_ref_watching<T>(source: any, value: () => T) {
-    const r = ref(value())
-    watch(source, () => {
-        r.value = value() as UnwrapRef<T>
+export function ref_watching<T>(params : { value: () => T, watch?: any, update?: () => Promise<T> }) {
+    const r = ref(params.value()) as Ref<UnwrapRef<T>> & { update: () => void }
+    watch(params.watch || params.value, () => {
+        r.value = params.value() as UnwrapRef<T>
     })
+    r.update = async () => {
+        if (params.update) {
+            r.value = await params.update() as UnwrapRef<T>
+        }
+    };
     return r
 }
 
@@ -57,4 +72,5 @@ export const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() =>
         }
     })
 }
+
 
