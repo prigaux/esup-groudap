@@ -37,9 +37,11 @@ pub async fn handle_js_ui_routes(_is: IsJsUiRoute) -> io::Result<NamedFile> {
 }
 
 
+pub type SharedExpirableCache<C> = Arc<Mutex<Option<(SystemTime, Arc<C>)>>>;
+
 #[derive(Clone, Default)]
 pub struct Cache {
-    pub synchronized_groups: Arc<Mutex<Option<(SystemTime, Arc<HashMap<String, String>>)>>>,
+    pub synchronized_groups: SharedExpirableCache<HashMap<String, String>>,
 }
 
 pub struct OrigUrl(pub String);
