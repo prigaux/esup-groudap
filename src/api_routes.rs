@@ -117,7 +117,7 @@ async fn mygroups(cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupsWithAttrs>, M
 #[get("/clear_cache")]
 async fn clear_cache(cache : &State<Cache>) {
     let mut val = cache.synchronized_groups.lock().unwrap();
-    *val = Some((SystemTime::now(), Arc::new(hashmap!["foo".to_owned() => "bar2".to_owned()])));
+    *val = Some((SystemTime::now(), Arc::new(hashmap![])));
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]

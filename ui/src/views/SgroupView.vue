@@ -15,9 +15,9 @@ async function get_sgroup(id: string): Promise<SgroupAndMoreOut_> {
     if (sgroup.group) {
         await api.add_sscfg_dns(sgroup.group.direct_members)
     }
-    if (sgroup.remotegroup) {
-        api.convert.remote_sql_query.from_api(sgroup.remotegroup.remote_sql_query)
-        sgroup.remotegroup_orig = cloneDeep(sgroup.remotegroup)
+    if (sgroup.synchronized_group) {
+        api.convert.remote_sql_query.from_api(sgroup.synchronized_group.remote_sql_query)
+        sgroup.synchronized_group_orig = cloneDeep(sgroup.synchronized_group)
     }
     return sgroup
 }
@@ -74,7 +74,7 @@ let sgroup = ref_watching({
 let members = mrights_flat_or_not(props.sscfgs, sgroup, 'member', () => sgroup.value.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
-    sgroup.value && ['updater', 'admin'].includes(sgroup.value.right)) && !sgroup.value.remotegroup
+    sgroup.value && ['updater', 'admin'].includes(sgroup.value.right)) && !sgroup.value.synchronized_group
 )
 
 let add_member_show = ref(false)
@@ -151,19 +151,19 @@ const delete_sgroup = async () => {
     }
 }
 
-const send_modify_remotegroup = async () => {
-    if (sgroup.value.remotegroup) {
-        await api.modify_remote_sql_query(props.id, sgroup.value.remotegroup.remote_sql_query);
+const send_modify_synchronized_group = async () => {
+    if (sgroup.value.synchronized_group) {
+        await api.modify_remote_sql_query(props.id, sgroup.value.synchronized_group.remote_sql_query);
         sgroup.update()
     }
 }
-const cancel_modify_remotegroup = () => {
+const cancel_modify_synchronized_group = () => {
     sgroup.update()
 }
 
 const transform_group_into_RemoteGroup = () => {
     delete sgroup.value.group;
-    sgroup.value.remotegroup = { remote_sql_query: {
+    sgroup.value.synchronized_group = { remote_sql_query: {
         remote_cfg_name: '',
         select_query: '',
         to_subject_source: { ssdn: '', id_attr: '' },
@@ -228,16 +228,16 @@ const transform_RemoteGroup_into_group = async () => {
         </div>
     </fieldset>
 
-    <fieldset v-if="sgroup.remotegroup">
+    <fieldset v-if="sgroup.synchronized_group">
         <legend>
             <h4>Synchronisation</h4>
-            <template v-if="!isEqual(sgroup.remotegroup, sgroup.remotegroup_orig)">
-                <MyIcon name="check" class="on-the-right" @click="send_modify_remotegroup" />
-                <MyIcon name="close" class="on-the-right" @click="cancel_modify_remotegroup" />
+            <template v-if="!isEqual(sgroup.synchronized_group, sgroup.synchronized_group_orig)">
+                <MyIcon name="check" class="on-the-right" @click="send_modify_synchronized_group" />
+                <MyIcon name="close" class="on-the-right" @click="cancel_modify_synchronized_group" />
             </template>
         </legend>
 
-        <RemoteGroupView :id="props.id" :remote_sql_query="sgroup.remotegroup.remote_sql_query" @save="send_modify_remotegroup" />
+        <RemoteGroupView :id="props.id" :remote_sql_query="sgroup.synchronized_group.remote_sql_query" @save="send_modify_synchronized_group" />
     </fieldset>
 
     <p></p>
@@ -279,7 +279,7 @@ const transform_RemoteGroup_into_group = async () => {
                 <SgroupLink :sgroup="{ attrs }" :id="id" />
             </li>
         </ul>
-        <div v-else-if="sgroup.group || sgroup.remotegroup">
+        <div v-else-if="sgroup.group || sgroup.synchronized_group">
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
@@ -287,7 +287,7 @@ const transform_RemoteGroup_into_group = async () => {
                     <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
                 </SearchSubjectToAdd></p>
             </p>
-            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.remotegroup">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
+            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.synchronized_group">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"
                 @remove="dn => remove_direct_mright(dn, 'member')" />
@@ -313,7 +313,7 @@ const transform_RemoteGroup_into_group = async () => {
             <button>Historique</button>
         </RouterLink></li>
 
-        <li v-if="sgroup.remotegroup && sgroup.right === 'admin'">
+        <li v-if="sgroup.synchronized_group && sgroup.right === 'admin'">
             <button @click="transform_RemoteGroup_into_group">Ne plus synchroniser ce groupe</button>
         </li>
         <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
