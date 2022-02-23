@@ -23,12 +23,11 @@ async function group_flattened_mright(id: string, mright: Mright, search_token: 
 }
 
 export const flat_mrights_show_search = (sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, directs: () => Subjects) => {
-    let show = ref_watching({ watch: () => sgroup.value?.id, value: () => !sgroup.value?.remotegroup })
+    let show = ref_watching({ watch: () => sgroup.value.id, value: () => !!sgroup.value.remotegroup })
     let searching = ref(false)
     let search_token = throttled_ref('')
     let results = asyncComputed(async () => {
-        if (!show.value || !sgroup.value || sgroup.value.stem) return;
-        console.log("WWWWW", sgroup.value?.id, sgroup.value)
+        if (!show.value || sgroup.value.stem) return;
         const search_token_ = search_token.throttled || ''
         //if (search_token_.length < 3) return;
         return await group_flattened_mright(sgroup.value.id, mright, search_token_, directs());
