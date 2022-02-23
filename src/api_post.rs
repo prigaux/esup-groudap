@@ -8,8 +8,9 @@ use ldap3::{Mod};
 
 
 use crate::api_get::validate_remote;
+use crate::cache::AllCaches;
 use crate::remote_query::direct_members_to_remote_sql_query;
-use crate::{my_types::*, remote_query};
+use crate::{my_types::*, remote_query, cache};
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{LdapW, mono_attrs};
 use crate::my_ldap::{self, urls_to_dns};
@@ -230,7 +231,7 @@ async fn may_update_flattened_mrights(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW
     may_update_flattened_mrights_(ldp, id, mright, group_dn, direct_dns).await
 }
 
-async fn may_update_flattened_mrights_rec(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
+pub async fn may_update_flattened_mrights_rec(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
     while let Some((id, mright)) = todo.pop() {
         let result = may_update_flattened_mrights(cfg_and_lu, ldp, &id, mright).await?;
         if let (Mright::Member, UpResult::Modified) = (mright, &result) {
@@ -271,20 +272,23 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     Ok(())
 }
 
-pub async fn modify_remote_sql_query(cfg_and_lu: CfgAndLU<'_>, id: &str, remote: RemoteSqlQuery, msg: &Option<String>) -> Result<()> {
+pub async fn modify_remote_sql_query(all_caches : &AllCaches, cfg_and_lu: CfgAndLU<'_>, id: &str, remote: RemoteSqlQuery, msg: &Option<String>) -> Result<()> {
     eprintln!("modify_remote_sql_query({}, {:?}, {:?})", id, remote, msg);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
     validate_remote(&cfg_and_lu, &remote)?;
     
     let ldp = &mut LdapW::open_(&cfg_and_lu).await?;
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, vec![
-        Mod::Replace(Mright::Member.to_attr_remote(), hashset![ String::from(&remote) ]),
+        Mod::Replace(Mright::Member.to_attr_synchronized(), hashset![ String::from(&remote) ]),
     ]).await?.success()?;
 
     api_log::log_sgroup_action(&cfg_and_lu, id, "modify_remote_sql_query", msg, serde_json::to_value(remote.clone())?).await?;
 
     let todo = vec![(id.to_owned(), Mright::Member)];
     may_update_flattened_mrights_rec(&cfg_and_lu, ldp, todo).await?;
+
+    // needed for new sync group or if "remote_cfg_name" was modified  
+    cache::clear(&all_caches.remote_to_sgroup_ids);
 
     Ok(())
 }

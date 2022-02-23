@@ -12,6 +12,7 @@ mod my_types;
 mod my_err;
 mod ldap_filter;
 mod ldap_wrapper;
+mod cache;
 mod api_log;
 mod api_get;
 mod api_post;
@@ -25,21 +26,22 @@ mod cron;
 mod remote_query;
 mod rocket_helpers;
 
+use cache::AllCaches;
 use rocket::{fairing::AdHoc, fs::FileServer, fs::relative};
 
 #[launch]
 fn rocket() -> _ {
-    let cache: rocket_helpers::Cache = Default::default();
+    let all_caches: AllCaches = Default::default();
 
     let rocket = rocket::build()
         .mount("/api", api_routes::routes())
         .mount("/", FileServer::from(relative!("ui/dist")))
         .mount("/", routes![rocket_helpers::handle_js_ui_routes])
-        .manage(cache.clone())
+        .manage(all_caches.clone())
         .attach(AdHoc::config::<my_types::Config>());
 
     let config: my_types::Config = rocket.figment().extract().expect("config");
-    thread::spawn(move || cron::the_loop(config, cache));
+    thread::spawn(move || cron::the_loop(config, all_caches));
 
     rocket
 }

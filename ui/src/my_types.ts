@@ -51,7 +51,7 @@ export interface RemoteSqlQuery {
 export interface SgroupOutMore {
     stem?: { children: SgroupsWithAttrs }
     group?: { direct_members: Subjects }
-    synchronized_group?: { remote_sql_query: RemoteSqlQuery }
+    synchronizedGroup?: { remote_sql_query: RemoteSqlQuery }
 
     // internal
     synchronized_group_orig?: { remote_sql_query: RemoteSqlQuery }

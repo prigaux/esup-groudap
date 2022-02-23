@@ -131,7 +131,7 @@ impl LdapW<'_> {
     attrs.remove(attr)?.pop()
 }*/
 
-fn get_all_values(map: LdapAttrs) -> Vec<String> {
+pub fn get_all_values(map: LdapAttrs) -> Vec<String> {
     map.into_values().flatten().collect()
 }
 

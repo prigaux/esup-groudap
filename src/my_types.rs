@@ -16,12 +16,12 @@ fn remotes_periodicity_checker<'de, D>(d: D) -> Result<BTreeMap<String, RemoteCo
 {
     let remotes : BTreeMap<String, RemoteConfig> = BTreeMap::deserialize(d)?;
     
-    if systemd_calendar_events::next_elapse(
+    if systemd_calendar_events::next_elapses(
             remotes.values().map(|cfg| &cfg.periodicity).collect()
     ).is_err() {
         // there has been an error, retry one by one to know which one failed
         for (remote_id, cfg) in &remotes {
-            if systemd_calendar_events::next_elapse(vec![&cfg.periodicity]).is_err() {
+            if systemd_calendar_events::next_elapse(&cfg.periodicity).is_err() {
                 let msg = format!("a valid periodicity for remote {}. Hint: validate it with ''systemd-analyze calendar ....''", remote_id);
                 return Err(de::Error::invalid_value(de::Unexpected::Str(&cfg.periodicity), &msg.as_str()));
             }
@@ -206,11 +206,11 @@ pub struct SgroupOutAndRight {
 
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum SgroupOutMore {
     Stem { children: SgroupsWithAttrs },
     Group { direct_members: Subjects },
-    RemoteGroup { remote_sql_query: RemoteSqlQuery },
+    SynchronizedGroup { remote_sql_query: RemoteSqlQuery },
 }
 
 #[derive(Serialize, PartialEq, Eq, Debug)]
@@ -238,7 +238,7 @@ impl Mright {
     pub fn to_attr(self) -> String {
         format!("memberURL;x-{}", self.to_string())
     }
-    pub fn to_attr_remote(self) -> String {
+    pub fn to_attr_synchronized(self) -> String {
         format!("memberURL;x-{};x-remote", self.to_string())
     }
     pub fn list() -> Vec<Self> { vec![Self::Member, Self::Reader, Self::Updater, Self::Admin] }     

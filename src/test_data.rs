@@ -191,10 +191,10 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
         ldp.config.sgroup_id_to_dn("collab.DSIUN"), prigaux_dn(),
     ]);
     let remote_sql_query = || remote_query::parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users").unwrap().unwrap();
-    api_post::modify_remote_sql_query(cfg_and_prigaux(), "collab.foo", remote_sql_query(), &None).await?;
+    api_post::modify_remote_sql_query(&Default::default(), cfg_and_prigaux(), "collab.foo", remote_sql_query(), &None).await?;
     assert_eq!(api_get::get_sgroup(cfg_and_prigaux(), "collab.foo").await?,
         SgroupAndMoreOut { 
-            attrs: collab_foo_attrs(), more: SgroupOutMore::RemoteGroup { remote_sql_query: remote_sql_query() }, 
+            attrs: collab_foo_attrs(), more: SgroupOutMore::SynchronizedGroup { remote_sql_query: remote_sql_query() }, 
             parents: vec![ 
                 root_with_id(Some(Right::Admin)), collab_with_id(Some(Right::Admin)) 
             ], right: Right::Admin }

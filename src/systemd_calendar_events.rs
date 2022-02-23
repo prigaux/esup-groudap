@@ -22,7 +22,7 @@ fn parse_systemd_analyze_output(output: &str) -> HashMap<String, DateTime<FixedO
 
 // Cf https://www.freedesktop.org/software/systemd/man/systemd.time.html#Calendar%20Events for the syntax of calendar events
 // NB : timezone depends on TZ env var or /etc/localtime
-pub fn next_elapse(events: Vec<&String>) -> Result<HashMap<String, DateTime<FixedOffset>>, String> {
+pub fn next_elapses(events: Vec<&String>) -> Result<HashMap<String, DateTime<FixedOffset>>, String> {
     let output = Command::new("/usr/bin/systemd-analyze")
         .args([vec![&"calendar".to_owned()], events].concat())
         .output()
@@ -32,4 +32,10 @@ pub fn next_elapse(events: Vec<&String>) -> Result<HashMap<String, DateTime<Fixe
     } else {
         Err(String::from_utf8(output.stderr).expect("valid utf8"))
     }
+}
+
+pub fn next_elapse(event: &String) -> Result<DateTime<FixedOffset>, String> {
+    let mut m = next_elapses(vec![event])?;
+
+    m.remove(event).ok_or("internal error".to_owned())
 }

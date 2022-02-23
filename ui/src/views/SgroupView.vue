@@ -15,9 +15,9 @@ async function get_sgroup(id: string): Promise<SgroupAndMoreOut_> {
     if (sgroup.group) {
         await api.add_sscfg_dns(sgroup.group.direct_members)
     }
-    if (sgroup.synchronized_group) {
-        api.convert.remote_sql_query.from_api(sgroup.synchronized_group.remote_sql_query)
-        sgroup.synchronized_group_orig = cloneDeep(sgroup.synchronized_group)
+    if (sgroup.synchronizedGroup) {
+        api.convert.remote_sql_query.from_api(sgroup.synchronizedGroup.remote_sql_query)
+        sgroup.synchronized_group_orig = cloneDeep(sgroup.synchronizedGroup)
     }
     return sgroup
 }
@@ -41,7 +41,7 @@ import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 import SgroupRightsView from './SgroupRightsView.vue';
 import { RouteLocationNormalized } from 'vue-router';
-const RemoteGroupView = defineAsyncComponent(() => import('./RemoteGroupView.vue'));
+const SynchronizedGroupView = defineAsyncComponent(() => import('./SynchronizedGroupView.vue'));
 
 const props = withDefaults(defineProps<{
   tabToDisplay: 'direct'|'rights',
@@ -74,7 +74,7 @@ let sgroup = ref_watching({
 let members = mrights_flat_or_not(props.sscfgs, sgroup, 'member', () => sgroup.value.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
-    sgroup.value && ['updater', 'admin'].includes(sgroup.value.right)) && !sgroup.value.synchronized_group
+    sgroup.value && ['updater', 'admin'].includes(sgroup.value.right)) && !sgroup.value.synchronizedGroup
 )
 
 let add_member_show = ref(false)
@@ -152,8 +152,8 @@ const delete_sgroup = async () => {
 }
 
 const send_modify_synchronized_group = async () => {
-    if (sgroup.value.synchronized_group) {
-        await api.modify_remote_sql_query(props.id, sgroup.value.synchronized_group.remote_sql_query);
+    if (sgroup.value.synchronizedGroup) {
+        await api.modify_remote_sql_query(props.id, sgroup.value.synchronizedGroup.remote_sql_query);
         sgroup.update()
     }
 }
@@ -161,15 +161,15 @@ const cancel_modify_synchronized_group = () => {
     sgroup.update()
 }
 
-const transform_group_into_RemoteGroup = () => {
+const transform_group_into_SynchronizedGroup = () => {
     delete sgroup.value.group;
-    sgroup.value.synchronized_group = { remote_sql_query: {
+    sgroup.value.synchronizedGroup = { remote_sql_query: {
         remote_cfg_name: '',
         select_query: '',
         to_subject_source: { ssdn: '', id_attr: '' },
     } }
 }
-const transform_RemoteGroup_into_group = async () => {
+const transform_SynchronizedGroup_into_group = async () => {
     if (confirm("Le groupe sera vide. Ok ?")) {
         await api.modify_members_or_rights(props.id, { member: { replace: [] } })
         sgroup.update()
@@ -228,16 +228,16 @@ const transform_RemoteGroup_into_group = async () => {
         </div>
     </fieldset>
 
-    <fieldset v-if="sgroup.synchronized_group">
+    <fieldset v-if="sgroup.synchronizedGroup">
         <legend>
             <h4>Synchronisation</h4>
-            <template v-if="!isEqual(sgroup.synchronized_group, sgroup.synchronized_group_orig)">
+            <template v-if="!isEqual(sgroup.synchronizedGroup, sgroup.synchronized_group_orig)">
                 <MyIcon name="check" class="on-the-right" @click="send_modify_synchronized_group" />
                 <MyIcon name="close" class="on-the-right" @click="cancel_modify_synchronized_group" />
             </template>
         </legend>
 
-        <RemoteGroupView :id="props.id" :remote_sql_query="sgroup.synchronized_group.remote_sql_query" @save="send_modify_synchronized_group" />
+        <SynchronizedGroupView :id="props.id" :remote_sql_query="sgroup.synchronizedGroup.remote_sql_query" @save="send_modify_synchronized_group" />
     </fieldset>
 
     <p></p>
@@ -279,7 +279,7 @@ const transform_RemoteGroup_into_group = async () => {
                 <SgroupLink :sgroup="{ attrs }" :id="id" />
             </li>
         </ul>
-        <div v-else-if="sgroup.group || sgroup.synchronized_group">
+        <div v-else-if="sgroup.group || sgroup.synchronizedGroup">
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
@@ -287,7 +287,7 @@ const transform_RemoteGroup_into_group = async () => {
                     <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
                 </SearchSubjectToAdd></p>
             </p>
-            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.synchronized_group">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
+            <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.synchronizedGroup">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"
                 @remove="dn => remove_direct_mright(dn, 'member')" />
@@ -313,11 +313,11 @@ const transform_RemoteGroup_into_group = async () => {
             <button>Historique</button>
         </RouterLink></li>
 
-        <li v-if="sgroup.synchronized_group && sgroup.right === 'admin'">
-            <button @click="transform_RemoteGroup_into_group">Ne plus synchroniser ce groupe</button>
+        <li v-if="sgroup.synchronizedGroup && sgroup.right === 'admin'">
+            <button @click="transform_SynchronizedGroup_into_group">Ne plus synchroniser ce groupe</button>
         </li>
         <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
-            <button @click="transform_group_into_RemoteGroup">Transformer en un groupe synchronisé</button>
+            <button @click="transform_group_into_SynchronizedGroup">Transformer en un groupe synchronisé</button>
         </li>
 
     </ul>

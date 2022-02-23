@@ -12,6 +12,10 @@ pub fn true_() -> &'static str {
     "(objectClass=groupOfNames)"
 }*/
 
+pub fn presence(attr: &str) -> String {
+    format!("({}=*)", attr)
+}
+
 pub fn eq(attr: &str, val: &str) -> String {
     format!("({}={})", attr, ldap_escape(val))
 }

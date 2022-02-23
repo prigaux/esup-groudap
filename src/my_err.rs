@@ -43,4 +43,10 @@ impl From<tokio::task::JoinError> for MyErr {
     }
 }
 
+impl From<String> for MyErr {
+    fn from(err: String) -> Self {
+        MyErr::Msg(err)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, MyErr>;

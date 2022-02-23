@@ -170,10 +170,12 @@ pub fn query(
     raw_query(remote_cfg, &remote_cfg.db_name, &remote.select_query)
 }
 
+/*
 // return subject DNs
 pub async fn query_subjects(ldp: &mut LdapW<'_>, remotes_cfg: &BTreeMap<String, RemoteConfig>, remote: &RemoteSqlQuery) -> Result<HashSet<Dn>> {
     sql_values_to_dns(ldp, remote, query(remotes_cfg, remote)?).await
 }
+*/
 
 pub async fn sql_values_to_dns(ldp: &mut LdapW<'_>, remote: &RemoteSqlQuery, sql_values: Vec<String>) -> Result<HashSet<Dn>> {
     if let Some(to_ss) = &remote.to_subject_source {

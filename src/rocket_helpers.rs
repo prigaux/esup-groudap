@@ -1,7 +1,3 @@
-
-use std::time::SystemTime;
-use std::{sync::{Arc, Mutex}, collections::HashMap};
-
 use serde_json::json;
 use rocket::{State};
 use rocket::fs::{NamedFile, relative};
@@ -34,14 +30,6 @@ impl<'r> FromRequest<'r> for IsJsUiRoute {
 #[get("/<_..>")]
 pub async fn handle_js_ui_routes(_is: IsJsUiRoute) -> io::Result<NamedFile> {
     NamedFile::open(relative!("ui/dist/index.html")).await
-}
-
-
-pub type SharedExpirableCache<C> = Arc<Mutex<Option<(SystemTime, Arc<C>)>>>;
-
-#[derive(Clone, Default)]
-pub struct Cache {
-    pub synchronized_groups: SharedExpirableCache<HashMap<String, String>>,
 }
 
 pub struct OrigUrl(pub String);

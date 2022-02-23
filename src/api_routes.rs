@@ -1,25 +1,19 @@
 use std::collections::BTreeMap;
 use std::result::Result;
 
-use std::time::SystemTime;
-use std::sync::Arc;
-
 use rocket::{Route, State};
-
 use rocket::http::{Cookie, CookieJar};
-
-
 use rocket::response::{Redirect};
 use rocket::serde::json::{Json, Value};
 use serde_json::json;
 
-
+use crate::cache::{AllCaches, self};
 use crate::helpers::{before};
 use crate::my_types::{MonoAttrs, MyMods, Config, CfgAndLU, SgroupAndMoreOut, RemoteConfig, Right, Subjects, Mright, SgroupsWithAttrs, SubjectsAndCount, LdapConfigOut, Dn, RemoteSqlQuery};
 use crate::api_get;
 use crate::api_post;
 use crate::remote_query::TestRemoteQuerySql;
-use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json, Cache};
+use crate::rocket_helpers::{OrigUrl, MyJson, action_result, to_json, err_to_json};
 use crate::test_data;
 use crate::cas_auth;
 
@@ -73,8 +67,8 @@ async fn modify_members_or_rights(id: String, msg: Option<String>, mods: Json<My
 }
 
 #[post("/modify_remote_sql_query?<id>&<msg>", data = "<remote>")]
-async fn modify_remote_sql_query(id: String, msg: Option<String>, remote: Json<RemoteSqlQuery>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
-    action_result(api_post::modify_remote_sql_query(cfg_and_lu, &id, remote.into_inner(), &msg).await)
+async fn modify_remote_sql_query(id: String, msg: Option<String>, remote: Json<RemoteSqlQuery>, all_caches : &State<AllCaches>, cfg_and_lu : CfgAndLU<'_>) -> MyJson {
+    action_result(api_post::modify_remote_sql_query(all_caches, cfg_and_lu, &id, remote.into_inner(), &msg).await)
 }
 
 #[get("/test_remote_query_sql?<id>&<remote_sql_query>")]
@@ -115,9 +109,8 @@ async fn mygroups(cfg_and_lu : CfgAndLU<'_>) -> Result<Json<SgroupsWithAttrs>, M
 }
 
 #[get("/clear_cache")]
-async fn clear_cache(cache : &State<Cache>) {
-    let mut val = cache.synchronized_groups.lock().unwrap();
-    *val = Some((SystemTime::now(), Arc::new(hashmap![])));
+async fn clear_cache(all_caches : &State<AllCaches>) {
+    cache::clear_all(&all_caches);
 }
 
 #[get("/search_subjects?<search_token>&<sizelimit>&<source_dn>")]
