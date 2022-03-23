@@ -22,8 +22,8 @@ async function group_flattened_mright(id: string, mright: Mright, search_token: 
     return r;
 }
 
-export const flat_mrights_show_search = (sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, directs: () => Subjects) => {
-    let show = ref_watching({ watch: () => sgroup.value.id, value: () => !!sgroup.value.synchronizedGroup })
+export const flat_mrights_show_search = (sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, default_show: () => boolean, directs: () => Subjects) => {
+    let show = ref_watching({ watch: () => sgroup.value.id, value: default_show })
     let searching = ref(false)
     let search_token = throttled_ref('')
     let results = asyncComputed(async () => {
@@ -35,8 +35,22 @@ export const flat_mrights_show_search = (sgroup: Ref<SgroupAndMoreOut_>, mright:
     return { show, searching, search_token, results }
 }
 
-export const mrights_flat_or_not = (sscfgs: LdapConfigOut, sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, directs: () => Subjects) => {
-    let { results: flat_results, ...flat } = flat_mrights_show_search(sgroup, mright, directs)
+export type Mrights_flat_or_not = {
+    flat: {
+        show: boolean,
+        searching: boolean,
+        search_token: { real: string, throttled: string },
+    },
+    results: SubjectsAndCount_with_more | undefined,
+    details: { 
+        real_count: number,
+        limited: boolean,
+        may_have_indirects: boolean
+    } | undefined
+}
+
+export const mrights_flat_or_not = (sscfgs: LdapConfigOut, sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, default_show_flat: () => boolean, directs: () => Subjects) : Mrights_flat_or_not => {
+    let { results: flat_results, ...flat } = flat_mrights_show_search(sgroup, mright, default_show_flat, directs)
     let results = computed(() => {
         if (flat.show.value) {
             return flat_results.value
@@ -51,7 +65,7 @@ export const mrights_flat_or_not = (sscfgs: LdapConfigOut, sgroup: Ref<SgroupAnd
         return {
             real_count,
             limited: results.value.count !== real_count,
-            may_have_indirects: some(results.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.groups_dn) || true
+            may_have_indirects: some(results.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.groups_dn)
         }
     })
     return reactive({ flat, results, details })

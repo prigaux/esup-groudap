@@ -6,7 +6,7 @@ import { asyncComputed_, ref_watching } from '@/vue_helpers';
 import { forEachAsync } from '@/helpers';
 import { Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
 import { list_of_rights, right2text } from '@/lib';
-import { flat_mrights_show_search, mrights_flat_or_not } from '@/composition/SgroupSubjects';
+import { mrights_flat_or_not } from '@/composition/SgroupSubjects';
 
 import * as api from '@/api'
 
@@ -71,7 +71,9 @@ let sgroup = ref_watching({
     update: () => get_sgroup(props.id),
 })
 
-let members = mrights_flat_or_not(props.sscfgs, sgroup, 'member', () => sgroup.value.group?.direct_members || {})
+let members = mrights_flat_or_not(props.sscfgs, sgroup, 'member', 
+                        () => !!sgroup.value.synchronizedGroup, 
+                        () => sgroup.value.group?.direct_members || {})
 
 let can_modify_member = computed(() => (
     sgroup.value && ['updater', 'admin'].includes(sgroup.value.right)) && !sgroup.value.synchronizedGroup
@@ -97,15 +99,15 @@ function remove_direct_mright(dn: Dn, mright: Mright) {
 
 let add_right_show = ref(false)
 let rights_force_refresh = ref(0)
-let rights = asyncComputed_(async () => {
+let direct_rights = asyncComputed_(async () => {
     rights_force_refresh.value // asyncComputed will know it needs to re-compute
     if (props.tabToDisplay !== 'rights') return;
     let r = await api.sgroup_direct_rights(props.id)
     await forEachAsync(r, (subjects, _) => api.add_sscfg_dns(subjects))
     return r
 })
-let flat_rights = fromPairs(list_of_rights.map(right => (
-    [ right, flat_mrights_show_search(sgroup, right, () => rights.value?.[right] || {}) ]
+let rights = fromPairs(list_of_rights.map(right => (
+    [ right, mrights_flat_or_not(props.sscfgs, sgroup, right, () => false, () => direct_rights.value?.[right] || {}) ]
 )))
 
 type Attr = 'ou'|'description'
@@ -268,7 +270,7 @@ const transform_SynchronizedGroup_into_group = async () => {
             <span v-else>
                 Les entités ayant des privilèges sur ce groupe
             </span>
-            <SgroupRightsView v-if="rights"
+            <SgroupRightsView v-if="direct_rights"
                 :rights="rights"
                 :can_modify="sgroup.right == 'admin'" @remove="remove_direct_mright" />
         </div>
