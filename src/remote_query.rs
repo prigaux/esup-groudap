@@ -204,7 +204,7 @@ pub async fn test_remote_query_sql(
     let max_values = 10;    
     values.truncate(max_values); // return an extract
     let ss_guess = if count > 0 {
-        guest_subject_source(ldp, &values).await?
+        guess_subject_source(ldp, &values).await?
     } else {
         None
     };
@@ -216,7 +216,7 @@ pub async fn test_remote_query_sql(
     })
 }
 
-async fn guest_subject_source(ldp: &mut LdapW<'_>, values: &Vec<String>) -> Result<Option<(ToSubjectSource, Subjects)>> {
+async fn guess_subject_source(ldp: &mut LdapW<'_>, values: &Vec<String>) -> Result<Option<(ToSubjectSource, Subjects)>> {
     let mut best = (0, None);
     for sscfg in &ldp.config.subject_sources {
         if let Some(vec) = &sscfg.id_attrs {
