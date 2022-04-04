@@ -2,7 +2,7 @@ import { size } from 'lodash'
 import { computed, reactive, Ref, ref } from 'vue'
 import { asyncComputed } from '@vueuse/core'
 import { ref_watching, throttled_ref } from '@/vue_helpers';
-import { forEach, objectSortBy, some } from '@/helpers';
+import { forEach, some } from '@/helpers';
 import { LdapConfigOut, Mright, SgroupAndMoreOut_, Subjects, SubjectsAndCount_with_more, Subjects_with_more } from '@/my_types';
 import * as api from '@/api'
 
@@ -15,9 +15,7 @@ async function group_flattened_mright(id: string, mright: Mright, search_token: 
         subject.indirect = !(dn in directs);
     });
 
-    await api.add_sscfg_dns_and_sort_field(r.subjects);
-    r.subjects = objectSortBy(r.subjects, (subject, _) => subject.sort_field);
-    forEach(r.subjects, (attrs, _) => delete attrs.sort_field)
+    r.subjects = await api.add_sscfg_dns_and_sort(r.subjects);
 
     return r;
 }

@@ -1,5 +1,5 @@
 import { at, pickBy } from "lodash";
-import { forEach } from "./helpers";
+import { forEach, objectSortBy } from "./helpers";
 import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, RemoteConfig, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more, ToSubjectSource } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
@@ -135,7 +135,7 @@ export async function add_sscfg_dns(subjects: Subjects) {
         attrs.sscfg_dn = sscfgs.find(one => dn?.endsWith(one.dn))?.dn
     })
 }
-export async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
+async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
     const sscfgs = (await config_subject_sources()).subject_sources
     forEach(subjects as Subjects_with_more, (subject, dn) => {
         const i = sscfgs.findIndex(one => dn?.endsWith(one.dn))
@@ -145,6 +145,14 @@ export async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
             subject.sort_field = i + ';' + at(subject.attrs, sscfg.display_attrs).join(';')
         }
     })
+}
+
+export async function add_sscfg_dns_and_sort(subjects: Subjects) {
+    let subjects_ = subjects as Subjects_with_more
+    await add_sscfg_dns_and_sort_field(subjects_)
+    subjects_ = objectSortBy(subjects_, (subject, _) => subject.sort_field);
+    forEach(subjects_, (attrs, _) => delete attrs.sort_field)
+    return subjects_ as Subjects
 }
 
 export const convert = {

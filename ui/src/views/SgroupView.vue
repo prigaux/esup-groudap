@@ -13,7 +13,7 @@ import * as api from '@/api'
 async function get_sgroup(id: string): Promise<SgroupAndMoreOut_> {
     let sgroup = { id, ...await api.sgroup(id) }
     if (sgroup.group) {
-        await api.add_sscfg_dns(sgroup.group.direct_members)
+        sgroup.group.direct_members = await api.add_sscfg_dns_and_sort(sgroup.group.direct_members)
     }
     if (sgroup.synchronizedGroup) {
         api.convert.remote_sql_query.from_api(sgroup.synchronizedGroup.remote_sql_query)
