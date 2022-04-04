@@ -7,7 +7,10 @@ const api_url = document.location.href.replace(/[^/]*$/, 'api');
 export async function login() {
     const cfg = await (await fetch("/api/config/public")).json()
     if (cfg && cfg.cas_prefix_url) {
-        document.location.href = cfg.cas_prefix_url + "/login?service=" + encodeURIComponent(api_url + "/login?target=" + encodeURIComponent(document.location.pathname + document.location.search))
+        document.location.href =
+            cfg.cas_prefix_url + "/login?service=" +
+            encodeURIComponent(api_url + "/login?target=" + encodeURIComponent(document.location.pathname + document.location.search)) +
+            document.location.hash
     }
 }
 
