@@ -10,9 +10,9 @@ const compute_default_vue_template = (sscfg: SubjectSourceConfig) => (
 )
 
 export default defineAsyncComponent(async () => {
-    const sscfgs = await api.config_subject_sources()
+    const sscfgs = (await api.config_ldap()).subject_sources
 
-    const template = sscfgs.subject_sources.map(sscfg => {
+    const template = sscfgs.map(sscfg => {
         const sub_tmpl = sscfg.vue_template || compute_default_vue_template(sscfg)
         return `<span v-if="(ssdn || subject.sscfg_dn) === '${sscfg.dn}'">${sub_tmpl}</span>`
     }).join('')

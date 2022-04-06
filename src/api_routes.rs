@@ -125,8 +125,8 @@ fn config_public(cfg : &State<Config>) -> Value {
         "cas_prefix_url": cfg.cas.prefix_url,
     })
 }
-#[get("/config/subject_sources")]
-fn config_subject_sources(cfg_and_lu : CfgAndLU<'_>) -> Json<LdapConfigOut<'_>> {
+#[get("/config/ldap")]
+fn config_ldap(cfg_and_lu : CfgAndLU<'_>) -> Json<LdapConfigOut<'_>> {
     Json(cfg_and_lu.cfg.ldap.to_js_ui())
 }
 #[get("/config/remotes")]
@@ -141,7 +141,7 @@ pub fn routes() -> Vec<Route> {
         clear_test_data, add_test_data, set_test_data, 
         sgroup, sgroup_direct_rights, group_flattened_mright, sgroup_logs,
         search_sgroups, search_subjects, mygroups, 
-        config_public, config_subject_sources, config_remotes,
+        config_public, config_ldap, config_remotes,
         create, modify_sgroup_attrs, delete, 
         modify_members_or_rights, modify_remote_sql_query, test_remote_query_sql,
     ]

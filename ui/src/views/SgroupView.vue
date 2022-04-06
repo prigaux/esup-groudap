@@ -27,7 +27,7 @@ export async function computedProps(to: RouteLocationNormalized) {
     return { 
         id, 
         initial_sgroup: await get_sgroup(id),
-        sscfgs: await api.config_subject_sources(),
+        ldapCfg: await api.config_ldap(),
     }
 }
 
@@ -48,7 +48,7 @@ const props = withDefaults(defineProps<{
   // computedProps
   id: string,
   initial_sgroup: SgroupAndMoreOut_,
-  sscfgs: LdapConfigOut,
+  ldapCfg: LdapConfigOut,
 }>(), { tabToDisplay: 'direct' });
 
 // check coherence of props of prefetch
@@ -71,7 +71,7 @@ let sgroup = ref_watching({
     update: () => get_sgroup(props.id),
 })
 
-let members = mrights_flat_or_not(props.sscfgs, sgroup, 'member', 
+let members = mrights_flat_or_not(props.ldapCfg, sgroup, 'member', 
                         () => !!sgroup.value.synchronizedGroup, 
                         () => sgroup.value.group?.direct_members || {})
 
@@ -107,7 +107,7 @@ let direct_rights = asyncComputed_(async () => {
     return r
 })
 let rights = fromPairs(list_of_rights.map(right => (
-    [ right, mrights_flat_or_not(props.sscfgs, sgroup, right, () => false, () => direct_rights.value?.[right] || {}) ]
+    [ right, mrights_flat_or_not(props.ldapCfg, sgroup, right, () => false, () => direct_rights.value?.[right] || {}) ]
 )))
 
 type Attr = 'ou'|'description'

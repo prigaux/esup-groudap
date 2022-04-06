@@ -47,7 +47,7 @@ export type Mrights_flat_or_not = {
     } | undefined
 }
 
-export const mrights_flat_or_not = (sscfgs: LdapConfigOut, sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, default_show_flat: () => boolean, directs: () => Subjects) : Mrights_flat_or_not => {
+export const mrights_flat_or_not = (ldapCfg: LdapConfigOut, sgroup: Ref<SgroupAndMoreOut_>, mright: Mright, default_show_flat: () => boolean, directs: () => Subjects) : Mrights_flat_or_not => {
     let { results: flat_results, ...flat } = flat_mrights_show_search(sgroup, mright, default_show_flat, directs)
     let results = computed(() => {
         if (flat.show.value) {
@@ -63,7 +63,7 @@ export const mrights_flat_or_not = (sscfgs: LdapConfigOut, sgroup: Ref<SgroupAnd
         return {
             real_count,
             limited: results.value.count !== real_count,
-            may_have_indirects: some(results.value.subjects, (attrs, _) => attrs.sscfg_dn === sscfgs.groups_dn)
+            may_have_indirects: some(results.value.subjects, (attrs, _) => attrs.sscfg_dn === ldapCfg.groups_dn)
         }
     })
     return reactive({ flat, results, details })

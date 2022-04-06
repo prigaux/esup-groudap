@@ -8,10 +8,10 @@ const default_moreResultsMsg = (limit: number) => (
     `Votre recherche est limitée à ${limit} résultats.<br>Pour les autres résultats veuillez affiner la recherche.`
 )
 
-const search_subjects = async (sscfgs: LdapConfigOut, search_token: string, sizelimit: number) => {
+const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, sizelimit: number) => {
     const r = await api.search_subjects({ search_token, sizelimit })
     forEach(r, (subjects, ssdn) => {
-        const sscfg = sscfgs.subject_sources.find(sscfg => sscfg.dn === ssdn);
+        const sscfg = ldapCfg.subject_sources.find(sscfg => sscfg.dn === ssdn);
         if (sscfg) {
             r[ssdn] = objectSortBy(subjects, (subject, _) => at(subject.attrs, sscfg.display_attrs).join(';'))
         }
@@ -28,7 +28,7 @@ import SubjectOrGroup from "./SubjectOrGroup.vue";
 import MyIcon from "./MyIcon.vue";
 import { LdapConfigOut, PRecord, Dn, Subjects } from "@/my_types";
 
-let sscfgs = asyncComputed(api.config_subject_sources)
+let ldapCfg = asyncComputed(api.config_ldap)
 
 interface Props {
     minChars?: number
@@ -61,7 +61,7 @@ if (props.focus) {
 function open() {
     cancel.value()
 
-    if (!sscfgs.value) return
+    if (!ldapCfg.value) return
 
     if (props.minChars && (!query.value || query.value.length < props.minChars)) {
         stopAndClose()
@@ -72,7 +72,7 @@ function open() {
         loading.value = true
         Promise.race([
             new Promise((resolve) => cancel.value = resolve),
-            search_subjects(sscfgs.value, query.value, props.limit+1),
+            search_subjects(ldapCfg.value, query.value, props.limit+1),
         ]).then((data) => {
             if (!data) return; // canceled
             setOptions(data as PRecord<Dn, Subjects>)
@@ -118,7 +118,7 @@ function stopAndClose() {
         <tr v-if="noResults"><td>{{noResultsMsg}}</td></tr>
         <template v-for="(subjects, ssdn) in items">
             <template v-if="!isEmpty(subjects)">
-                <thead class="ss_name">{{sscfgs?.subject_sources.find(sscfg => sscfg.dn === ssdn)?.name}}</thead>
+                <thead class="ss_name">{{ldapCfg?.subject_sources.find(sscfg => sscfg.dn === ssdn)?.name}}</thead>
                 <tbody>
                     <tr v-for="(subject, dn) in subjects" 
                         @mousedown.prevent=""> <!-- do not blur "input" -->

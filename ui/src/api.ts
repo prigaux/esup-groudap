@@ -115,8 +115,8 @@ export const sgroup_logs = async (id: string, bytes: number) : Promise<SgroupLog
 export const mygroups = () : Promise<SgroupsWithAttrs> => (
     api_get("mygroups", {}, {})
 )
-export const config_subject_sources = () : Promise<LdapConfigOut> => (
-    api_get("config/subject_sources", {}, { memoize: true })
+export const config_ldap = () : Promise<LdapConfigOut> => (
+    api_get("config/ldap", {}, { memoize: true })
 )
 export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
     api_get("config/remotes", {}, { memoize: true })
@@ -133,13 +133,13 @@ export const test_remote_query_sql = (id: string, remote_sql_query: RemoteSqlQue
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {
-    const sscfgs = (await config_subject_sources()).subject_sources
+    const sscfgs = (await config_ldap()).subject_sources
     forEach(subjects as Subjects_with_more, (attrs, dn) => {
         attrs.sscfg_dn = sscfgs.find(one => dn?.endsWith(one.dn))?.dn
     })
 }
 async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
-    const sscfgs = (await config_subject_sources()).subject_sources
+    const sscfgs = (await config_ldap()).subject_sources
     forEach(subjects as Subjects_with_more, (subject, dn) => {
         const i = sscfgs.findIndex(one => dn?.endsWith(one.dn))
         if (i >= 0) {
