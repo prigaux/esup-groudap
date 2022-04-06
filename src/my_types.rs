@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, HashMap};
 use rocket::serde;
 use rocket::serde::{Deserialize, Serialize, de};
 
@@ -163,7 +163,7 @@ pub enum MyMod { Add, Delete, Replace }
 #[serde(transparent)] 
 pub struct Dn(pub String);
 
-pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, HashSet<Dn>>>;
+pub type MyMods = BTreeMap<Mright, BTreeMap<MyMod, DnsOpts>>;
 
 impl From<String> for Dn {
     fn from(dn: String) -> Self {
@@ -180,12 +180,23 @@ pub type MonoAttrs = BTreeMap<String, String>;
 
 pub type SgroupsWithAttrs = BTreeMap<String, MonoAttrs>;
 
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Default)]
+pub struct DirectOptions {
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub enddate: Option<String>,
+}
+
+pub type DnsOpts = HashMap<Dn, DirectOptions>;
+
 #[derive(Serialize, PartialEq, Eq, Debug)]
 pub struct SubjectAttrs {
     pub attrs: MonoAttrs,
 
     #[serde(skip_serializing_if="Option::is_none")]
     pub sgroup_id: Option<String>,
+
+    #[serde(flatten)]
+    pub options: DirectOptions,
 }
 
 pub type Subjects = BTreeMap<Dn, SubjectAttrs>;

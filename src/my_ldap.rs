@@ -1,8 +1,8 @@
-use std::collections::{HashSet};
+use std::collections::{HashSet, HashMap};
 use ldap3::{SearchEntry, Mod};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use crate::helpers::before_and_after;
+use crate::helpers::{before_and_after, before_and_between_and_after, generalized_time_to_ISO8601};
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{mono_attrs};
 
@@ -131,20 +131,35 @@ pub fn dn_to_rdn_and_parent_dn(dn: &Dn) -> Option<(&str, &str)> {
     before_and_after(&dn.0, ",")
 }
 
+pub fn dn_opts_to_url((dn, opts): (&Dn, &DirectOptions)) -> String {
+    match &opts.enddate {
+        Some(enddate) => format!("ldap:///{}???(serverTime<{})", dn.0, enddate),
+        _ => dn_to_url(dn),
+    }
+}
+
 pub fn dn_to_url(dn: &Dn) -> String {
     format!("ldap:///{}", dn.0)
 }
 
-pub fn url_to_dn(url: &str) -> Option<&str> {
-    url.strip_prefix("ldap:///").filter(|dn| !dn.contains('?'))
+pub fn url_to_dn(url: &str) -> Option<(&str, DirectOptions)> {
+    let dn = url.strip_prefix("ldap:///")?;
+    if let Some((dn, enddate_, "")) = before_and_between_and_after(dn, "???(serverTime<", ")") {
+        Some((dn, DirectOptions { enddate: generalized_time_to_ISO8601(enddate_) } ))
+    } else if dn.contains('?') {
+        None
+    } else { 
+        Some((dn, DirectOptions { enddate: None } ))
+    }
 }
 
-pub fn url_to_dn_(url: String) -> Option<Dn> {
-    url_to_dn(&url).map(Dn::from)
+pub fn url_to_dn_(url: String) -> Option<(Dn, DirectOptions)> {
+    let (dn, opts) = url_to_dn(&url)?;
+    Some((Dn::from(dn), opts))
 }
 
-pub fn urls_to_dns(urls: Vec<String>) -> Option<HashSet<Dn>> {
-    urls.into_iter().map(url_to_dn_).collect::<Option<HashSet<_>>>()
+pub fn urls_to_dns(urls: Vec<String>) -> Option<DnsOpts> {
+    urls.into_iter().map(url_to_dn_).collect::<Option<HashMap<_,_>>>()
 }
 
 // wow, it is complex...
@@ -194,7 +209,7 @@ impl LdapW<'_> {
         Ok(())
     }
  
-    pub async fn read_direct_mright(&mut self, group_dn: &Dn, mright: Mright) -> Result<Option<HashSet<Dn>>> {
+    pub async fn read_direct_mright(&mut self, group_dn: &Dn, mright: Mright) -> Result<Option<DnsOpts>> {
         let direct_urls = self.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
         Ok(urls_to_dns(direct_urls))
     }
@@ -234,13 +249,15 @@ impl LdapW<'_> {
         Ok(user_groups)
     }
 
-    pub async fn search_subjects(&mut self, base_dn: &Dn, attrs: &[String], filter: &str, sizelimit: Option<i32>) -> Result<Subjects> {
+    pub async fn search_subjects(&mut self, base_dn: &Dn, attrs: &[String], filter: &str, dn2opts: &mut DnsOpts, sizelimit: Option<i32>) -> Result<Subjects> {
         let attrs = shallow_copy_vec(attrs);
         let rs = self.search_raw(&base_dn.0, dbg!(filter), attrs, sizelimit).await?;
         Ok(rs.into_iter().map(|r| { 
             let entry = SearchEntry::construct(r);
             let sgroup_id = self.config.dn_to_sgroup_id(&entry.dn);
-            (Dn(entry.dn), SubjectAttrs { attrs: mono_attrs(entry.attrs), sgroup_id })
+            let dn = Dn(entry.dn);
+            let options = dn2opts.remove(&dn).unwrap_or_default();
+            (dn, SubjectAttrs { attrs: mono_attrs(entry.attrs), sgroup_id, options })
         }).collect())
     }   
 
@@ -272,7 +289,7 @@ fn to_ldap_mods(mods : &MyMods) -> Vec<Mod<String>> {
         let attr = right.to_attr();
         for (action, list) in submods {
             let mod_ = match action { MyMod::Add => Mod::Add, MyMod::Delete => Mod::Delete, MyMod::Replace => Mod::Replace };
-            r.push(mod_(attr.to_string(), list.iter().map(|dn| dn_to_url(dn)).collect()));
+            r.push(mod_(attr.to_string(), list.iter().map(|dn| dn_opts_to_url(dn)).collect()));
         }
     }
     r

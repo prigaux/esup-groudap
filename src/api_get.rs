@@ -208,7 +208,7 @@ pub async fn get_group_flattened_mright(cfg_and_lu: CfgAndLU<'_>, id: &str, mrig
         ldp.read_flattened_mright(&dn, mright).await?
     };
     let count = flattened_dns.len();
-    let subjects = get_subjects(ldp, flattened_dns, &search_token, &sizelimit).await?;
+    let subjects = get_subjects(ldp, flattened_dns.iter(), &mut hashmap![], &search_token, &sizelimit).await?;
     Ok(SubjectsAndCount { count, subjects })
 }
 
@@ -233,7 +233,7 @@ pub async fn search_subjects(cfg_and_lu: CfgAndLU<'_>, search_token: String, siz
             Some(dn) if *dn != sscfg.dn => {},
             _ => {
                 let filter = sscfg.search_filter_(&search_token);
-                r.insert(&sscfg.dn, ldp.search_subjects(&sscfg.dn, &sscfg.display_attrs, dbg!(&filter), Some(sizelimit)).await?);
+                r.insert(&sscfg.dn, ldp.search_subjects(&sscfg.dn, &sscfg.display_attrs, dbg!(&filter), &mut hashmap![], Some(sizelimit)).await?);
             },
         }
     }

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap};
 
 use ldap3::SearchEntry;
 use serde::Serialize;
@@ -9,8 +9,8 @@ use crate::{
     ldap_wrapper::LdapW,
     my_err::{MyErr, Result},
     my_types::{
-        CfgAndLU, Dn, RemoteConfig, RemoteDriver, RemoteSqlQuery, Subjects, ToSubjectSource,
-    }, my_ldap_subjects::get_subjects,
+        CfgAndLU, Dn, RemoteConfig, RemoteDriver, RemoteSqlQuery, Subjects, ToSubjectSource, DnsOpts, DirectOptions,
+    }, my_ldap_subjects::{get_subjects, get_subjects_},
 };
 
 #[cfg(feature = "mysql")]
@@ -67,8 +67,8 @@ async fn sql_values_to_dns_(
     ssdn: &Dn,
     id_attr: &str,
     sql_values: &Vec<String>,
-) -> Result<HashSet<Dn>> {
-    let mut r = hashset![];
+) -> Result<DnsOpts> {
+    let mut r = hashmap![];
     for sql_values_ in sql_values.chunks(10) {
         let filter = ldap_filter::or(
             sql_values_
@@ -77,7 +77,7 @@ async fn sql_values_to_dns_(
                 .collect(),
         );
         for e in ldp.search_raw(&ssdn.0, &filter, vec![""], None).await? {
-            r.insert(Dn(SearchEntry::construct(e).dn));
+            r.insert(Dn(SearchEntry::construct(e).dn), DirectOptions::default());
         }
     }
     Ok(r)
@@ -177,12 +177,12 @@ pub async fn query_subjects(ldp: &mut LdapW<'_>, remotes_cfg: &BTreeMap<String, 
 }
 */
 
-pub async fn sql_values_to_dns(ldp: &mut LdapW<'_>, remote: &RemoteSqlQuery, sql_values: Vec<String>) -> Result<HashSet<Dn>> {
+pub async fn sql_values_to_dns(ldp: &mut LdapW<'_>, remote: &RemoteSqlQuery, sql_values: Vec<String>) -> Result<DnsOpts> {
     if let Some(to_ss) = &remote.to_subject_source {
         sql_values_to_dns_(ldp, &to_ss.ssdn, &to_ss.id_attr, &sql_values).await
     } else {
         // the SQL query must return DNs
-        Ok(sql_values.into_iter().map(Dn::from).collect())
+        Ok(sql_values.into_iter().map(|dn| (Dn::from(dn), DirectOptions::default())).collect())
     }
 }
 
@@ -230,7 +230,7 @@ async fn guess_subject_source(ldp: &mut LdapW<'_>, values: &Vec<String>) -> Resu
     }
     Ok(if let Some((dns, ssdn, id_attr)) = best.1 {
         let to_subject_source = ToSubjectSource { ssdn: ssdn.clone(), id_attr: id_attr.to_owned() };
-        let subjects = get_subjects(ldp, dns.into_iter().collect(), &None, &None).await?;
+        let subjects = get_subjects_(ldp, dns).await?;
         Some((to_subject_source, subjects))
     } else { None })
 }

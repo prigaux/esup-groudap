@@ -1,5 +1,6 @@
 <script lang="ts">
 import { SubjectsAndCount_with_more } from '@/my_types';
+import * as helpers from '@/helpers'
 </script>
 
 <script setup lang="ts">
@@ -25,6 +26,8 @@ defineProps<{
     } | undefined
 }>()
 
+const formatDate = (date: Date) => helpers.formatDate(helpers.addSeconds(date, -60), 'dd/MM/yyyy')
+
 </script>
 
 <template>
@@ -48,6 +51,9 @@ defineProps<{
             <td>
                 <i v-if="attrs.indirect">Indirect</i>
                 <button v-else-if="can_modify" @click="emit('remove', dn)">Supprimer</button>
+            </td>
+            <td v-if="attrs.enddate">
+                jusqu'au {{formatDate(attrs.enddate)}}
             </td>
         </tr>
     </table>

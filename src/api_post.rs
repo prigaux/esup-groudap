@@ -9,6 +9,7 @@ use ldap3::{Mod};
 
 use crate::api_get::validate_remote;
 use crate::cache::AllCaches;
+use crate::helpers::hashmap_difference;
 use crate::remote_query::direct_members_to_remote_sql_query;
 use crate::{my_types::*, remote_query, cache};
 use crate::my_err::{Result, MyErr};
@@ -87,14 +88,14 @@ fn my_mods_to_right(my_mods: &MyMods) -> Right {
     Right::Updater
 }
 
-fn to_submods(add: HashSet<Dn>, delete: HashSet<Dn>, replace: Option<HashSet<Dn>>) -> BTreeMap<MyMod, HashSet<Dn>> {
+fn to_submods(add: DnsOpts, delete: DnsOpts, replace: Option<DnsOpts>) -> BTreeMap<MyMod, DnsOpts> {
     let mut r = btreemap! {};
     if !add.is_empty() { r.insert(MyMod::Add, add); }
     if !delete.is_empty() { r.insert(MyMod::Delete, delete); }
     if let Some(replace) = replace { r.insert(MyMod::Replace, replace); }
     r
 }
-fn from_submods(mut submods: BTreeMap<MyMod, HashSet<Dn>>) -> (HashSet<Dn>, HashSet<Dn>, Option<HashSet<Dn>>) {
+fn from_submods(mut submods: BTreeMap<MyMod, DnsOpts>) -> (DnsOpts, DnsOpts, Option<DnsOpts>) {
     (
         submods.remove(&MyMod::Add).unwrap_or_default(),
         submods.remove(&MyMod::Delete).unwrap_or_default(),
@@ -102,7 +103,7 @@ fn from_submods(mut submods: BTreeMap<MyMod, HashSet<Dn>>) -> (HashSet<Dn>, Hash
     )
 }
 
-async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, HashSet<Dn>>) -> Result<BTreeMap<MyMod, HashSet<Dn>>> {
+async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright, submods: BTreeMap<MyMod, DnsOpts>) -> Result<BTreeMap<MyMod, DnsOpts>> {
     let (mut add, mut delete, replace) = from_submods(submods);
 
     if let Some(replace) = &replace {
@@ -112,8 +113,8 @@ async fn check_and_simplify_mods_(ldp: &mut LdapW<'_>, id: &str, mright: Mright,
             ldp.read_direct_mright(&group_dn, mright).await?
         } {
             // transform Replace into Add/Delete
-            add.extend(replace.difference(&current_dns).map(|e| e.clone()));
-            delete.extend(current_dns.difference(&replace).map(|e| e.clone()));
+            add.extend(hashmap_difference(replace, &current_dns));
+            delete.extend(hashmap_difference(&current_dns, &replace));
             eprintln!("  replaced long\n    Replace {:?} with\n    Add {:?}\n    Replace {:?}", replace, add, delete);
             return Ok(to_submods(add, delete, None))
         }
@@ -187,17 +188,18 @@ async fn get_flattened_dns(ldp: &mut LdapW<'_>, direct_dns: &HashSet<Dn>) -> Res
     Ok(r)
 }
 
-async fn remote_sql_query_to_dns(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, remote: RemoteSqlQuery) -> Result<HashSet<Dn>> {
+async fn remote_sql_query_to_dns(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, remote: RemoteSqlQuery) -> Result<DnsOpts> {
     let remote = Arc::new(remote);
     let sql_values = {
         let remote = remote.clone();
         let remotes = cfg_and_lu.cfg.remotes.clone();
         task::spawn_blocking(move || remote_query::query(&remotes, &remote)).await??
     };
+    // TODO: api_log::log_sgroup_action(&cfg_and_lu, id, "remote_sql_query").await?;
     remote_query::sql_values_to_dns(ldp, &remote, sql_values).await
 }
 
-async fn urls_to_dns_handling_remote(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mright: Mright, urls: Vec<String>) -> Result<HashSet<Dn>> {
+async fn urls_to_dns_handling_remote(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mright: Mright, urls: Vec<String>) -> Result<DnsOpts> {
     if mright == Mright::Member {
         if let Some(remote) = direct_members_to_remote_sql_query(&urls)? {
             return remote_sql_query_to_dns(cfg_and_lu, ldp, remote).await
@@ -228,7 +230,7 @@ async fn may_update_flattened_mrights(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW
 
     let urls = ldp.read_one_multi_attr__or_err(&group_dn, &mright.to_attr()).await?;
     let direct_dns = urls_to_dns_handling_remote(cfg_and_lu, ldp, mright, urls).await?;        
-    may_update_flattened_mrights_(ldp, id, mright, group_dn, direct_dns).await
+    may_update_flattened_mrights_(ldp, id, mright, group_dn, direct_dns.into_keys().collect()).await
 }
 
 pub async fn may_update_flattened_mrights_rec(cfg_and_lu: &CfgAndLU<'_>, ldp: &mut LdapW<'_>, mut todo: Vec<(String, Mright)>) -> Result<()> {
@@ -249,6 +251,7 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
     // are the modifications valid?
     let is_stem = ldp.config.stem.is_stem(id);
+    
     let my_mods = check_and_simplify_mods(ldp, is_stem, id, my_mods).await?;
     if my_mods.is_empty() {
         // it happens when a "Replace" has been simplified into 0 Add/Delete

@@ -14,18 +14,19 @@ impl SubjectSourceConfig {
     }
 }
 
-async fn get_subjects_from_same_branch(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, base_dn: &Dn, rdns: &[&str], search_token: &Option<String>) -> Result<Subjects> {
+async fn get_subjects_from_same_branch(ldp: &mut LdapW<'_>, sscfg: &SubjectSourceConfig, base_dn: &Dn, rdns: &[&str], dn2opts: &mut DnsOpts, search_token: &Option<String>) -> Result<Subjects> {
     let rdns_filter = ldap_filter::or(rdns.iter().map(|rdn| ldap_filter::rdn(rdn)).collect());
     let filter = if let Some(term) = search_token {
         ldap_filter::and2(&rdns_filter,&sscfg.search_filter_(term))
     } else {
         rdns_filter
     };
-    Ok(ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), None).await?)
+    Ok(ldp.search_subjects(base_dn, &sscfg.display_attrs, dbg!(&filter), dn2opts, None).await?)
 }
 
 pub async fn get_subjects_from_urls(ldp: &mut LdapW<'_>, urls: Vec<String>) -> Result<Subjects> {
-    get_subjects(ldp, urls.into_iter().filter_map(url_to_dn_).collect(), &None, &None).await
+    let dn2opts = urls.into_iter().filter_map(url_to_dn_).collect();
+    get_subjects_(ldp, dn2opts).await
 }
 
 fn into_group_map<K: Eq + std::hash::Hash, V, I: Iterator<Item = (K, V)>>(iter: I) -> HashMap<K, Vec<V>> {
@@ -34,11 +35,17 @@ fn into_group_map<K: Eq + std::hash::Hash, V, I: Iterator<Item = (K, V)>>(iter: 
         map
     })
 }
-pub async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<Dn>, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
+
+pub async fn get_subjects_(ldp: &mut LdapW<'_>, mut dn2opts: DnsOpts) -> Result<Subjects> {
+    let dns: Vec<Dn> = dn2opts.keys().map(Dn::clone).collect();
+    get_subjects(ldp, dns.iter(), &mut dn2opts, &None, &None).await
+}
+
+pub async fn get_subjects(ldp: &mut LdapW<'_>, dns: impl Iterator<Item = &Dn>, dn2opts: &mut DnsOpts, search_token: &Option<String>, sizelimit: &Option<usize>) -> Result<Subjects> {
     let mut r = BTreeMap::new();
 
 
-    let parent_dn_to_rdns = into_group_map(dns.iter().filter_map(|dn| {
+    let parent_dn_to_rdns = into_group_map(dns.filter_map(|dn| {
         let (rdn, parent_dn) = dn_to_rdn_and_parent_dn(dn)?;
         Some((parent_dn, rdn))
     }));
@@ -48,7 +55,7 @@ pub async fn get_subjects(ldp: &mut LdapW<'_>, dns: Vec<Dn>, search_token: &Opti
         if let Some(sscfg) = ldp.config.dn_to_subject_source_cfg(&parent_dn) {
             let mut count = 0;
             for rdns_ in rdns.chunks(10) {
-                let subjects = &mut get_subjects_from_same_branch(ldp, sscfg, &parent_dn, rdns_, search_token).await?;
+                let subjects = &mut get_subjects_from_same_branch(ldp, sscfg, &parent_dn, rdns_, dn2opts, search_token).await?;
                 count += subjects.len();
                 r.append(subjects);
                 if let Some(limit) = sizelimit {
