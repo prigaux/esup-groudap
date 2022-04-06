@@ -71,10 +71,16 @@ pub struct SubjectSourceConfig {
     pub search_filter : String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InputAttrType { Number }
+
+#[derive(Deserialize, Serialize)]
 pub struct AttrTexts {
     pub label: String,
     pub description: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub input_type: Option<InputAttrType>,
 }
 
 #[derive(Deserialize)]
@@ -96,6 +102,7 @@ pub struct LdapConfig {
 pub struct LdapConfigOut<'a> {
     pub groups_dn: &'a Dn,
     pub subject_sources: &'a Vec<SubjectSourceConfig>,
+    pub sgroup_attrs: &'a BTreeMap<String, AttrTexts>,
 }
 
 impl LdapConfig {
@@ -107,7 +114,7 @@ impl LdapConfig {
     }
 
     pub fn to_js_ui(&self) -> LdapConfigOut {
-        LdapConfigOut { groups_dn: &self.groups_dn, subject_sources: &self.subject_sources }
+        LdapConfigOut { groups_dn: &self.groups_dn, subject_sources: &self.subject_sources, sgroup_attrs: &self.sgroup_attrs }
     }
 }
 

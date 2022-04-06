@@ -15,6 +15,8 @@ const props = defineProps<{
   is_stem?: true,
 }>()
 
+const ldapCfg = asyncComputed(api.config_ldap)
+
 let parent = asyncComputed(async () => (
     await api.sgroup(props.parent_id)
 ))
@@ -46,7 +48,7 @@ Erreur : impossible de créer un groupe/dossier dans un groupe.
         <SgroupLink :sgroup="p" />
         <span> &gt; </span>
     </span>
-    <h2><input v-model="attrs.ou" placeholder="Nom"></h2>
+    <h2><input v-model="attrs.ou" :placeholder="ldapCfg.sgroup_attrs.ou.label" :title="ldapCfg.sgroup_attrs.ou.description"></h2>
 
     <fieldset>
         <legend>
@@ -57,7 +59,7 @@ Erreur : impossible de créer un groupe/dossier dans un groupe.
 
     <fieldset>
         <legend>
-            <h4>Description</h4>
+            <h4 :title="ldapCfg.sgroup_attrs.description.description">{{ldapCfg.sgroup_attrs.description.label}}</h4>
         </legend>
         <textarea class="description" v-model="attrs.description"></textarea>
     </fieldset>

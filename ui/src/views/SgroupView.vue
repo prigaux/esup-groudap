@@ -192,11 +192,14 @@ const transform_SynchronizedGroup_into_group = async () => {
     </span>
 
     <h2>
-        <MyIcon :name="sgroup.stem ? 'folder' : 'users'" class="on-the-left" />
+        <MyIcon :name="sgroup.stem ? 'folder' : 'users'" class="on-the-left"
+             :title="ldapCfg.sgroup_attrs.ou.description" />
     </h2>
     <template v-if="sgroup.right === 'admin'">
         <form v-if="modify_attrs.ou" @submit.prevent="send_modify_attr('ou')" class="modify_attr">
-            <h2><input v-focus v-model="sgroup.attrs.ou" @focusout="delayed_cancel_modify_attr('ou')" @keydown.esc="cancel_modify_attr('ou')"></h2>
+            <h2 :title="ldapCfg.sgroup_attrs.ou.description">
+                <input v-focus v-model="sgroup.attrs.ou" @focusout="delayed_cancel_modify_attr('ou')" @keydown.esc="cancel_modify_attr('ou')">
+            </h2>
             <MyIcon name="check" class="on-the-right" @click="send_modify_attr('ou')" />
             <MyIcon name="close" class="on-the-right" @click="cancel_modify_attr('ou', 'force')" />
         </form>
@@ -209,7 +212,7 @@ const transform_SynchronizedGroup_into_group = async () => {
 
     <fieldset>
         <legend>
-            <h4>Description</h4>
+            <h4 :title="ldapCfg.sgroup_attrs.description.description">{{ldapCfg.sgroup_attrs.description.label}}</h4>
             <template v-if="sgroup.right === 'admin'">
                 <template v-if="modify_attrs.description">
                     <MyIcon name="check" class="on-the-right" @click="send_modify_attr('description')" />

@@ -36,6 +36,12 @@ export interface ToSubjectSource {
     id_attr: string
 }
 
+export interface AttrTexts {
+    label: string
+    description: string
+    input_type?: "number"
+}
+
 export interface RemoteConfig {
     host: string,
     port?: number,
@@ -90,6 +96,7 @@ export interface SubjectSourceConfig {
 export interface LdapConfigOut {
     groups_dn: Dn
     subject_sources: SubjectSourceConfig[]
+    sgroup_attrs: Record<string, AttrTexts>
 }
 
 export type SgroupLog = { who: string, when: Date, action: string } & Record<string, string>
