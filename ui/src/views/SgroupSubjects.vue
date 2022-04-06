@@ -34,14 +34,14 @@ const formatDate = (date: Date) => helpers.formatDate(helpers.addSeconds(date, -
 <div v-if="!results || !details">Veuillez patentier...</div>
 <div v-else>
     <p>
-        Nombre de membres : {{details.real_count}}
-        <span v-if="details.limited"> / {{results.count}}</span>
+        Nombre de membres {{flat.show ? ' indirects' : details.may_have_indirects ? ' directs' : ''}} : {{results.count}}
     </p>
 
     <div v-if="flat.show && results.count > 4">
-        <div v-if="details.limited && !flat.search_token.real">Affichage limité, chercher dans les membres</div>
-        <div v-else>Filtrer les membres</div>
-        <input class="search_token" v-model="flat.search_token.real">
+        <div v-if="details.limited && !flat.search_token.real">Trop de résultats. Affichage limité à {{details.real_count}} membres</div>
+        <div v-else-if="flat.search_token.real">{{details.real_count}} {{details.real_count > 1 ? 'membres correspondent' : 'membre correspond'}}</div>
+        Filtre
+        <input placeholder="nom du membre" class="search_token" v-model="flat.search_token.real">
     </div>
     <div v-if="flat.searching">Veuillez patentier...</div>
     <div v-else-if="isEmpty(results.subjects)"> <i>Aucun</i> </div>
