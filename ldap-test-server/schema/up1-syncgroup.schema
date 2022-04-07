@@ -1,5 +1,11 @@
+attributetype ( 1.3.6.1.4.1.7135.1.3.183.2.2.101
+    NAME 'up1GroupOptions'
+    DESC 'xxx'
+    EQUALITY caseExactMatch
+    SUBSTR caseExactSubstringsMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128} )
 
 objectclass ( 1.3.6.1.4.1.7135.1.3.183.2.2.100 NAME 'up1SyncGroup' SUP top AUXILIARY
     DESC 'Groupe synchronisé sur sources de données'
-    MAY ( memberURL ) )
+    MAY ( memberURL $ up1GroupOptions ) )
 

@@ -1,4 +1,10 @@
 dn: cn=up1-syncgroup,cn=schema,cn=config
 objectClass: olcSchemaConfig
 cn: up1-syncgroup
-olcObjectClasses: {0}( 1.3.6.1.4.1.7135.1.3.183.2.2.100 NAME 'up1SyncGroup' DESC 'Groupe synchronisé sur sources de données' SUP top AUXILIARY MAY memberURL )
+olcAttributeTypes: {0}( 1.3.6.1.4.1.7135.1.3.183.2.2.101
+    NAME 'up1GroupOptions' DESC 'xxx'
+    EQUALITY caseExactMatch SUBSTR caseExactSubstringsMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{128} )
+olcObjectClasses: {0}( 1.3.6.1.4.1.7135.1.3.183.2.2.100 
+    NAME 'up1SyncGroup' DESC 'Groupe synchronisé sur sources de données' 
+    SUP top AUXILIARY MAY (memberURL $ up1GroupOptions) )
