@@ -1,0 +1,5 @@
+
+objectclass ( 1.3.6.1.4.1.7135.1.3.183.2.2.100 NAME 'up1SyncGroup' SUP top AUXILIARY
+    DESC 'Groupe synchronisé sur sources de données'
+    MAY ( memberURL ) )
+

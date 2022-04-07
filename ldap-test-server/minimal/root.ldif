@@ -1,0 +1,5 @@
+dn: dc=nodomain
+objectClass: locality
+objectClass: dcObject
+dc: nodomain
+
