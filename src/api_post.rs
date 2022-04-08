@@ -2,6 +2,7 @@
 
 use std::collections::{HashSet, BTreeMap};
 use std::sync::Arc;
+use chrono::{Utc, Duration, DateTime};
 use tokio::task;
 
 use ldap3::{Mod};
@@ -243,6 +244,29 @@ pub async fn may_update_flattened_mrights_rec(cfg_and_lu: &CfgAndLU<'_>, ldp: &m
     Ok(())
 }
 
+async fn may_check_member_ttl(ldp: &mut LdapW<'_>, id: &str, my_mods: &MyMods) -> Result<()> {
+    if let Some(submods) = my_mods.get(&Mright::Member) {
+        let attrs = current_sgroup_attrs(ldp, id).await?;
+
+        if let Some(ttl_max) = attrs.get("groupaldOptions;x-member-ttl-max") {
+            let max = Utc::now() + Duration::days(ttl_max.parse().map_err(|_| MyErr::Msg("member-ttl-max must be an integer".to_owned()))?);
+            for (action, list) in submods {
+                if *action != MyMod::Delete {
+                    for (dn, opts) in list {
+                        let enddate = DateTime::parse_from_rfc3339(
+                            opts.enddate.as_ref().ok_or_else(|| MyErr::Msg("enddate mandatory for this sgroup".to_owned()))?
+                        ).map_err(|_| MyErr::Msg(format!("invalid enddate for {:?}", dn)))?;
+                        if enddate > max {
+                            return Err(MyErr::Msg(format!("enddate > member-ttl-max for {:?}", dn)))
+                        }
+                    }
+                }
+            }
+        }
+    }    
+    Ok(())
+}
+
 pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mods: MyMods, msg: &Option<String>) -> Result<()> {
     eprintln!("modify_members_or_rights({}, _)", id);
     cfg_and_lu.cfg.ldap.stem.validate_sgroup_id(id)?;
@@ -251,7 +275,9 @@ pub async fn modify_members_or_rights(cfg_and_lu: CfgAndLU<'_>, id: &str, my_mod
     check_right_on_self_or_any_parents(ldp, id, my_mods_to_right(&my_mods)).await?;
     // are the modifications valid?
     let is_stem = ldp.config.stem.is_stem(id);
-    
+
+    may_check_member_ttl(ldp, id, &my_mods).await?;
+
     let my_mods = check_and_simplify_mods(ldp, is_stem, id, my_mods).await?;
     if my_mods.is_empty() {
         // it happens when a "Replace" has been simplified into 0 Add/Delete
