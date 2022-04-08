@@ -2,7 +2,7 @@ use std::collections::{HashSet, HashMap};
 use ldap3::{SearchEntry, Mod};
 type CreateLdapAttrs<'a> = Vec<(&'a str, HashSet<&'a str>)>;
 
-use crate::helpers::{before_and_after, before_and_between_and_after, generalized_time_to_ISO8601};
+use crate::helpers::{before_and_after, before_and_between_and_after, generalized_time_to_iso8601, iso8601_to_generalized_time};
 use crate::my_err::{Result, MyErr};
 use crate::ldap_wrapper::{mono_attrs};
 
@@ -132,10 +132,12 @@ pub fn dn_to_rdn_and_parent_dn(dn: &Dn) -> Option<(&str, &str)> {
 }
 
 pub fn dn_opts_to_url((dn, opts): (&Dn, &DirectOptions)) -> String {
-    match &opts.enddate {
-        Some(enddate) => format!("ldap:///{}???(serverTime<{})", dn.0, enddate),
-        _ => dn_to_url(dn),
+    if let Some(enddate) = &opts.enddate {
+        if let Some(gtime) = iso8601_to_generalized_time(enddate) {
+            return format!("ldap:///{}???(serverTime<{})", dn.0, gtime)
+        }
     }
+    dn_to_url(dn)
 }
 
 pub fn dn_to_url(dn: &Dn) -> String {
@@ -145,7 +147,7 @@ pub fn dn_to_url(dn: &Dn) -> String {
 pub fn url_to_dn(url: &str) -> Option<(&str, DirectOptions)> {
     let dn = url.strip_prefix("ldap:///")?;
     if let Some((dn, enddate_, "")) = before_and_between_and_after(dn, "???(serverTime<", ")") {
-        Some((dn, DirectOptions { enddate: generalized_time_to_ISO8601(enddate_) } ))
+        Some((dn, DirectOptions { enddate: generalized_time_to_iso8601(enddate_) } ))
     } else if dn.contains('?') {
         None
     } else { 

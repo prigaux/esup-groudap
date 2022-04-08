@@ -1,10 +1,10 @@
 <script lang="ts">
-import { cloneDeep, fromPairs, isEmpty, isEqual, last } from 'lodash'
-import { computed, defineAsyncComponent, ref } from 'vue'
+import { cloneDeep, fromPairs, isEmpty, isEqual, last, mapValues, omit, pickBy } from 'lodash'
+import { computed, defineAsyncComponent, defineComponent, ref } from 'vue'
 import router from '@/router';
 import { asyncComputed_, ref_watching } from '@/vue_helpers';
-import { forEachAsync } from '@/helpers';
-import { Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
+import { forEachAsync, addDays } from '@/helpers';
+import { DirectOptions, Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
 import { list_of_rights, right2text } from '@/lib';
 import { mrights_flat_or_not } from '@/composition/SgroupSubjects';
 
@@ -81,9 +81,9 @@ let can_modify_member = computed(() => (
 
 let add_member_show = ref(false)
 
-async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod) {
+async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod, options: DirectOptions = {}) {
     console.log('add_remove_direct_mright')
-    await api.modify_members_or_rights(props.id, { [mright]: { [mod]: [dn] } })
+    await api.modify_members_or_rights(props.id, { [mright]: { [mod]: { [dn]: options } } })
     if (mright === 'member') {
         sgroup.update()
     } else {
@@ -91,10 +91,12 @@ async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod) {
     }
 }
 function add_direct_mright(dn: Dn, mright: Mright) {
-    add_remove_direct_mright(dn, mright, 'add')
+    const end_days = mright === 'member' && (sgroup.value.attrs["up1GroupOptions;x-member-ttl-default"] || sgroup.value.attrs["up1GroupOptions;x-member-ttl-max"])
+    const enddate = end_days && addDays(new Date(), parseInt(end_days)).toISOString()
+    add_remove_direct_mright(dn, mright, 'add', enddate ? { enddate } : {})
 }
-function remove_direct_mright(dn: Dn, mright: Mright) {
-    add_remove_direct_mright(dn, mright, 'delete')
+function remove_direct_mright(dn: Dn, mright: Mright, options: DirectOptions = {}) {
+    add_remove_direct_mright(dn, mright, 'delete', options)
 }
 
 let add_right_show = ref(false)
@@ -110,18 +112,52 @@ let rights = fromPairs(list_of_rights.map(right => (
     [ right, mrights_flat_or_not(props.ldapCfg, sgroup, right, () => false, () => direct_rights.value?.[right] || {}) ]
 )))
 
-type Attr = 'ou'|'description'
+const sgroup_attrs_templates = computed(() => (
+    mapValues(props.ldapCfg.sgroup_attrs, (opts, _) => (
+        defineComponent({
+            props: ['value'],
+            template: opts.vue_template || `{{value}}`
+        })
+    ))
+))
+const other_sgroup_attrs = computed(() => (
+    omit(props.ldapCfg.sgroup_attrs, 'cn', 'ou', 'description')
+))
+const other_sgroup_attrs_having_values = computed(() => (
+    pickBy(other_sgroup_attrs.value, (_, attr) => sgroup.value.attrs[attr])
+))
+
+type AttrKind = 'ou'|'description'|'other'
+const attrKind_to_attrs = (attrK: AttrKind) => (
+    attrK === 'other' ? Object.keys(other_sgroup_attrs.value) : [attrK]
+)
+const get_attrK_value = (attrK: AttrKind) => (
+    JSON.stringify(attrKind_to_attrs(attrK).map(attr => sgroup.value.attrs[attr]))
+)
+const set_attrK_value = (attrK: AttrKind, value: string) => {
+    const values = JSON.parse(value)
+    let i = 0
+    for (const attr of attrKind_to_attrs(attrK)) {
+        const value = values[i++]
+        if (value === null) {
+            delete sgroup.value.attrs[attr]
+        } else {
+            sgroup.value.attrs[attr] = value
+        }
+    }
+
+}
 let modify_attrs = ref_watching({ 
     watch: () => props.id, 
-    value: () => ({} as PRecord<Attr, { prev: string, status?: 'canceling'|'saving' }>),
+    value: () => ({} as PRecord<AttrKind, { prev: string, status?: 'canceling'|'saving' }>),
 })
-const start_modify_attr = (attr: Attr) => {
-    modify_attrs.value[attr] = { prev: sgroup.value.attrs[attr] }
+const start_modify_attr = (attrK: AttrKind) => {
+    modify_attrs.value[attrK] = { prev: get_attrK_value(attrK) }
 }
-const cancel_modify_attr = (attr: Attr, opt?: 'force') => {
-    let state = modify_attrs.value[attr]
+const cancel_modify_attr = (attrK: AttrKind, opt?: 'force') => {
+    let state = modify_attrs.value[attrK]
     if (state) {
-        if (sgroup.value.attrs[attr] !== state.prev && opt !== 'force') {
+        if (get_attrK_value(attrK) !== state.prev && opt !== 'force') {
             if (state.status) return
             state.status = 'canceling'
             if (!confirm('Voulez vous perdre les modifications ?')) {
@@ -130,19 +166,19 @@ const cancel_modify_attr = (attr: Attr, opt?: 'force') => {
             }
         }
         // restore previous value
-        sgroup.value.attrs[attr] = state.prev
+        set_attrK_value(attrK, state.prev)
     }
-    // stop modifying this attr:
-    modify_attrs.value[attr] = undefined
+    // stop modifying this attrK:
+    modify_attrs.value[attrK] = undefined
 }
-const delayed_cancel_modify_attr = (attr: Attr) => {
-    setTimeout(() => cancel_modify_attr(attr), 200)
+const delayed_cancel_modify_attr = (attrK: AttrKind) => {
+    setTimeout(() => cancel_modify_attr(attrK), 200)
 }
-const send_modify_attr = async (attr: Attr) => {
-    let state = modify_attrs.value[attr]
+const send_modify_attr = async (attrK: AttrKind) => {
+    let state = modify_attrs.value[attrK]
     if (state) state.status = 'saving'
     await api.modify_sgroup_attrs(props.id, sgroup.value.attrs)
-    modify_attrs.value[attr] = undefined
+    modify_attrs.value[attrK] = undefined
 }
 
 const delete_sgroup = async () => {
@@ -173,10 +209,11 @@ const transform_group_into_SynchronizedGroup = () => {
 }
 const transform_SynchronizedGroup_into_group = async () => {
     if (confirm("Le groupe sera vide. Ok ?")) {
-        await api.modify_members_or_rights(props.id, { member: { replace: [] } })
+        await api.modify_members_or_rights(props.id, { member: { replace: {} } })
         sgroup.update()
     }
 }
+
 </script>
 
 <template>
@@ -231,6 +268,34 @@ const transform_SynchronizedGroup_into_group = async () => {
         <div v-else class="description" v-click-without-moving="sgroup.right === 'admin' && (() => start_modify_attr('description'))">
             {{sgroup.attrs.description}}
         </div>
+    </fieldset>
+
+    <fieldset v-if="modify_attrs.other || !isEmpty(other_sgroup_attrs_having_values)">
+        <legend>
+            <h4>Divers</h4>
+            <template v-if="modify_attrs.other">
+                <MyIcon name="check" class="on-the-right" @click="send_modify_attr('other')" />
+                <MyIcon name="close" class="on-the-right" @click="cancel_modify_attr('other', 'force')" />
+            </template>
+            <template v-else>
+                <MyIcon name="pencil" class="on-the-right" @click="start_modify_attr('other')" />
+            </template>
+        </legend>
+        <form v-if="modify_attrs.other" @submit.prevent="send_modify_attr('other')">
+            <label class="label-and-val" v-for="(opts, attr) of other_sgroup_attrs">
+                <span class="label" :title="opts.description">{{opts.label}}</span>
+                <input v-model="sgroup.attrs[attr]" :inputmode="opts.input_type === 'number' ? 'numeric' : 'text'">
+            </label>
+            <input type="submit" style="display: none;">
+        </form>
+        <template v-else>
+            <template v-for="(opts, attr) of other_sgroup_attrs_having_values">
+                <label class="label-and-val">
+                    <span class="label" :title="opts.description">{{opts.label}}</span>
+                    <component :value="sgroup.attrs[attr]" :is="sgroup_attrs_templates[attr]" />
+                </label>
+            </template>
+        </template>
     </fieldset>
 
     <fieldset v-if="sgroup.synchronizedGroup">
@@ -295,7 +360,7 @@ const transform_SynchronizedGroup_into_group = async () => {
             <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.synchronizedGroup">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"
-                @remove="dn => remove_direct_mright(dn, 'member')" />
+                @remove="(dn, opts) => remove_direct_mright(dn, 'member', opts)" />
         </div>
     </fieldset>
 
@@ -324,6 +389,9 @@ const transform_SynchronizedGroup_into_group = async () => {
         <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
             <button @click="transform_group_into_SynchronizedGroup">Transformer en un groupe synchronisé</button>
         </li>
+        <li v-if="sgroup.right === 'admin' && !modify_attrs.other && isEmpty(other_sgroup_attrs_having_values)">
+            <button @click="start_modify_attr('other')">Champs supplémentaires</button>
+        </li>
 
     </ul>
 
@@ -351,4 +419,22 @@ thead > h5 {
     float: right;
     margin-left: 1rem;
 }
+
+.label-and-val {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+.label-and-val > * {
+    flex-basis: fill;
+    flex-grow: 1;
+}
+.label-and-val > span.label {
+    display: inline-block;
+    max-width: 12rem;
+}
+.label-and-val > input {
+    height: 1.3rem;
+}
+
 </style>

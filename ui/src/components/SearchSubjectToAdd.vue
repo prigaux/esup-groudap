@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { asyncComputed } from "@vueuse/core";
 import * as api from '@/api'
 
@@ -24,6 +24,7 @@ const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, siz
 <script setup lang="ts">
 import { at, isEmpty, size } from 'lodash'
 import { forEach, objectSortBy, some } from "@/helpers";
+import { vFocus } from '@/vue_helpers';
 import SubjectOrGroup from "./SubjectOrGroup.vue";
 import MyIcon from "./MyIcon.vue";
 import { LdapConfigOut, PRecord, Dn, Subjects } from "@/my_types";
@@ -34,7 +35,6 @@ interface Props {
     minChars?: number
     limit?: number
     placeholder?: string
-    focus?: boolean
 }
 
 let props = withDefaults(defineProps<Props>(), {
@@ -51,12 +51,6 @@ let noResults = ref(false)
 let moreResults = ref(false)
 let current = ref(0)
 let cancel = ref((_?: unknown) => {})
-
-let input_elt = ref(undefined as HTMLInputElement | undefined)
-
-if (props.focus) {
-    onMounted(() => input_elt.value?.focus())
-}
 
 function open() {
     cancel.value()
@@ -103,7 +97,7 @@ function stopAndClose() {
 <template>
     <div>
         <input :aria-label="placeholder" :placeholder="placeholder"
-           v-model="query" ref="input_elt"
+           v-model="query" v-focus
            type="text" autocomplete="off"
            @keydown.esc="stopAndClose"
            @blur="stopAndClose"

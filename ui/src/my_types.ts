@@ -7,15 +7,20 @@ export type Dn = string
 export type Right = 'reader' | 'updater' | 'admin'
 export type Mright = 'member' | Right
 
+export interface DirectOptions {
+    enddate?: string
+}
+export type DnsOpts = Record<Dn, DirectOptions>;
+
 export type MyMod = 'add' | 'delete' | 'replace'
-export type MyMods = PRecord<Mright, PRecord<MyMod, string[]>>
+export type MyMods = PRecord<Mright, PRecord<MyMod, DnsOpts>>
 
 export type MonoAttrs = Record<string, string>
 
 export interface SubjectAttrs { 
     attrs: MonoAttrs
     sgroup_id?: string
-    enddate?: Date
+    options?: DirectOptions
 
 }
 export type SubjectAttrs_with_more = SubjectAttrs & { sscfg_dn?: Dn, indirect?: boolean, sort_field?: string }
@@ -39,6 +44,7 @@ export interface ToSubjectSource {
 export interface AttrTexts {
     label: string
     description: string
+    vue_template: string
     input_type?: "number"
 }
 

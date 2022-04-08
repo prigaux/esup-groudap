@@ -65,8 +65,16 @@ pub fn parse_host_and_port(host: &str) -> (&str, Option<&str>) {
     }
 }
 
+// yyyy-mm-ddThh:mm:ss => yyyymmddhhmmssZ 
+pub fn iso8601_to_generalized_time(time: &str) -> Option<String> {
+    let mut gtime: String = time.chars().filter(|c| c.is_digit(10)).collect();
+    gtime.truncate(14);
+    if gtime.len() == 14 { Some(gtime + "Z") } else { None }
+}
+
+
 // yyyymmddhhmmssZ => yyyy-mm-ddThh:mm:ss
-pub fn generalized_time_to_ISO8601(gtime: &str) -> Option<String> {
+pub fn generalized_time_to_iso8601(gtime: &str) -> Option<String> {
     let mut r = String::with_capacity(20);
 
     for (index, c) in gtime.chars().enumerate() {
@@ -147,11 +155,18 @@ mod tests {
     }
 
     #[test]
-    fn test_generalized_time_to_ISO8601() {
-        assert_eq!(generalized_time_to_ISO8601("20991231235959Z"), Some("2099-12-31T23:59:59".to_owned()));
-        assert_eq!(generalized_time_to_ISO8601("20991231235959Z "), Some("2099-12-31T23:59:59".to_owned()));
-        assert_eq!(generalized_time_to_ISO8601("20991231235959"), None);
-        assert_eq!(generalized_time_to_ISO8601("20991231235959 "), None);
+    fn test_generalized_time_to_iso8601() {
+        assert_eq!(generalized_time_to_iso8601("20991231235959Z"), Some("2099-12-31T23:59:59".to_owned()));
+        assert_eq!(generalized_time_to_iso8601("20991231235959Z "), Some("2099-12-31T23:59:59".to_owned()));
+        assert_eq!(generalized_time_to_iso8601("20991231235959"), None);
+        assert_eq!(generalized_time_to_iso8601("20991231235959 "), None);
+    }
+
+    #[test]
+    fn test_iso8601_to_generalized_time() {
+        assert_eq!(iso8601_to_generalized_time("2099-12-31T23:59:59Z"), Some("20991231235959Z".to_owned()));
+        assert_eq!(iso8601_to_generalized_time("2099-12-31T23:59:59.999Z"), Some("20991231235959Z".to_owned()));
+        assert_eq!(iso8601_to_generalized_time("2099-12-31T23:59:"), None);
     }
 /*
     #[test]
@@ -166,6 +181,5 @@ mod tests {
         });
         assert_eq!(r, vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]);    
     }
-
-}
 */
+}

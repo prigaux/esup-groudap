@@ -37,12 +37,15 @@ export function padStart(value : any, length : number, char : string) : string {
     }
 }
 
-export function addSeconds(date: Date, seconds: number) {
+export function addSeconds(date: Date | string, seconds: number) {
     let r = new Date(date);
     r.setTime(r.getTime() + seconds * 1000);
     return r;
 }
-
+export const addDays = (date : Date | string, days : number) => (
+    addSeconds(date, days * 24 * 60 * 60)
+)
+    
 export function formatDate(date : Date | string, format : string) : string { 
     const date_ : Date = typeof date === "string" ? new Date(date) : date; 
     if (!date) return ""; 

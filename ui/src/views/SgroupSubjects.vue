@@ -1,5 +1,5 @@
 <script lang="ts">
-import { SubjectsAndCount_with_more } from '@/my_types';
+import { DirectOptions, SubjectsAndCount_with_more } from '@/my_types';
 import * as helpers from '@/helpers'
 </script>
 
@@ -8,7 +8,7 @@ import { isEmpty } from 'lodash'
 import SubjectOrGroup from '@/components/SubjectOrGroup.vue';
 
 const emit = defineEmits<{
-  (e: 'remove', nb: string): void
+  (e: 'remove', dn: string, attrs?: DirectOptions): void
 }>()
 
 defineProps<{
@@ -26,7 +26,7 @@ defineProps<{
     } | undefined
 }>()
 
-const formatDate = (date: Date) => helpers.formatDate(helpers.addSeconds(date, -60), 'dd/MM/yyyy')
+const formatDate = (date: Date | string) => helpers.formatDate(helpers.addSeconds(date, -60), 'dd/MM/yyyy')
 
 </script>
 
@@ -50,10 +50,10 @@ const formatDate = (date: Date) => helpers.formatDate(helpers.addSeconds(date, -
             <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
             <td>
                 <i v-if="attrs.indirect">Indirect</i>
-                <button v-else-if="can_modify" @click="emit('remove', dn)">Supprimer</button>
+                <button v-else-if="can_modify" @click="emit('remove', dn, attrs.options)">Supprimer</button>
             </td>
-            <td v-if="attrs.enddate">
-                jusqu'au {{formatDate(attrs.enddate)}}
+            <td v-if="attrs.options?.enddate">
+                jusqu'au {{formatDate(new Date(attrs.options.enddate))}}
             </td>
         </tr>
     </table>

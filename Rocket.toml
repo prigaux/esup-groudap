@@ -6,9 +6,9 @@ log_dir = "/tmp"
 prefix_url = "https://cas-test.univ-paris1.fr/cas"
 
 [default.ldap]
-url = "ldap://localhost"
-bind_dn = "cn=admin,dc=nodomain"
-bind_password = "a"
+url = "ldap://localhost:2389"
+bind_dn = "cn=Manager,dc=nodomain"
+bind_password = "secret"
 base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
 group_object_classes = [ "up1SyncGroup", "groupOfNames", "supannGroupe" ]
@@ -23,6 +23,11 @@ filter = "(&(objectClass=up1SyncGroup)(!(objectClass=groupOfNames)))"
 #TODO cn = { label = "ID du groupe", description = "l'ID est l'identifiant unique de ce groupe au sein du dossier. Il doit être simple et court, et peut avoir des restrictions de caractères. Une fois créé, il est déconseillé de le modifier." }
 ou = { label = "Nom du groupe", description = "Le nom du groupe, il peut être modifié ultérieurement." }
 description = { label = "Description", description = "La description contient des informations sur le groupe, par exemple : ce que le groupe représente, pourquoi il a été créé..." }
+"up1GroupOptions;x-glpi" = { label = "Ticket GLPI associé", description = "xxxx", input_type = "number", vue_template = """<a target=blank :href='"https://ent.univ-paris1.fr/assistance/" + value'>{{value}}</a>""" }
+
+# if no "default", "max" est pris
+"up1GroupOptions;x-member-ttl-max" = { label = "Max Member TTL en jours", description = "xxxx", input_type = "number" }
+"up1GroupOptions;x-member-ttl-default" = { label = "Default Member TTL en jours", description = "xxxx", input_type = "number" }
 
 [default.ldap.groups_flattened_attr]
 member = "member"
