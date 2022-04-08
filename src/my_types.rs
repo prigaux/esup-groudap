@@ -80,6 +80,8 @@ pub struct AttrTexts {
     pub label: String,
     pub description: String,
     #[serde(skip_serializing_if="Option::is_none")]
+    pub only_in_stem: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub vue_template: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub input_type: Option<InputAttrType>,

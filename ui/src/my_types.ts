@@ -44,7 +44,8 @@ export interface ToSubjectSource {
 export interface AttrTexts {
     label: string
     description: string
-    vue_template: string
+    only_in_stem?: string
+    vue_template?: string
     input_type?: "number"
 }
 

@@ -91,7 +91,7 @@ async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod, opti
     }
 }
 function add_direct_mright(dn: Dn, mright: Mright) {
-    const end_days = mright === 'member' && (sgroup.value.attrs["up1GroupOptions;x-member-ttl-default"] || sgroup.value.attrs["up1GroupOptions;x-member-ttl-max"])
+    const end_days = mright === 'member' && (sgroup.value.attrs["groupaldOptions;x-member-ttl-default"] || sgroup.value.attrs["groupaldOptions;x-member-ttl-max"])
     const enddate = end_days && addDays(new Date(), parseInt(end_days)).toISOString()
     add_remove_direct_mright(dn, mright, 'add', enddate ? { enddate } : {})
 }
@@ -121,7 +121,10 @@ const sgroup_attrs_templates = computed(() => (
     ))
 ))
 const other_sgroup_attrs = computed(() => (
-    omit(props.ldapCfg.sgroup_attrs, 'cn', 'ou', 'description')
+    pickBy(
+        omit(props.ldapCfg.sgroup_attrs, 'cn', 'ou', 'description'), 
+        (opts, _) => !opts.only_in_stem || props.id.startsWith(opts.only_in_stem)
+    )
 ))
 const other_sgroup_attrs_having_values = computed(() => (
     pickBy(other_sgroup_attrs.value, (_, attr) => sgroup.value.attrs[attr])
