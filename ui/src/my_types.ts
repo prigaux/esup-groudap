@@ -41,12 +41,12 @@ export interface ToSubjectSource {
     id_attr: string
 }
 
-export interface AttrTexts {
+export interface SgroupAttrTexts {
     label: string
-    description: string
+    description?: string
     only_in_stem?: string
     vue_template?: string
-    input_type?: "number"
+    input_attrs?: Record<string, string>
 }
 
 export interface RemoteConfig {
@@ -103,7 +103,7 @@ export interface SubjectSourceConfig {
 export interface LdapConfigOut {
     groups_dn: Dn
     subject_sources: SubjectSourceConfig[]
-    sgroup_attrs: Record<string, AttrTexts>
+    sgroup_attrs: Record<string, SgroupAttrTexts>
 }
 
 export type SgroupLog = { who: string, when: Date, action: string } & Record<string, string>

@@ -287,7 +287,11 @@ const transform_SynchronizedGroup_into_group = async () => {
         <form v-if="modify_attrs.other" @submit.prevent="send_modify_attr('other')">
             <label class="label-and-val" v-for="(opts, attr) of other_sgroup_attrs">
                 <span class="label" :title="opts.description">{{opts.label}}</span>
-                <input v-model="sgroup.attrs[attr]" :inputmode="opts.input_type === 'number' ? 'numeric' : 'text'">
+                <span>
+                    <input v-model="sgroup.attrs[attr]" v-bind="opts.input_attrs">
+                    <br>
+                    <span>{{opts.description}}</span>
+                </span>
             </label>
             <input type="submit" style="display: none;">
         </form>

@@ -279,7 +279,7 @@ pub async fn create_sgroup(ldp: &mut LdapW<'_>, id: &str, attrs: &MonoAttrs) -> 
 
 pub async fn modify_sgroup_attrs(ldp: &mut LdapW<'_>, id: &str, attrs: &MonoAttrs) -> Result<()> {
     let mods = attrs.iter().map(|(attr, val)| {
-        Mod::Replace(attr, hashset![val])
+        Mod::Replace(attr, if val == "" { hashset![] } else { hashset![val] })
     }).collect();
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn(id).0, mods).await?.success()?;
     Ok(())

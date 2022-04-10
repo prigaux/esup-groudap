@@ -40,7 +40,7 @@ pub async fn get_remote_to_sgroup_ids(ldp: &mut LdapW<'_>, cache: &SharedExpirab
         let sgroup_id = ldp.config.dn_to_sgroup_id(&entry.dn).ok_or(MyErr::Msg("internal error".to_owned()))?;
             let url = get_all_values(entry.attrs).pop().ok_or(MyErr::Msg("internal error".to_owned()))?;
             let remote = parse_sql_url(&url)?.ok_or(MyErr::Msg("internal error".to_owned()))?;
-        map.entry(remote.remote_cfg_name).or_insert(hashset![]).insert(sgroup_id);
+            map.entry(remote.remote_cfg_name).or_insert(hashset![]).insert(sgroup_id);
         }
         let r = Arc::new(map);
         set(&cache, Arc::clone(&r));

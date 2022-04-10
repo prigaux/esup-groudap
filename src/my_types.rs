@@ -76,15 +76,18 @@ pub struct SubjectSourceConfig {
 pub enum InputAttrType { Number }
 
 #[derive(Deserialize, Serialize)]
-pub struct AttrTexts {
+pub struct SgroupAttrTexts {
     pub label: String,
-    pub description: String,
+    pub description: Option<String>,
+
     #[serde(skip_serializing_if="Option::is_none")]
     pub only_in_stem: Option<String>,
+    
     #[serde(skip_serializing_if="Option::is_none")]
     pub vue_template: Option<String>,
+    
     #[serde(skip_serializing_if="Option::is_none")]
-    pub input_type: Option<InputAttrType>,
+    pub input_attrs: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Deserialize)]
@@ -100,13 +103,13 @@ pub struct LdapConfig {
     pub stem: StemConfig,
     pub subject_sources: Vec<SubjectSourceConfig>,
     pub groups_flattened_attr: BTreeMap<Mright, String>,
-    pub sgroup_attrs: BTreeMap<String, AttrTexts>,
+    pub sgroup_attrs: BTreeMap<String, SgroupAttrTexts>,
 }
 #[derive(Serialize)]
 pub struct LdapConfigOut<'a> {
     pub groups_dn: &'a Dn,
     pub subject_sources: &'a Vec<SubjectSourceConfig>,
-    pub sgroup_attrs: &'a BTreeMap<String, AttrTexts>,
+    pub sgroup_attrs: &'a BTreeMap<String, SgroupAttrTexts>,
 }
 
 impl LdapConfig {
