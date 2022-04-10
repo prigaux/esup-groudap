@@ -7,13 +7,53 @@ import 'prismjs/components/prism-sql'
 import 'prismjs/themes/prism.css'
 
 import * as api from '@/api'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { setRefAsync, watchOnceP } from '@/vue_helpers'
+
+const indent_sql_query = (query: string) => {
+    let r = ""
+    let indentation = [{ prefix: "", has_select: true }]
+    let indented_prev_line = true
+    for (const token of Prism.tokenize(query, Prism.languages.sql)) {
+        if (token instanceof Prism.Token) {
+            const content = token.content.toString()
+            const content_lower = content.toLowerCase()
+            let indent = false
+
+            if (token.type === 'punctuation') {
+                if (content === '(') {
+                    indentation.unshift({ ...indentation[0], has_select: false })
+                } else if (content === ')') {
+                    indent = indentation[0].has_select
+                    indentation.shift()
+                }
+            } else if (token.type === 'keyword' && ["select", "from", "where", "inner"].includes(content_lower)) {
+                indent = true
+                if (!indentation[0].has_select && content_lower === 'select') {
+                    indentation[0].has_select = true
+                    indentation[0].prefix += "  "
+                }
+            } else if (!indented_prev_line && token.type === 'keyword' && ["join"].includes(content_lower)) {
+                indent = true
+            }
+
+            if (indent) {
+                r += (r ? "\n" : "") + indentation[0].prefix
+            }
+            r += content
+            indented_prev_line = indent
+        } else {
+            const content = token.replace(/\s+$/, ' ') // simplify spaces
+            r += content
+        }
+    }
+    return r
+}
 
 </script>
 
 <script setup lang="ts">
-import { isEmpty } from 'lodash'
+import { isEmpty, trim } from 'lodash'
 import { maySingleton } from '@/vue_helpers'
 
 const props = defineProps<{
@@ -29,6 +69,14 @@ const chosen_subject_source = computed(() => (
     ldapCfg.value?.subject_sources.find(sscfg => sscfg.dn === props.remote_sql_query.to_subject_source.ssdn)
 ))
 
+watch(() => props.remote_sql_query.select_query, (query) => {
+    if (query && query.length > 100 && !trim(query).match(/\n/)) {
+        const indented = indent_sql_query(query)
+        if (indented !== query) {
+            props.remote_sql_query.select_query = indented
+        }
+    }
+})
 const highlighted_select_query = computed(() => (
     Prism.highlight(props.remote_sql_query.select_query + ' ', Prism.languages.sql, 'sql')
 ))
