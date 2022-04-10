@@ -15,10 +15,8 @@ use crate::{
 
 #[cfg(feature = "mysql")]
 mod mysql {
-    use crate::{
-        my_err::{MyErr, Result},
-        my_types::RemoteConfig,
-    };
+    use crate::my_err::{MyErr, Result};
+    use crate::my_types::RemoteConfig;
     use mysql::prelude::Queryable;
 
     impl From<mysql::Error> for MyErr {
@@ -45,11 +43,26 @@ mod mysql {
 
 #[cfg(feature = "oracle")]
 mod oracle {
+    use std::borrow::Cow;
+    use oracle::Connection;
+    use crate::my_err::{MyErr, Result};
     use crate::my_types::RemoteConfig;
-    use std::collections::Vec;
 
-    pub fn query(remote: &RemoteConfig, select_query: &str) -> Vec<String> {
-        todo!()
+    impl From<oracle::Error> for MyErr {
+        fn from(err: oracle::Error) -> Self {
+            MyErr::Msg(err.to_string())
+        }
+    }
+
+    pub fn query(remote: &RemoteConfig, db_name: &str, select_query: &str) -> Result<Vec<String>> {
+        let port_string = if let Some(port) = remote.port { Cow::Owned(format!(":{}", port)) } else { Cow::Borrowed("") };
+        let conn = Connection::connect(&remote.user, &remote.password, format!("{}{}/{}", remote.host, port_string, db_name))?;
+        let mut r = vec![];
+        for row_result in conn.query(select_query, &[])? {
+            let row = row_result?;
+            r.push(row.get(0)?);
+        }
+        Ok(r)
     }
 }
 
@@ -58,7 +71,7 @@ fn raw_query(remote: &RemoteConfig, db_name: &str, select_query: &str) -> Result
         #[cfg(feature = "mysql")]
         RemoteDriver::Mysql => mysql::query(&remote, db_name, select_query),
         #[cfg(feature = "oracle")]
-        RemoteDriver::Oracle => oracle::query(&remote, select_query),
+        RemoteDriver::Oracle => oracle::query(&remote, db_name, select_query),
     }
 }
 
