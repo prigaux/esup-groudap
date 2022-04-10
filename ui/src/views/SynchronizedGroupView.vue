@@ -53,7 +53,7 @@ const indent_sql_query = (query: string) => {
 </script>
 
 <script setup lang="ts">
-import { isEmpty, trim } from 'lodash'
+import { isEmpty, size, trim } from 'lodash'
 import { maySingleton } from '@/vue_helpers'
 
 const props = defineProps<{
@@ -143,8 +143,8 @@ const test_remote_query_sql = async () => {
                     </blockquote>
                 </template>
             </p>
-            <p style="margin-bottom: 0;" v-if="lt.ss_guess">
-                Les paramètres ci-dessous ont été devinés ({{lt.ss_guess.length}} sujets trouvés) :
+            <p style="margin-bottom: 0;" v-if="lt.ss_guess?.[1]">
+                Les paramètres ci-dessous ont été devinés ({{size(lt.ss_guess?.[1])}} sujets trouvés) :
             </p>
             <p class="warning" v-else>
                 <span class="big">⚠</span> Aucune source de sujets ne correspond aux valeurs
