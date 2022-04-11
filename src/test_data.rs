@@ -90,7 +90,7 @@ pub async fn add(cfg_and_lu: CfgAndLU<'_>) -> Result<()> {
     } };
 
     ldp.ldap.modify(&ldp.config.sgroup_id_to_dn("").0, vec![
-        Mod::Add("objectClass", hashset!["up1SyncGroup"])
+        Mod::Add("objectClass", hashset!["groupald"])
     ]).await?;
 
     my_ldap::modify_direct_members_or_rights(ldp, "", &btreemap!{

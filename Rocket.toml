@@ -11,12 +11,12 @@ bind_dn = "cn=Manager,dc=nodomain"
 bind_password = "secret"
 base_dn = "dc=nodomain"
 groups_dn = "ou=groups,dc=nodomain"
-group_object_classes = [ "up1SyncGroup", "groupOfNames", "supannGroupe" ]
-stem_object_classes = [ "up1SyncGroup", "organizationalRole" ] # root stem will have up1SyncGroup & organizationalUnit
-sgroup_filter = "(objectClass=up1SyncGroup)"
+group_object_classes = [ "groupald", "groupOfNames", "supannGroupe" ]
+stem_object_classes = [ "groupald", "organizationalRole" ] # root stem will have groupald & organizationalUnit
+sgroup_filter = "(objectClass=groupald)"
 
 [default.ldap.stem]
-filter = "(&(objectClass=up1SyncGroup)(!(objectClass=groupOfNames)))"
+filter = "(&(objectClass=groupald)(!(objectClass=groupOfNames)))"
 #default_separator = "."
 
 #TODO cn = { label = "ID du groupe", description = "l'ID est l'identifiant unique de ce groupe au sein du dossier. Il doit être simple et court, et peut avoir des restrictions de caractères. Une fois créé, il est déconseillé de le modifier." }
