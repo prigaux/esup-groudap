@@ -134,6 +134,7 @@ pub fn dn_to_rdn_and_parent_dn(dn: &Dn) -> Option<(&str, &str)> {
 pub fn dn_opts_to_url((dn, opts): (&Dn, &DirectOptions)) -> String {
     if let Some(enddate) = &opts.enddate {
         if let Some(gtime) = iso8601_to_generalized_time(enddate) {
+            // not standard LDAP filter. inspired from https://www.ietf.org/archive/id/draft-pluta-ldap-srv-side-current-time-match-01.txt
             return format!("ldap:///{}???(serverTime<{})", dn.0, gtime)
         }
     }
