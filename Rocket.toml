@@ -26,10 +26,10 @@ description = "La description contient des informations sur le groupe, par exemp
 [default.ldap.sgroup_attrs.ou]
 label = "Nom du groupe"
 description = "Le nom du groupe, il peut être modifié ultérieurement."
-[default.ldap.sgroup_attrs."groupaldOptions;x-glpi"]
-label = "Ticket GLPI associé"
-input_attrs = { placeholder = "numéro du ticket", inputmode = "number" }
-vue_template = """<a target=blank :href='"https://ent.univ-paris1.fr/assistance/" + value'>{{value}}</a>"""
+[default.ldap.sgroup_attrs."labeledURI;x-assistance"]
+label = "URL vers le ticket d'assitance associé"
+input_attrs = { placeholder = "url" }
+vue_template = """<a target=blank :href='value'>{{value.replace(/.*ticket[.]form[.]php[?]id=/, 'GLPI #')}}</a>"""
 [default.ldap.sgroup_attrs."groupaldOptions;x-comptex-externe-profilename"]
 label = "Profils comptex/externe autorisés"
 only_in_stem = "collab."
