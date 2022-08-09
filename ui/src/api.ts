@@ -161,7 +161,7 @@ export async function add_sscfg_dns_and_sort(subjects: Subjects) {
 export const convert = {
     remote_sql_query: {
         from_api(remote: RemoteSqlQuery) {
-            remote.to_subject_source ||= { ssdn: '', id_attr: '' }
+            remote.to_subject_source ??= { ssdn: '', id_attr: '' }
         },
         to_api(remote: RemoteSqlQuery): Partial<RemoteSqlQuery> {
             const { to_subject_source, ...rest } = remote
