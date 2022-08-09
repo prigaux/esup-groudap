@@ -1,0 +1,48 @@
+{
+  "name": "src",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild --sourcemap --outdir=dist --bundle --platform=node --target=node10.4 main.ts",
+    "start": "node -r source-map-support/register dist/main.js",
+    "start:w": "tsx watch main.ts",
+    "test": "jest",
+    "test:w": "npm run test -- --watch",
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "typecheck:w": "npm run typecheck -- --watch"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.0",
+    "esbuild": "^0.14.54",
+    "express": "^4.18.1",
+    "express-session": "^1.17.3",
+    "ldap-filter": "github:UnivParis1/node-ldap-filter",
+    "ldapjs-promise-disconnectwhenidle": "github:UnivParis1/node-ldapjs-promise-disconnectWhenIdle",
+    "lodash": "^4.17.21",
+    "mysql": "^2.18.1",
+    "node-fetch": "^3.2.10",
+    "oracledb": "^5.4.0",
+    "pg": "^8.7.3",
+    "session-file-store": "^1.5.0",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/jest": "^28.1.6",
+    "@types/ldapjs": "^2.2.3",
+    "@types/lodash": "^4.14.182",
+    "@types/mysql": "^2.15.21",
+    "@types/node": "^18.6.4",
+    "@types/session-file-store": "^1.2.2",
+    "@typescript-eslint/eslint-plugin": "^5.33.0",
+    "@typescript-eslint/parser": "^5.33.0",
+    "esbuild-jest": "^0.5.0",
+    "eslint": "^8.21.0",
+    "jest": "^28.1.3",
+    "tsx": "^3.8.1",
+    "typescript": "^4.7.4"
+  }
+}
