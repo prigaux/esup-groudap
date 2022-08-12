@@ -85,7 +85,7 @@ export async function add() {
     } }
 
     await ldapP.modify(sgroup_id_to_dn(""), new ldapjs.Change({
-        operation: 'add', modification: { objectClass: "groupald" }
+        operation: 'add', modification: { objectClass: "groupaldGroup" }
     }))
 
     await my_ldap.modify_direct_members_or_rights("", {
