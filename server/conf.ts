@@ -11,7 +11,6 @@ const conf: Config = {
     session_store: {
         options: { 
             secret: 'xx', // NB: express-session sends session ID signed with this secret => something harder to randomly guess...
-            cookie: { secure: true, sameSite: 'lax' },
         },
         file_store: { path: "/tmp" },
     },
