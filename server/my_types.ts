@@ -125,7 +125,7 @@ interface SgroupAttrTexts {
 }
 
 export interface LdapConfig {
-    connect: { uri: string[], dn: FlavorDn, password: string },
+    connect: { uri: string[], dn: FlavorDn, password: string, verbose?: boolean },
     base_dn: FlavorDn,
     groups_dn: FlavorDn,
     stem_object_classes: MySet<string>,
