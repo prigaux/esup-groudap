@@ -1,12 +1,14 @@
 import _ from "lodash";
 import { promisify } from "util";
 import conf from "./conf";
-import { before_and_after, strip_prefix, throw_ } from "./helpers";
+import { before_and_after, dbg, internal_error, strip_prefix, throw_ } from "./helpers";
 import ldap_filter from "./ldap_filter";
 import { searchRaw } from "./ldap_wrapper";
 import { get_subjects_ } from "./my_ldap_subjects";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 import mysql from 'mysql'
+// @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
+import oracledb from 'oracledb'
 
 const driver_query: Record<string, (remote: RemoteConfig, db_name: string, select_query: string) => Promise<string[]>> = {
     mysql: async (remote, db_name, select_query) => {
@@ -27,41 +29,18 @@ const driver_query: Record<string, (remote: RemoteConfig, db_name: string, selec
 
         return rows.map(hMyMap.firstValue) as string[]
     },
+    oracle: async (remote, db_name, select_query) => {
+        let port_string = remote.port ? ":" + remote.port : ""
+        let conn = await oracledb.getConnection({ user: remote.user, password: remote.password, connectString: `${remote.host}${port_string}/${db_name}` })
+        let r = await conn.execute(select_query) as { rows: string[][] }
+        return r.rows.map(e => e[0])
+    },
 };
-
-/*
-#[cfg(feature = "oracle")]
-mod oracle {
-    use std::borrow::Cow;
-    use oracle::Connection;
-    use crate::my_err::{MyErr, Result};
-    use crate::my_types::RemoteConfig;
-
-    impl From<oracle::Error> for MyErr {
-        function from(err: oracle::Error) => Self {
-            MyErr::Msg(err.to_string())
-        }
-    }
-
-    export function query(remote: RemoteConfig, db_name: string, select_query: string) => Result<string[] {
-        let port_string = if let Some(port) = remote.port { Cow::Owned(":{}", port)) } else { Cow::Borrowed("") };
-        let conn = Connection::connect(remote.user, remote.password, "{}{}/{}", remote.host, port_string, db_name))?;
-        let mut r = [];
-        for row_result in conn.query(select_query, [])? {
-            let row = row_result?;
-            r.push(row.get(0)?);
-        }
-        return (r)
-    }
-}
-*/
 
 async function raw_query(remote: RemoteConfig, db_name: string, select_query: string): Promise<string[]> {
     const f = driver_query[remote.driver]
     return await f(remote, db_name, select_query)
 }
-
-//raw_query(conf.remotes.foo ?? internal_error(), 'projets', 'select username, username as a, username as z from users').then(console.log, console.error)
 
 async function sql_values_to_dns_(ssdn: Dn, id_attr: string, sql_values: string[]) {
     const r: DnsOpts = {};
