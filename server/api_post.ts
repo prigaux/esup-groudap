@@ -11,7 +11,7 @@ import { hashmap_difference, internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
 import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
-import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./my_ldap_check_rights";
+import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./ldap_check_rights";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteSqlQuery, Right, toDn } from "./my_types";
 import { direct_members_to_remote_sql_query } from "./remote_query";
 import { is_stem, validate_sgroup_id } from "./stem_helpers";
