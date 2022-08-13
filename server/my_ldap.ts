@@ -6,7 +6,7 @@ import ldap_filter from './ldap_filter'
 import { Dn, MonoAttrs, Mright, MyMods, Option, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
 import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, urls_to_dns } from "./dn"
 import { LdapRawValue } from './ldap_helpers'
-import * as ldp from "./ldap_wrapper"
+import * as ldp from "./ldap_read_search"
 import { is_stem } from "./stem_helpers"
 
 export const is_sgroup_matching_filter = async (id: string, filter: string) => (

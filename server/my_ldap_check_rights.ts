@@ -1,5 +1,5 @@
 import ldap_filter from "./ldap_filter"
-import * as ldp from "./ldap_wrapper"
+import * as ldp from "./ldap_read_search"
 import * as my_ldap from './my_ldap'
 import { people_id_to_dn } from "./dn";
 import { sgroup_filter, to_allowed_flattened_attrs } from "./ldap_helpers";

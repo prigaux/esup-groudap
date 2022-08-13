@@ -5,7 +5,7 @@
 import _ from "lodash";
 import { promisify } from "util";
 import conf from "./conf";
-import * as ldp from "./ldap_wrapper"
+import * as ldp from "./ldap_read_search"
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
 import ldap_filter from "./ldap_filter";
 import { get_subjects_ } from "./my_ldap_subjects";

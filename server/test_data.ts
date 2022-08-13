@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 
-import * as ldp from "./ldap_wrapper"
+import * as ldp from "./ldap_read_search"
 import * as my_ldap from "./my_ldap"
 import * as api_post from './api_post'
 import * as api_get from './api_get'

@@ -7,7 +7,7 @@ use crate::api_post::may_update_flattened_mrights_rec;
 use crate::cache::{AllCaches, self};
 use crate::my_types::{Config, LoggedUser, CfgAndLU, Mright};
 use crate::my_err::{Result, MyErr};
-use crate::ldap_wrapper::{LdapW};
+use crate::ldap_read_search::{LdapW};
 use crate::systemd_calendar_events;
 
 #[tokio::main]
