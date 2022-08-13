@@ -1,8 +1,9 @@
 import _ from "lodash";
 import ldap_filter from "./ldap_filter";
-import { dn_to_rdn_and_parent_dn, dn_to_subject_source_cfg, urls_to_dns } from "./ldap_helpers";
-import { search_subjects } from "./my_ldap";
-import { Dn, DnsOpts, hMyMap, MyMap, Option, Subjects, SubjectSourceConfig } from "./my_types";
+import { dn_to_rdn_and_parent_dn, dn_to_sgroup_id, dn_to_subject_source_cfg, urls_to_dns } from "./ldap_helpers";
+import { Dn, DnsOpts, hMyMap, MyMap, Option, SubjectAttrs, Subjects, SubjectSourceConfig, toDn } from "./my_types";
+import { mono_attrs, searchRaw } from "./ldap_wrapper";
+import { get_delete } from "./helpers";
 
 export const hSubjectSourceConfig = {
     export: (self: SubjectSourceConfig) => (
@@ -12,6 +13,16 @@ export const hSubjectSourceConfig = {
         sscfg.search_filter.replace(/%TERM%/g, term).replace(/ /g, "")
     ),
 }
+
+export async function search_subjects(base_dn: Dn, attrs: string[], filter: string, dn2opts: DnsOpts, sizeLimit: Option<number>): Promise<Subjects> {
+    const entries = await searchRaw(base_dn, filter, attrs, { sizeLimit });
+    return _.fromPairs(entries.map(entry => { 
+        const sgroup_id = dn_to_sgroup_id(entry.dn);
+        const options = get_delete(dn2opts, entry.dn) ?? {};
+        const subjectAttrs: SubjectAttrs = { attrs: mono_attrs(entry), sgroup_id, options };
+        return [ toDn(entry.dn), subjectAttrs ]
+    }))
+}   
 
 async function get_subjects_from_same_branch(sscfg: SubjectSourceConfig, base_dn: Dn, rdns: string[], dn2opts: DnsOpts, search_token: Option<string>) {
     const rdns_filter = ldap_filter.or(rdns.map(ldap_filter.rdn));

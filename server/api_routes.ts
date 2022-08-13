@@ -103,7 +103,7 @@ api.get("/clear_cache", () => {
 api.get("/search_subjects", handleJsonP(async (req) => {
     const { search_token, sizelimit } = query_params(req, { search_token: q.string, sizelimit: q.int })
     const { source_dn } = query_opt_params(req, { source_dn: q.string })
-    return await api_get.search_subjects(logged_user(req), search_token, sizelimit, source_dn?.oMap(toDn))
+    return await api_get.api_search_subjects(logged_user(req), search_token, sizelimit, source_dn?.oMap(toDn))
 }))
 
 api.get("/config/public", handleJson(() => ({ "cas_prefix_url": conf.cas.prefix_url })))

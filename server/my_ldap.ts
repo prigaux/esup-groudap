@@ -3,12 +3,10 @@ import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 import conf from "./conf"
 import ldap_filter from './ldap_filter'
-import { Dn, DnsOpts, MonoAttrs, Mright, MyMods, Option, Right, SubjectAttrs, Subjects, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
+import { Dn, MonoAttrs, Mright, MyMods, Option, Right, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
 import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, to_allowed_flattened_attrs, urls_to_dns } from "./ldap_helpers"
-import { is_dn_matching_filter, mono_attrs, RawValue, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
+import { is_dn_matching_filter, RawValue, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
 import { is_stem } from "./stem_helpers"
-import { get_delete } from './helpers';
-
 
 export const is_sgroup_matching_filter = async (id: string, filter: string) => (
     await is_dn_matching_filter(sgroup_id_to_dn(id), filter)
@@ -54,16 +52,6 @@ export const search_sgroups_id = async (filter: string) => (
         return id
     })
 )
-
-export async function search_subjects(base_dn: Dn, attrs: string[], filter: string, dn2opts: DnsOpts, sizeLimit: Option<number>): Promise<Subjects> {
-    const entries = await searchRaw(base_dn, filter, attrs, { sizeLimit });
-    return _.fromPairs(entries.map(entry => { 
-        const sgroup_id = dn_to_sgroup_id(entry.dn);
-        const options = get_delete(dn2opts, entry.dn) ?? {};
-        const subjectAttrs: SubjectAttrs = { attrs: mono_attrs(entry), sgroup_id, options };
-        return [ toDn(entry.dn), subjectAttrs ]
-    }))
-}   
 
 export async function create_sgroup(id: string, attrs: MonoAttrs) {
     await ldap_add_group(id, attrs)

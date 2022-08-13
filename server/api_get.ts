@@ -10,7 +10,7 @@ import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, Mon
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { SearchEntryObject } from "ldapjs"
 import { check_right_on_self_or_any_parents } from "./my_ldap_check_rights"
-import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig } from "./my_ldap_subjects"
+import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig, search_subjects } from "./my_ldap_subjects"
 import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
 
 const user_dn = (logged_user: LoggedUser): LoggedUserDn => (
@@ -183,13 +183,13 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
     return { count, subjects }
 }
 
-export async function search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
+export async function api_search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
     console.log("search_subjects({}, %s)", search_token, source_dn);
     const r: MyMap<Dn, Subjects> = {}
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
             const filter = hSubjectSourceConfig.search_filter_(sscfg, search_token);
-            r[toDn(sscfg.dn)] = await my_ldap.search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
+            r[toDn(sscfg.dn)] = await search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
         }
     }
     return r
