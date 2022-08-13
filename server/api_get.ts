@@ -11,7 +11,7 @@ import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, Mon
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { SearchEntryObject } from "ldapjs"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./my_ldap_check_rights"
-import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig, search_subjects } from "./my_ldap_subjects"
+import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig, search_subjects } from "./ldap_subject"
 import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
 
 const user_dn = (logged_user: LoggedUser): LoggedUserDn => (

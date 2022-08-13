@@ -8,7 +8,7 @@ import conf from "./conf";
 import * as ldp from "./ldap_read_search"
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
 import ldap_filter from "./ldap_filter";
-import { get_subjects_ } from "./my_ldap_subjects";
+import { get_subjects_ } from "./ldap_subject";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 import mysql from 'mysql'
 // @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
