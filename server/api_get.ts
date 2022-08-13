@@ -1,3 +1,4 @@
+import * as ldapjs from 'ldapjs'
 import _ from "lodash"
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
@@ -10,7 +11,6 @@ import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
 import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
-import { SearchEntryObject } from "ldapjs"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./ldap_check_rights"
 import { hSubjectSourceConfig } from "./ldap_subject"
 import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
@@ -210,7 +210,7 @@ function simplify_hierachical_ou(attrs: MonoAttrs): MonoAttrs {
     return attrs
 }
 
-function to_sgroup_attrs(id: string, attrs: SearchEntryObject): MonoAttrs {
+function to_sgroup_attrs(id: string, attrs: ldapjs.SearchEntryObject): MonoAttrs {
     let attrs_ = mono_attrs_(attrs, hMyMap.keys(conf.ldap.sgroup_attrs))
     if (id === "") {
         // TODO, move this in conf?
