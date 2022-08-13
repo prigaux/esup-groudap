@@ -82,11 +82,3 @@ export async function modify_direct_members_or_rights(id: string, my_mods: MyMod
         await ldapP.modify(sgroup_id_to_dn(id), mods)
     }
 }
-
-export const user_has_right_on_sgroup_filter = (user_dn: Dn, right: Right) => (
-    ldap_filter.or(
-        to_allowed_flattened_attrs(right).flatMap(attr => (
-            ldap_filter.eq(attr, user_dn)
-        ))
-    )
-)

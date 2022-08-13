@@ -1,15 +1,23 @@
 import ldap_filter from "./ldap_filter"
 import * as my_ldap from './my_ldap'
-import { people_id_to_dn, sgroup_filter } from "./ldap_helpers";
+import { people_id_to_dn, sgroup_filter, to_allowed_flattened_attrs } from "./ldap_helpers";
 import { one_group_matches_filter } from "./ldap_wrapper";
 import { Dn, LoggedUser, Right } from "./my_types"
 import { parent_stem, parent_stems } from "./stem_helpers";
+
+export const user_has_right_on_sgroup_filter = (user_dn: Dn, right: Right) => (
+    ldap_filter.or(
+        to_allowed_flattened_attrs(right).flatMap(attr => (
+            ldap_filter.eq(attr, user_dn)
+        ))
+    )
+)
 
 export async function user_has_right_on_at_least_one_sgroups(user_dn: Dn, ids: string[], right: Right): Promise<boolean> {
     const ids_filter = ldap_filter.or(ids.map(sgroup_filter))
     const filter = ldap_filter.and2(
         ids_filter,
-        my_ldap.user_has_right_on_sgroup_filter(user_dn, right),
+        user_has_right_on_sgroup_filter(user_dn, right),
     );
     
     return await one_group_matches_filter(filter)

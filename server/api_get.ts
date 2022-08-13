@@ -9,7 +9,7 @@ import { mono_attrs, mono_attrs_, multi_attrs, read_flattened_mright } from "./l
 import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { SearchEntryObject } from "ldapjs"
-import { check_right_on_self_or_any_parents } from "./my_ldap_check_rights"
+import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./my_ldap_check_rights"
 import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig, search_subjects } from "./my_ldap_subjects"
 import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
 
@@ -235,7 +235,7 @@ export async function mygroups(logged_user: LoggedUser) {
 async function get_all_stems_id_with_user_right(user_dn: Dn, right: Right): Promise<MySet<string>> {
     const stems_with_right_filter = ldap_filter.and2(
         conf.ldap.stem.filter,
-        my_ldap.user_has_right_on_sgroup_filter(user_dn, right),
+        user_has_right_on_sgroup_filter(user_dn, right),
     );
     const stems_id = await my_ldap.search_sgroups_id(stems_with_right_filter)
     return stems_id
