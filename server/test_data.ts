@@ -5,7 +5,8 @@ import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 import * as api_post from './api_post'
 import * as api_get from './api_get'
 import { people_id_to_dn, sgroup_id_to_dn } from './dn'
-import { is_dn_existing, RawValue, read_flattened_mright, read_one_multi_attr__or_err } from './ldap_wrapper'
+import { LdapRawValue } from './ldap_helpers';
+import { is_dn_existing, read_flattened_mright, read_one_multi_attr__or_err } from './ldap_wrapper'
 import { delete_sgroup, search_sgroups_id } from './my_ldap'
 import { LoggedUser, MonoAttrs, Option, Right, SgroupAndMoreOut, Subjects, toDn } from './my_types'
 import ldap_filter from './ldap_filter'
@@ -16,7 +17,7 @@ async function ldap_add_ou_branch(ou: string, description: string) {
     await ldapP.add(dn, { objectClass: "organizationalUnit", ou, description })
 }
 
-async function ldap_add_people(uid: string, attrs: Record<string, RawValue>) {
+async function ldap_add_people(uid: string, attrs: Record<string, LdapRawValue>) {
     const dn = `uid=${uid},ou=people,dc=nodomain`
     const all_attrs = {
         objectClass: ["inetOrgPerson", "shadowAccount"],

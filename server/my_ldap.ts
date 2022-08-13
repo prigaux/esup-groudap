@@ -5,7 +5,8 @@ import conf from "./conf"
 import ldap_filter from './ldap_filter'
 import { Dn, MonoAttrs, Mright, MyMods, Option, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
 import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, urls_to_dns } from "./dn"
-import { is_dn_matching_filter, RawValue, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
+import { LdapRawValue } from './ldap_helpers'
+import { is_dn_matching_filter, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
 import { is_stem } from "./stem_helpers"
 
 export const is_sgroup_matching_filter = async (id: string, filter: string) => (
@@ -15,7 +16,7 @@ export const is_sgroup_existing = async (id: string) => (
     await is_sgroup_matching_filter(id, ldap_filter.true_())
 );
 
-export async function ldap_add_group(cn: string, attrs: MyMap<string, RawValue>) {
+export async function ldap_add_group(cn: string, attrs: MyMap<string, LdapRawValue>) {
     const is_stem_ = is_stem(cn);
     const objectClass = is_stem_ ? conf.ldap.stem_object_classes : conf.ldap.group_object_classes
     const member_attr = is_stem_ ? {} : { member: "" } // "member" is requested...

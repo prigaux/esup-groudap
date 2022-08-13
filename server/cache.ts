@@ -2,7 +2,7 @@ import * as my_ldap from './my_ldap'
 import { internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
 import { dn_to_sgroup_id } from "./dn";
-import { mono_attrs } from "./ldap_wrapper";
+import { mono_attrs } from "./ldap_helpers";
 import { hMright, MyMap, Option, RemoteSqlQuery } from "./my_types";
 import { parse_sql_url } from "./remote_query";
 
