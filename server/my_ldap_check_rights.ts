@@ -1,6 +1,6 @@
 import ldap_filter from "./ldap_filter"
 import * as ldp from "./ldap_read_search"
-import * as my_ldap from './my_ldap'
+import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import { people_id_to_dn } from "./dn";
 import { sgroup_filter, to_allowed_flattened_attrs } from "./ldap_helpers";
 import { Dn, LoggedUser, Right } from "./my_types"
@@ -27,7 +27,7 @@ export async function user_has_right_on_at_least_one_sgroups(user_dn: Dn, ids: s
 export async function check_right_on_any_parents(logged_user: LoggedUser, id: string, right: Right) {
     if ('TrustedAdmin' in logged_user) {
         const parent_stem_ = parent_stem(id)
-        if (parent_stem_ && !await my_ldap.is_sgroup_existing(parent_stem_)) { 
+        if (parent_stem_ && !await ldpSgroup.is_sgroup_existing(parent_stem_)) { 
             throw `stem ${parent_stem_} does not exist`
         }    
     } else {

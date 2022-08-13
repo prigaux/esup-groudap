@@ -2,7 +2,7 @@ import _ from "lodash";
 import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 import * as ldp from "./ldap_read_search"
-import * as my_ldap from './my_ldap'
+import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
 import * as cache from './cache'
@@ -22,13 +22,13 @@ export async function create(logged_user: LoggedUser, id: string, attrs: MonoAtt
     validate_sgroup_id(id)
     validate_sgroups_attrs(attrs)
     await check_right_on_any_parents(logged_user, id, 'admin')
-    await my_ldap.create_sgroup(id, attrs)
+    await ldpSgroup.create_sgroup(id, attrs)
     await api_log.log_sgroup_action(logged_user, id, "create", undefined, attrs)
 }
 
 async function current_sgroup_attrs(id: string): Promise<MonoAttrs> {
     const attrs = hMyMap.keys(conf.ldap.sgroup_attrs);
-    const e = await my_ldap.read_sgroup(id, attrs) ?? internal_error()
+    const e = await ldpSgroup.read_sgroup(id, attrs) ?? internal_error()
     return mono_attrs(e)
 }
 
@@ -46,7 +46,7 @@ export async function modify_sgroup_attrs(logged_user: LoggedUser, id: string, a
 
     const attrs_ = await remove_non_modified_attrs(id, attrs)
 
-    await my_ldap.modify_sgroup_attrs(id, attrs_)
+    await ldpSgroup.modify_sgroup_attrs(id, attrs_)
     await api_log.log_sgroup_action(logged_user, id, "modify_attrs", undefined, attrs_)
 }
 
@@ -62,7 +62,7 @@ export async function delete_(logged_user: LoggedUser, id: string) {
     const current = await current_sgroup_attrs(id)
 
     // ok, do it:
-    await my_ldap.delete_sgroup(id)
+    await ldpSgroup.delete_sgroup(id)
     await api_log.log_sgroup_action(logged_user, id, "delete", undefined, current)
 }
 
@@ -95,7 +95,7 @@ async function check_and_simplify_mods_(id: string, mright: Mright, submods: MyM
     const [add, delete_, replace] = from_submods(submods);
 
     if (replace && _.size(replace) > 4) {
-        const current_dns = await my_ldap.read_direct_mright(sgroup_id_to_dn(id), mright)
+        const current_dns = await ldpSgroup.read_direct_mright(sgroup_id_to_dn(id), mright)
         // transform Replace into Add/Delete
         Object.assign(add, hashmap_difference(replace, current_dns));
         Object.assign(delete_, hashmap_difference(current_dns, replace));
@@ -132,7 +132,7 @@ async function search_groups_mrights_depending_on_this_group(id: string) {
     const r: IdMright[] = []
     const group_dn = sgroup_id_to_dn(id);
     for (const mright of hMright.list()) {
-        for (id of await my_ldap.search_sgroups_id(ldap_filter.eq(to_flattened_attr(mright), group_dn))) {
+        for (id of await ldpSgroup.search_sgroups_id(ldap_filter.eq(to_flattened_attr(mright), group_dn))) {
             r.push({ id, mright });
         }
     }
@@ -256,7 +256,7 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
     }
    
     // ok, const's do update direct mrights ()
-    await my_ldap.modify_direct_members_or_rights(id, my_mods_)
+    await ldpSgroup.modify_direct_members_or_rights(id, my_mods_)
     
     await api_log.log_sgroup_action(logged_user, id, "modify_members_or_rights", msg, my_mods_)
     

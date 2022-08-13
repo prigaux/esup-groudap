@@ -1,4 +1,4 @@
-import * as my_ldap from './my_ldap'
+import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import { internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
 import { dn_to_sgroup_id } from "./dn";
@@ -19,7 +19,7 @@ export const get_remote_to_sgroup_ids = async () => (
 async function get_remote_to_sgroup_ids_() {
     const attr = hMright.to_attr_synchronized('member');
     const map: RemoteToSgroupIds = {};
-    for (const entry of await my_ldap.search_sgroups(ldap_filter.presence(attr), [attr], undefined)) {
+    for (const entry of await ldpSgroup.search_sgroups(ldap_filter.presence(attr), [attr], undefined)) {
         const sgroup_id = dn_to_sgroup_id(entry.dn) ?? internal_error();
         const url = mono_attrs(entry)[attr] ?? internal_error()
         const remote: RemoteSqlQuery = parse_sql_url(url) ?? internal_error();

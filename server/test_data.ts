@@ -3,7 +3,7 @@ import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 
 import * as ldp from "./ldap_read_search"
-import * as my_ldap from "./my_ldap"
+import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import * as api_post from './api_post'
 import * as api_get from './api_get'
 import { people_id_to_dn, sgroup_id_to_dn } from './dn'
@@ -45,9 +45,9 @@ export async function clear() {
 
     if (await ldp.is_dn_existing(toDn("ou=groups,dc=nodomain"))) {
         console.log("deleting ou=groups entries");
-        const ids = await my_ldap.search_sgroups_id(ldap_filter.true_())
+        const ids = await ldpSgroup.search_sgroups_id(ldap_filter.true_())
         for (const id of ids) {
-            if (id !== '') await my_ldap.delete_sgroup(id)
+            if (id !== '') await ldpSgroup.delete_sgroup(id)
         }
         console.log("deleting ou=groups")
         await ldapP.del("ou=groups,dc=nodomain")

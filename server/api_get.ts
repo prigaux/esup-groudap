@@ -2,7 +2,7 @@ import _ from "lodash"
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import * as ldp from "./ldap_read_search"
-import * as my_ldap from './my_ldap'
+import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
@@ -48,7 +48,7 @@ export async function get_children(id: string): Promise<SgroupsWithAttrs> {
     const wanted_attrs = hMyMap.keys(conf.ldap.sgroup_attrs)
     const filter_ = ldap_filter.sgroup_children(id);
     const filter = ldap_filter.and2_if_some(filter_, conf.ldap.sgroup_filter);
-    const children = hMyMap.fromOptionPairs((await my_ldap.search_sgroups(filter, wanted_attrs, undefined)).map(e => {
+    const children = hMyMap.fromOptionPairs((await ldpSgroup.search_sgroups(filter, wanted_attrs, undefined)).map(e => {
         const child_id = dn_to_sgroup_id(e.dn)
         // ignore grandchildren
         if (!child_id || is_grandchild(id, child_id)) { return undefined }
@@ -62,7 +62,7 @@ export async function get_children(id: string): Promise<SgroupsWithAttrs> {
 async function get_parents_raw(filter: string, user_dn: LoggedUserDn, sizeLimit: Option<number>): Promise<MyMap<string, SgroupOutAndRight>> {
     const display_attrs = hMyMap.keys(conf.ldap.sgroup_attrs)
     const wanted_attrs = [ ...display_attrs, ...to_allowed_flattened_attrs('reader') ]
-    const groups = hMyMap.fromOptionPairs((await my_ldap.search_sgroups(filter, wanted_attrs, sizeLimit)).map(e => {
+    const groups = hMyMap.fromOptionPairs((await ldpSgroup.search_sgroups(filter, wanted_attrs, sizeLimit)).map(e => {
         const right = 'TrustedAdmin' in user_dn ? 'admin' : user_highest_right(multi_attrs(e), user_dn.User)
         return dn_to_sgroup_id(e.dn)?.oMap(id => {
             const attrs = to_sgroup_attrs(id, e);
@@ -117,7 +117,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
         ...to_allowed_flattened_attrs('reader'),
         ...hMyMap.keys(conf.ldap.sgroup_attrs),
     ]
-    const entry = await my_ldap.read_sgroup(id, wanted_attrs)
+    const entry = await ldpSgroup.read_sgroup(id, wanted_attrs)
     if (!entry) { throw `sgroup ${id} does not exist` }
 
     //console.log("      read sgroup {} => %s", id, entry);
@@ -153,7 +153,7 @@ export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: str
     console.log("get_sgroup_direct_rights(%s)", id);
     validate_sgroup_id(id)
 
-    const group = await my_ldap.read_sgroup(id, hRight.to_allowed_attrs('reader'))
+    const group = await ldpSgroup.read_sgroup(id, hRight.to_allowed_attrs('reader'))
     if (!group) { throw `sgroup ${id} does not exist` }
 
     const attrs = multi_attrs(group);
@@ -198,7 +198,7 @@ export async function api_search_subjects(_logged_user: LoggedUser, search_token
 
 async function search_sgroups_with_attrs(filter: string, sizeLimit: Option<number>): Promise<SgroupsWithAttrs> {
     const wanted_attrs = hMyMap.keys(conf.ldap.sgroup_attrs);
-    return hMyMap.fromOptionPairs((await my_ldap.search_sgroups(filter, wanted_attrs, sizeLimit)).map(e => (
+    return hMyMap.fromOptionPairs((await ldpSgroup.search_sgroups(filter, wanted_attrs, sizeLimit)).map(e => (
         dn_to_sgroup_id(e.dn)?.oMap(id => [id, mono_attrs(e)]))
     ))
 }
@@ -238,7 +238,7 @@ async function get_all_stems_id_with_user_right(user_dn: Dn, right: Right): Prom
         conf.ldap.stem.filter,
         user_has_right_on_sgroup_filter(user_dn, right),
     );
-    const stems_id = await my_ldap.search_sgroups_id(stems_with_right_filter)
+    const stems_id = await ldpSgroup.search_sgroups_id(stems_with_right_filter)
     return stems_id
 }
 
