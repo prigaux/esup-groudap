@@ -185,7 +185,7 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
     return { count, subjects }
 }
 
-export async function api_search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
+export async function search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
     console.log("search_subjects({}, %s)", search_token, source_dn);
     const r: MyMap<Dn, Subjects> = {}
     for (const sscfg of conf.ldap.subject_sources) {
