@@ -1,6 +1,6 @@
 import _ from "lodash";
 import ldap_filter from "./ldap_filter";
-import { dn_to_rdn_and_parent_dn, dn_to_sgroup_id, dn_to_subject_source_cfg, urls_to_dns } from "./ldap_helpers";
+import { dn_to_rdn_and_parent_dn, dn_to_sgroup_id, dn_to_subject_source_cfg, urls_to_dns } from "./dn";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, SubjectAttrs, Subjects, SubjectSourceConfig, toDn } from "./my_types";
 import { mono_attrs, searchRaw } from "./ldap_wrapper";
 import { get_delete } from "./helpers";

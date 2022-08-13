@@ -8,7 +8,8 @@ import * as cache from './cache'
 import { validate_remote } from "./api_get";
 import { hashmap_difference, internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
-import { dn_is_sgroup, sgroup_id_to_dn, to_flattened_attr, urls_to_dns, validate_sgroups_attrs } from "./ldap_helpers";
+import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
+import { to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
 import { mono_attrs, one_group_matches_filter, read_flattened_mright, read_flattened_mright_raw, read_one_multi_attr__or_err } from "./ldap_wrapper";
 import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./my_ldap_check_rights";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteSqlQuery, Right, toDn } from "./my_types";

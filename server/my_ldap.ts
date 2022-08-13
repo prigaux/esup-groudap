@@ -3,8 +3,8 @@ import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 import conf from "./conf"
 import ldap_filter from './ldap_filter'
-import { Dn, MonoAttrs, Mright, MyMods, Option, Right, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
-import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, to_allowed_flattened_attrs, urls_to_dns } from "./ldap_helpers"
+import { Dn, MonoAttrs, Mright, MyMods, Option, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
+import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, urls_to_dns } from "./dn"
 import { is_dn_matching_filter, RawValue, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
 import { is_stem } from "./stem_helpers"
 

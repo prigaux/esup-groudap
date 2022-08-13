@@ -4,7 +4,8 @@ import ldap_filter from "./ldap_filter"
 import * as my_ldap from './my_ldap'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
-import { dn_to_sgroup_id, people_id_to_dn, sgroup_filter, sgroup_id_to_dn, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
+import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
+import { sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
 import { mono_attrs, mono_attrs_, multi_attrs, read_flattened_mright } from "./ldap_wrapper"
 import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"

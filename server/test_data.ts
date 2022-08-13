@@ -4,7 +4,7 @@ import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 
 import * as api_post from './api_post'
 import * as api_get from './api_get'
-import { people_id_to_dn, sgroup_id_to_dn } from './ldap_helpers'
+import { people_id_to_dn, sgroup_id_to_dn } from './dn'
 import { is_dn_existing, RawValue, read_flattened_mright, read_one_multi_attr__or_err } from './ldap_wrapper'
 import { delete_sgroup, search_sgroups_id } from './my_ldap'
 import { LoggedUser, MonoAttrs, Option, Right, SgroupAndMoreOut, Subjects, toDn } from './my_types'
