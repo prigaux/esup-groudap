@@ -6,9 +6,9 @@ import _ from "lodash";
 import { promisify } from "util";
 import conf from "./conf";
 import * as ldp from "./ldap_read_search"
+import * as ldpSubject from './ldap_subject'
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
 import ldap_filter from "./ldap_filter";
-import { get_subjects_ } from "./ldap_subject";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 import mysql from 'mysql'
 // @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
@@ -157,7 +157,7 @@ async function guess_subject_source(values: string[]) {
     }
     if (!best) return undefined
     const [dns, ssdn, id_attr] = best[1]
-    const subjects = await get_subjects_(dns)
+    const subjects = await ldpSubject.get_subjects_(dns)
     const r: [ToSubjectSource, Subjects] = [ { ssdn, id_attr }, subjects ]
     return r
 }

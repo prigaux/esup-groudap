@@ -3,6 +3,7 @@ import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import * as ldp from "./ldap_read_search"
 import * as ldpSgroup from './ldap_sgroup_read_search_modify'
+import * as ldpSubject from './ldap_subject'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
@@ -11,7 +12,7 @@ import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, Mon
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { SearchEntryObject } from "ldapjs"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./my_ldap_check_rights"
-import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig, search_subjects } from "./ldap_subject"
+import { hSubjectSourceConfig } from "./ldap_subject"
 import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
 
 const user_dn = (logged_user: LoggedUser): LoggedUserDn => (
@@ -142,7 +143,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
         if (remote_sql_query) {
             more = { synchronizedGroup: { remote_sql_query } }
         } else { 
-            const direct_members = await get_subjects_from_urls(direct_members_)
+            const direct_members = await ldpSubject.get_subjects_from_urls(direct_members_)
             more = { group: { direct_members } }
         }
     }
@@ -161,7 +162,7 @@ export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: str
     for (const right of hRight.to_allowed_rights('reader')) {
         const urls = attrs[hRight.to_attr(right)]
         if (urls) {
-            const subjects = await get_subjects_from_urls(urls)
+            const subjects = await ldpSubject.get_subjects_from_urls(urls)
             r[right] = subjects
         }
     }
@@ -180,7 +181,7 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
     const flattened_dns = await ldp.read_flattened_mright(sgroup_id_to_dn(id), mright)
 
     const count = flattened_dns.length
-    const subjects = await get_subjects(flattened_dns, {}, search_token, sizeLimit)
+    const subjects = await ldpSubject.get_subjects(flattened_dns, {}, search_token, sizeLimit)
     return { count, subjects }
 }
 
@@ -189,8 +190,8 @@ export async function api_search_subjects(_logged_user: LoggedUser, search_token
     const r: MyMap<Dn, Subjects> = {}
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
-            const filter = hSubjectSourceConfig.search_filter_(sscfg, search_token);
-            r[toDn(sscfg.dn)] = await search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
+            const filter = ldpSubject.hSubjectSourceConfig.search_filter_(sscfg, search_token);
+            r[toDn(sscfg.dn)] = await ldpSubject.search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
         }
     }
     return r
