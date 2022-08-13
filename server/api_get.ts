@@ -1,12 +1,12 @@
 import _ from "lodash"
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
+import * as ldp from "./ldap_wrapper"
 import * as my_ldap from './my_ldap'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
-import { read_flattened_mright } from "./ldap_wrapper"
 import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { SearchEntryObject } from "ldapjs"
@@ -177,7 +177,7 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
         throw "get_group_flattened_mright works only on groups, not stems"
     }
 
-    const flattened_dns = await read_flattened_mright(sgroup_id_to_dn(id), mright)
+    const flattened_dns = await ldp.read_flattened_mright(sgroup_id_to_dn(id), mright)
 
     const count = flattened_dns.length
     const subjects = await get_subjects(flattened_dns, {}, search_token, sizeLimit)

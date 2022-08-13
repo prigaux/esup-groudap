@@ -1,9 +1,9 @@
 import _ from "lodash";
 import ldap_filter from "./ldap_filter";
+import * as ldp from "./ldap_wrapper"
 import { dn_to_rdn_and_parent_dn, dn_to_sgroup_id, dn_to_subject_source_cfg, urls_to_dns } from "./dn";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, SubjectAttrs, Subjects, SubjectSourceConfig, toDn } from "./my_types";
 import { mono_attrs } from "./ldap_helpers";
-import { searchRaw } from "./ldap_wrapper";
 import { get_delete } from "./helpers";
 
 export const hSubjectSourceConfig = {
@@ -16,7 +16,7 @@ export const hSubjectSourceConfig = {
 }
 
 export async function search_subjects(base_dn: Dn, attrs: string[], filter: string, dn2opts: DnsOpts, sizeLimit: Option<number>): Promise<Subjects> {
-    const entries = await searchRaw(base_dn, filter, attrs, { sizeLimit });
+    const entries = await ldp.searchRaw(base_dn, filter, attrs, { sizeLimit });
     return _.fromPairs(entries.map(entry => { 
         const sgroup_id = dn_to_sgroup_id(entry.dn);
         const options = get_delete(dn2opts, entry.dn) ?? {};

@@ -5,9 +5,9 @@
 import _ from "lodash";
 import { promisify } from "util";
 import conf from "./conf";
+import * as ldp from "./ldap_wrapper"
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
 import ldap_filter from "./ldap_filter";
-import { searchRaw } from "./ldap_wrapper";
 import { get_subjects_ } from "./my_ldap_subjects";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 import mysql from 'mysql'
@@ -52,7 +52,7 @@ async function sql_values_to_dns_(ssdn: Dn, id_attr: string, sql_values: string[
         const filter = ldap_filter.or(
             sql_values_.map(val => ldap_filter.eq(id_attr, val))
         );
-        for (const e of await searchRaw(ssdn, filter, [""], {})) {
+        for (const e of await ldp.searchRaw(ssdn, filter, [""], {})) {
             r[toDn(e.dn)] = {}
         }
     }

@@ -6,11 +6,11 @@ import ldap_filter from './ldap_filter'
 import { Dn, MonoAttrs, Mright, MyMods, Option, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
 import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, urls_to_dns } from "./dn"
 import { LdapRawValue } from './ldap_helpers'
-import { is_dn_matching_filter, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
+import * as ldp from "./ldap_wrapper"
 import { is_stem } from "./stem_helpers"
 
 export const is_sgroup_matching_filter = async (id: string, filter: string) => (
-    await is_dn_matching_filter(sgroup_id_to_dn(id), filter)
+    await ldp.is_dn_matching_filter(sgroup_id_to_dn(id), filter)
 )
 export const is_sgroup_existing = async (id: string) => (
     await is_sgroup_matching_filter(id, ldap_filter.true_())
@@ -29,17 +29,17 @@ export async function delete_sgroup(id: string) {
 }
 
 export async function read_direct_mright(group_dn: Dn, mright: Mright) {
-    const direct_urls = await read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
+    const direct_urls = await ldp.read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
     return urls_to_dns(direct_urls)
 }
 
 export async function read_sgroup(id: string, attrs: string[]) {
     const dn = sgroup_id_to_dn(id);
-    return await read(dn, attrs)
+    return await ldp.read(dn, attrs)
 }
 
 export const search_sgroups = async (filter: string, attrs: string[], sizeLimit: Option<number>) => (
-    await searchRaw(conf.ldap.groups_dn, filter, attrs, { sizeLimit })
+    await ldp.searchRaw(conf.ldap.groups_dn, filter, attrs, { sizeLimit })
 )
 
 export const search_sgroups_dn = async (filter: string) => (

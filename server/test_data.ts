@@ -2,12 +2,12 @@ import * as assert from 'assert';
 import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 
+import * as ldp from "./ldap_wrapper"
+import * as my_ldap from "./my_ldap"
 import * as api_post from './api_post'
 import * as api_get from './api_get'
 import { people_id_to_dn, sgroup_id_to_dn } from './dn'
 import { LdapRawValue } from './ldap_helpers';
-import { is_dn_existing, read_flattened_mright, read_one_multi_attr__or_err } from './ldap_wrapper'
-import { delete_sgroup, search_sgroups_id } from './my_ldap'
 import { LoggedUser, MonoAttrs, Option, Right, SgroupAndMoreOut, Subjects, toDn } from './my_types'
 import ldap_filter from './ldap_filter'
 
@@ -43,11 +43,11 @@ export async function clear() {
     await ignore_error(ldapP.del("ou=people,dc=nodomain"))
     await ignore_error(ldapP.del("ou=admin,dc=nodomain"))
 
-    if (await is_dn_existing(toDn("ou=groups,dc=nodomain"))) {
+    if (await ldp.is_dn_existing(toDn("ou=groups,dc=nodomain"))) {
         console.log("deleting ou=groups entries");
-        const ids = await search_sgroups_id(ldap_filter.true_())
+        const ids = await my_ldap.search_sgroups_id(ldap_filter.true_())
         for (const id of ids) {
-            if (id !== '') await delete_sgroup(id)
+            if (id !== '') await my_ldap.delete_sgroup(id)
         }
         console.log("deleting ou=groups")
         await ldapP.del("ou=groups,dc=nodomain")
@@ -167,7 +167,7 @@ export async function add() {
     await api_post.modify_members_or_rights(user_prigaux, "applications.grouper.super-admins", {
         member: { add: { [prigaux_dn]: {} } },
     }, undefined)
-    assert.deepEqual(await read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member'), [prigaux_dn]);
+    assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member'), [prigaux_dn]);
 
     await api_post.modify_members_or_rights(user_prigaux, "", {
         admin: { 
@@ -191,7 +191,7 @@ export async function add() {
     await api_post.modify_members_or_rights(user_prigaux, "collab.foo", {
         admin: { add: { [sgroup_id_to_dn("collab.DSIUN")]: {} } },
     }, undefined)
-    assert.deepEqual((await read_flattened_mright(sgroup_id_to_dn("collab.foo"), 'admin')).sort(), [
+    assert.deepEqual((await ldp.read_flattened_mright(sgroup_id_to_dn("collab.foo"), 'admin')).sort(), [
         sgroup_id_to_dn("collab.DSIUN"), prigaux_dn,
     ]);
     //const remote_sql_query =  remote_query.parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users").unwrap().unwrap();
@@ -208,7 +208,7 @@ export async function add() {
     await api_post.modify_members_or_rights(user_prigaux, "applications.grouper.super-admins", {
         member: { delete: { [prigaux_dn]: {} } },
     }, undefined);
-    assert.deepEqual(await read_one_multi_attr__or_err(sgroup_id_to_dn("applications.grouper.super-admins"), "member"), [""]);
+    assert.deepEqual(await ldp.read_one_multi_attr__or_err(sgroup_id_to_dn("applications.grouper.super-admins"), "member"), [""]);
     console.log(`prigaux is no more admin...`)
     await assert.rejects(api_get.get_sgroup(user_prigaux, "collab."))
 
@@ -216,7 +216,7 @@ export async function add() {
     await api_post.modify_members_or_rights(user_trusted, "applications.grouper.super-admins", {
         member: { add: { [sgroup_id_to_dn("collab.DSIUN")]: { enddate: ("20991231000000Z") } } },
     }, undefined)
-    assert.deepEqual((await read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member')).sort(), 
+    assert.deepEqual((await ldp.read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member')).sort(), 
                [ sgroup_id_to_dn("collab.DSIUN"), prigaux_dn ])
     console.log(`prigaux shoud be admin via stem "" via applications.grouper.super-admins via collab.DSIUN`)
     assert.deepEqual(await api_get.get_sgroup(user_prigaux, "collab."), { 

@@ -1,8 +1,8 @@
 import ldap_filter from "./ldap_filter"
+import * as ldp from "./ldap_wrapper"
 import * as my_ldap from './my_ldap'
 import { people_id_to_dn } from "./dn";
 import { sgroup_filter, to_allowed_flattened_attrs } from "./ldap_helpers";
-import { one_group_matches_filter } from "./ldap_wrapper";
 import { Dn, LoggedUser, Right } from "./my_types"
 import { parent_stem, parent_stems } from "./stem_helpers";
 
@@ -21,7 +21,7 @@ export async function user_has_right_on_at_least_one_sgroups(user_dn: Dn, ids: s
         user_has_right_on_sgroup_filter(user_dn, right),
     );
     
-    return await one_group_matches_filter(filter)
+    return await ldp.one_group_matches_filter(filter)
 }
 
 export async function check_right_on_any_parents(logged_user: LoggedUser, id: string, right: Right) {

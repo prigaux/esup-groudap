@@ -1,6 +1,7 @@
 import _ from "lodash";
 import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
+import * as ldp from "./ldap_wrapper"
 import * as my_ldap from './my_ldap'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
@@ -10,7 +11,6 @@ import { hashmap_difference, internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
 import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
-import { one_group_matches_filter, read_flattened_mright, read_flattened_mright_raw, read_one_multi_attr__or_err } from "./ldap_wrapper";
 import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./my_ldap_check_rights";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteSqlQuery, Right, toDn } from "./my_types";
 import { direct_members_to_remote_sql_query } from "./remote_query";
@@ -55,7 +55,7 @@ export async function delete_(logged_user: LoggedUser, id: string) {
     // are we allowed?
     await check_right_on_self_or_any_parents(logged_user, id, 'admin')
     // is it possible?
-    if (await one_group_matches_filter(ldap_filter.sgroup_children(id))) { 
+    if (await ldp.one_group_matches_filter(ldap_filter.sgroup_children(id))) { 
         throw "can not remove stem with existing children"
     }
     // save last attrs for logging
@@ -161,7 +161,7 @@ async function get_flattened_dns(direct_dns: MySet<Dn>): Promise<MySet<Dn>> {
     const r = [...direct_dns]
     for (const dn of direct_dns) {
         if (dn_is_sgroup(dn)) {
-            r.push(...await read_flattened_mright(dn, 'member'))
+            r.push(...await ldp.read_flattened_mright(dn, 'member'))
         }
     }
     return r
@@ -188,7 +188,7 @@ async function may_update_flattened_mrights_(id: string, mright: Mright, group_d
     if (_.isEmpty(flattened_dns) && mright === 'member') {
         flattened_dns.push(toDn(""));
     }
-    const current_flattened_dns = await read_flattened_mright_raw(group_dn, mright)
+    const current_flattened_dns = await ldp.read_flattened_mright_raw(group_dn, mright)
     const to_add = _.difference(flattened_dns, current_flattened_dns);
     const to_remove = _.difference(current_flattened_dns, flattened_dns);
     return await may_update_flattened_mrights__(id, mright, (to_add), (to_remove))
@@ -201,7 +201,7 @@ async function may_update_flattened_mrights(logged_user: LoggedUser, id: string,
     console.log("  may_update_flattened_mrights(%s, %s)", id, mright);
     const group_dn = sgroup_id_to_dn(id);
 
-    const urls = await read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
+    const urls = await ldp.read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
     const direct_dns = await urls_to_dns_handling_remote(logged_user, mright, urls)        
     return await may_update_flattened_mrights_(id, mright, group_dn, hMyMap.keys(direct_dns))
 }
