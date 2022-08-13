@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import {it} from '@jest/globals';
+
 import conf from "../conf"
 import { LdapConfig, toDn } from '../my_types';
 import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, url_to_dn } from '../dn';

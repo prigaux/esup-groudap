@@ -1,12 +1,13 @@
-import _ from 'lodash'
 import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
+import _ from 'lodash'
+
+import * as ldp from "./ldap_read_search"
 import conf from "./conf"
 import ldap_filter from './ldap_filter'
 import { Dn, MonoAttrs, Mright, MyMods, Option, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
 import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, urls_to_dns } from "./dn"
 import { LdapRawValue } from './ldap_helpers'
-import * as ldp from "./ldap_read_search"
 import { is_stem } from "./stem_helpers"
 
 export const is_sgroup_matching_filter = async (id: string, filter: string) => (

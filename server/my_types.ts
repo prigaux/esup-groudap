@@ -1,7 +1,9 @@
 import _ from 'lodash'
-import * as systemd_calendar_events from "./systemd_calendar_events"
 import { SessionOptions } from 'express-session';
 import { Options as SessionFileStoreOptions } from 'session-file-store';
+
+import * as systemd_calendar_events from "./systemd_calendar_events"
+
 
 export type Option<T> = T | undefined
 

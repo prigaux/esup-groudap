@@ -3,16 +3,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/unbound-method */
 import _ from "lodash";
-import { promisify } from "util";
-import conf from "./conf";
-import * as ldp from "./ldap_read_search"
-import * as ldpSubject from './ldap_subject'
-import { before_and_after, strip_prefix, throw_ } from "./helpers";
-import ldap_filter from "./ldap_filter";
-import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 import mysql from 'mysql'
 // @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
 import oracledb from 'oracledb'
+import { promisify } from "util";
+
+import * as ldp from "./ldap_read_search"
+import * as ldpSubject from './ldap_subject'
+import conf from "./conf";
+import ldap_filter from "./ldap_filter";
+import { before_and_after, strip_prefix, throw_ } from "./helpers";
+import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 
 const driver_query: Record<string, (remote: RemoteConfig, db_name: string, select_query: string) => Promise<string[]>> = {
     mysql: async (remote, db_name, select_query) => {

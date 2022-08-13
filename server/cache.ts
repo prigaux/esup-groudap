@@ -1,6 +1,6 @@
 import * as ldpSgroup from './ldap_sgroup_read_search_modify'
-import { internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
+import { internal_error } from "./helpers";
 import { dn_to_sgroup_id } from "./dn";
 import { mono_attrs } from "./ldap_helpers";
 import { hMright, MyMap, Option, RemoteSqlQuery } from "./my_types";

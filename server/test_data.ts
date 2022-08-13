@@ -6,10 +6,10 @@ import * as ldp from "./ldap_read_search"
 import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import * as api_post from './api_post'
 import * as api_get from './api_get'
+import ldap_filter from './ldap_filter'
 import { people_id_to_dn, sgroup_id_to_dn } from './dn'
 import { LdapRawValue } from './ldap_helpers';
 import { LoggedUser, MonoAttrs, Option, Right, SgroupAndMoreOut, Subjects, toDn } from './my_types'
-import ldap_filter from './ldap_filter'
 
 
 async function ldap_add_ou_branch(ou: string, description: string) {

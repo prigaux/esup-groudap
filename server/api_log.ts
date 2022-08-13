@@ -1,7 +1,8 @@
-import { promisify } from 'util'
 import * as fs from 'fs'
-import { hLoggedUser, LoggedUser, Option } from './my_types';
+import { promisify } from 'util'
+
 import conf from './conf'
+import { hLoggedUser, LoggedUser, Option } from './my_types';
 
 function sgroup_log_file(log_dir: string, id: string): string {
     id = id.replace('/', "_"); // it should not be necessary but...

@@ -1,5 +1,6 @@
-import _ from "lodash"
 import * as ldapjs from 'ldapjs';
+import _ from "lodash"
+
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import { Dn, MonoAttrs, Mright, Right, hRight, MyMap, hMyMap, MultiAttrs } from "./my_types"

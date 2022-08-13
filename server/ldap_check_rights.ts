@@ -1,6 +1,6 @@
-import ldap_filter from "./ldap_filter"
 import * as ldp from "./ldap_read_search"
 import * as ldpSgroup from './ldap_sgroup_read_search_modify'
+import ldap_filter from "./ldap_filter"
 import { people_id_to_dn } from "./dn";
 import { sgroup_filter, to_allowed_flattened_attrs } from "./ldap_helpers";
 import { Dn, LoggedUser, Right } from "./my_types"
