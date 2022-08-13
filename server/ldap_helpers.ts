@@ -36,6 +36,9 @@ export const to_flattened_attr = (mright: Mright) => {
     if (r === undefined) throw "missing ${mright} key in ldap.groups_flattened_attr configuration"
     return r
 }
+export const to_allowed_flattened_attrs = (right: Right) => (
+    hRight.to_allowed_rights(right).map(to_flattened_attr)
+)
 
 export function validate_sgroups_attrs(attrs: MonoAttrs) {
     for (const attr in attrs) {
@@ -46,11 +49,13 @@ export function validate_sgroups_attrs(attrs: MonoAttrs) {
 }
 
 export const user_has_direct_right_on_group_filter = (user_dn: Dn, right: Right) => (
-    ldap_filter.or(hRight.to_allowed_rights(right).map(r => 
-        ldap_filter.eq(to_flattened_attr(r), user_dn)
-    ))
+    ldap_filter.and2(       
+        ldap_filter.or(to_allowed_flattened_attrs(right).map(attr => 
+            ldap_filter.eq(attr, user_dn)
+        )),
+        conf.ldap.group_filter
+    )
 )
-   
 
 export const sgroup_filter = (id: string) => (
     id === '' ? 

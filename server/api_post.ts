@@ -8,7 +8,7 @@ import * as cache from './cache'
 import { validate_remote } from "./api_get";
 import { hashmap_difference, internal_error } from "./helpers";
 import ldap_filter from "./ldap_filter";
-import { dn_is_sgroup, dn_to_url, sgroup_id_to_dn, to_flattened_attr, urls_to_dns, validate_sgroups_attrs } from "./ldap_helpers";
+import { dn_is_sgroup, sgroup_id_to_dn, to_flattened_attr, urls_to_dns, validate_sgroups_attrs } from "./ldap_helpers";
 import { mono_attrs, one_group_matches_filter, read_flattened_mright, read_flattened_mright_raw, read_one_multi_attr__or_err } from "./ldap_wrapper";
 import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./my_ldap_check_rights";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteSqlQuery, Right, toDn } from "./my_types";
@@ -247,24 +247,20 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
     // is logged user allowed to do the modifications?
     await check_right_on_self_or_any_parents(logged_user, id, my_mods_to_right(my_mods))
     // are the modifications valid?
-    const is_stem_ = is_stem(id);
-
     await may_check_member_ttl(id, my_mods)
-
-    const my_mods_ = await check_and_simplify_mods(is_stem_, id, my_mods)
+    const my_mods_ = await check_and_simplify_mods(is_stem(id), id, my_mods)
     if (_.isEmpty(my_mods_)) {
         // it happens when a "Replace" has been simplified into 0 Add/Delete
         return
     }
-
-    const todo_flattened = is_stem_ ? [] : hMyMap.mapToArray(my_mods_, (_, mright) => ({id, mright}))
-
-    // ok, const's do update direct mrights:
+   
+    // ok, const's do update direct mrights ()
     await my_ldap.modify_direct_members_or_rights(id, my_mods_)
-
+    
     await api_log.log_sgroup_action(logged_user, id, "modify_members_or_rights", msg, my_mods_)
-
+    
     // then update flattened groups mrights
+    const todo_flattened = hMyMap.mapToArray(my_mods_, (_, mright) => ({id, mright}))
     await may_update_flattened_mrights_rec(logged_user, todo_flattened)
 
 }

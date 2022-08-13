@@ -3,8 +3,8 @@ import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 import conf from "./conf"
 import ldap_filter from './ldap_filter'
-import { MySet, Dn, DnsOpts, MonoAttrs, Mright, MyMods, Option, Right, SubjectAttrs, Subjects, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
-import { dn_opts_to_url, dn_to_sgroup_id, dn_to_url, people_id_to_dn, sgroup_id_to_dn, urls_to_dns } from "./ldap_helpers"
+import { Dn, DnsOpts, MonoAttrs, Mright, MyMods, Option, Right, SubjectAttrs, Subjects, toDn, hMright, hMyMap, hRight, MyMap } from './my_types';
+import { dn_opts_to_url, dn_to_sgroup_id, sgroup_id_to_dn, to_allowed_flattened_attrs, urls_to_dns } from "./ldap_helpers"
 import { is_dn_matching_filter, mono_attrs, RawValue, read, read_one_multi_attr__or_err, searchRaw } from "./ldap_wrapper"
 import { is_stem } from "./stem_helpers"
 import { get_delete } from './helpers';
@@ -55,19 +55,6 @@ export const search_sgroups_id = async (filter: string) => (
     })
 )
 
-async function user_groups_dn(user_dn: Dn) {
-    const filter = ldap_filter.member(user_dn);
-    return await search_sgroups_dn(filter)
-}
-
-// returns DNs
-export async function user_groups_and_user_dn(user: string) {
-    const user_dn = people_id_to_dn(user);
-    const user_groups = new Set(await user_groups_dn(user_dn))
-    user_groups.add(user_dn);
-    return [...user_groups]
-}
-
 export async function search_subjects(base_dn: Dn, attrs: string[], filter: string, dn2opts: DnsOpts, sizeLimit: Option<number>): Promise<Subjects> {
     const entries = await searchRaw(base_dn, filter, attrs, { sizeLimit });
     return _.fromPairs(entries.map(entry => { 
@@ -108,16 +95,10 @@ export async function modify_direct_members_or_rights(id: string, my_mods: MyMod
     }
 }
 
-export async function user_urls_(user: string) {
-    const r = (await user_groups_and_user_dn(user)).map(dn_to_url)
-    console.log("    user_urls(%s) => %j", user, r);
-    return r
-}
-
-export const user_has_right_on_sgroup_filter = (user_urls: MySet<string>, right: Right) => (
+export const user_has_right_on_sgroup_filter = (user_dn: Dn, right: Right) => (
     ldap_filter.or(
-        hRight.to_allowed_attrs(right).flatMap(attr => (
-            user_urls.map(url => ldap_filter.eq(attr, url))
+        to_allowed_flattened_attrs(right).flatMap(attr => (
+            ldap_filter.eq(attr, user_dn)
         ))
     )
 )

@@ -4,33 +4,26 @@ import ldap_filter from "./ldap_filter"
 import * as my_ldap from './my_ldap'
 import * as api_log from './api_log'
 import * as remote_query from './remote_query'
-import { dn_to_sgroup_id, people_id_to_dn, sgroup_filter, sgroup_id_to_dn, user_has_direct_right_on_group_filter } from "./ldap_helpers"
+import { dn_to_sgroup_id, people_id_to_dn, sgroup_filter, sgroup_id_to_dn, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
 import { mono_attrs, mono_attrs_, multi_attrs, read_flattened_mright } from "./ldap_wrapper"
-import { user_urls_ } from "./my_ldap"
-import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserUrls, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
+import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { SearchEntryObject } from "ldapjs"
 import { check_right_on_self_or_any_parents } from "./my_ldap_check_rights"
 import { get_subjects_from_urls, get_subjects, hSubjectSourceConfig } from "./my_ldap_subjects"
 import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
 
-function is_disjoint(vals: string[], set: MySet<string>): boolean {
-    return !vals.some(val => set.includes(val))
-}
-
-const user_urls = (logged_user: LoggedUser): LoggedUserUrls => (
+const user_dn = (logged_user: LoggedUser): LoggedUserDn => (
     'TrustedAdmin' in logged_user ?
         { TrustedAdmin: true } :
-        { User: await user_urls_(logged_user.User) }
+        { User: people_id_to_dn(logged_user.User) }
 )
 
-function user_highest_right(sgroup_attrs: MultiAttrs, user_urls: MySet<string>): Option<Right> {
+function user_highest_right(sgroup_attrs: MultiAttrs, user_dn: Dn): Option<Right> {
     for (const right of hRight.to_allowed_rights('reader')) {
-        const urls = sgroup_attrs[hRight.to_attr(right)]
-        if (urls) {
-            if (!is_disjoint(urls, user_urls)) {
-                return right
-            }
+        const dns = sgroup_attrs[to_flattened_attr(right)]
+        if (dns?.includes(user_dn)) {
+            return right
         }
     }
     return undefined
@@ -65,12 +58,11 @@ export async function get_children(id: string): Promise<SgroupsWithAttrs> {
 }
 
 // compute direct right, without taking into account right inheritance (inheritance is handled in "get_parents()")
-async function get_parents_raw(filter: string, user_urls: LoggedUserUrls, sizeLimit: Option<number>): Promise<MyMap<string, SgroupOutAndRight>> {
+async function get_parents_raw(filter: string, user_dn: LoggedUserDn, sizeLimit: Option<number>): Promise<MyMap<string, SgroupOutAndRight>> {
     const display_attrs = hMyMap.keys(conf.ldap.sgroup_attrs)
-    const direct_right_attrs = hRight.to_allowed_attrs('reader')
-    const wanted_attrs = [ ...display_attrs, ...direct_right_attrs ]
+    const wanted_attrs = [ ...display_attrs, ...to_allowed_flattened_attrs('reader') ]
     const groups = hMyMap.fromOptionPairs((await my_ldap.search_sgroups(filter, wanted_attrs, sizeLimit)).map(e => {
-        const right = 'TrustedAdmin' in user_urls ? 'admin' : user_highest_right(multi_attrs(e), user_urls.User)
+        const right = 'TrustedAdmin' in user_dn ? 'admin' : user_highest_right(multi_attrs(e), user_dn.User)
         return dn_to_sgroup_id(e.dn)?.oMap(id => {
             const attrs = to_sgroup_attrs(id, e);
             return [ id, { attrs, right, sgroup_id: id } ]
@@ -78,10 +70,10 @@ async function get_parents_raw(filter: string, user_urls: LoggedUserUrls, sizeLi
     }))
     return (groups)
 }
-async function get_parents(id: string, user_urls: LoggedUserUrls): Promise<SgroupOutAndRight[]> {
+async function get_parents(id: string, user_dn: LoggedUserDn): Promise<SgroupOutAndRight[]> {
     const parents_id = parent_stems(id);
-    const filter = ldap_filter.or(parents_id.map(id => sgroup_filter(id)));
-    const parents = await get_parents_raw(filter, user_urls, undefined)
+    const filter = ldap_filter.or(parents_id.map(sgroup_filter))
+    const parents = await get_parents_raw(filter, user_dn, undefined)
 
     // convert to Array using the order of parents_id + compute right (inheriting from parent)
     parents_id.reverse();
@@ -97,12 +89,12 @@ async function get_parents(id: string, user_urls: LoggedUserUrls): Promise<Sgrou
 }
 
 async function get_right_and_parents(logged_user: LoggedUser, id: string, self_attrs: MultiAttrs): Promise<[Right, SgroupOutAndRight[]]> {
-    const user_urls_ = user_urls(logged_user)
+    const user_dn_ = user_dn(logged_user)
 
-    const self_right = 'TrustedAdmin' in user_urls_ ? 'admin' : user_highest_right(self_attrs, user_urls_.User)
+    const self_right = 'TrustedAdmin' in user_dn_ ? 'admin' : user_highest_right(self_attrs, user_dn_.User)
     //console.log('  self_right', self_right)
 
-    const parents = await get_parents(id, user_urls_)
+    const parents = await get_parents(id, user_dn_)
 
     console.log('  best_right_on_self_or_any_parents("%s") with user %s', id, logged_user);
     let best = self_right;
@@ -118,10 +110,10 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     console.log(`get_sgroup("${id}")`);
     validate_sgroup_id(id)
 
-    // we query all the attrs we need: attrs for (const direct_members + attrs to compute rights + attrs to return
+    // we query all the attrs we need: attrs for direct_members + attrs to compute rights + attrs to return
     const wanted_attrs = [ 
         hMright.to_attr('member'),
-        ...hRight.to_allowed_attrs('reader'),
+        ...to_allowed_flattened_attrs('reader'),
         ...hMyMap.keys(conf.ldap.sgroup_attrs),
     ]
     const entry = await my_ldap.read_sgroup(id, wanted_attrs)
@@ -135,7 +127,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     // #1 direct members
     const direct_members_ = mattrs[hMright.to_attr('member')] || []
     const remote_query = mattrs[hMright.to_attr_synchronized('member')] || []
-    // #2 compute rights (also computing parents because both require user_urls)
+    // #2 compute rights (also computing parents because both require user_dn)
     const [right, parents] = await get_right_and_parents(logged_user, id, mattrs)
     // #3 pack sgroup attrs:
     const attrs = to_sgroup_attrs(id, entry);
@@ -239,12 +231,11 @@ export async function mygroups(logged_user: LoggedUser) {
     }
 }
 
-// example of filter used: (| (memberURL;x-admin=uid=prigaux,...) (memberURL;x-admin=cn=collab.foo,...) (memberURL;x-update=uid=prigaux,...) (memberURL;x-update=cn=collab.foo,...) )
-async function get_all_stems_id_with_user_right(user: string, right: Right): Promise<MySet<string>> {
-    const user_urls = await user_urls_(user)
+// example of filter used: (| (owner=uid=prigaux,...) (supannGroupeAdminDn=uid=prigaux,...) )
+async function get_all_stems_id_with_user_right(user_dn: Dn, right: Right): Promise<MySet<string>> {
     const stems_with_right_filter = ldap_filter.and2(
         conf.ldap.stem.filter,
-        my_ldap.user_has_right_on_sgroup_filter(user_urls, right),
+        my_ldap.user_has_right_on_sgroup_filter(user_dn, right),
     );
     const stems_id = await my_ldap.search_sgroups_id(stems_with_right_filter)
     return stems_id
@@ -259,15 +250,16 @@ export async function search_sgroups(logged_user: LoggedUser, right: Right, sear
     if ('TrustedAdmin' in logged_user) {
         group_filter = term_filter
     } else {
+        const user_dn = people_id_to_dn(logged_user.User)
         // from direct rights
         // example: (|(supannGroupeLecteurDN=uid=prigaux,...)(supannGroupeLecteurDN=uid=owner,...))
         const user_direct_allowed_groups_filter = 
-            user_has_direct_right_on_group_filter(people_id_to_dn(logged_user.User), right);
+            user_has_direct_right_on_group_filter(user_dn, right);
 
-        // from inherited rights
+        // from direct rights
         // example: (|(cn=a.*)(cn=b.bb.*)) if user has right on stems "a."" and "b.bb." 
         // TODO: cache !?
-        const stems_id_with_right = await get_all_stems_id_with_user_right(logged_user.User, right)
+        const stems_id_with_right = await get_all_stems_id_with_user_right(user_dn, right)
         const children_of_allowed_stems_filter =
             // TODO: simplify: no need to keep "a." and "a.b."
             ldap_filter.or(

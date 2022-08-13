@@ -131,6 +131,7 @@ export interface LdapConfig {
     stem_object_classes: MySet<string>,
     group_object_classes: MySet<string>,
     sgroup_filter?: string, // needed if groupad does not own all groups in groups_dn
+    group_filter: string,
     stem: StemConfig,
     subject_sources: SubjectSourceConfig[],
     groups_flattened_attr: MyMap<Mright, string>,
@@ -295,7 +296,7 @@ export const hLoggedUser = {
         'User' in self ? self.User : "TrustedAdmin"
     ),
 }
-export type LoggedUserUrls = { TrustedAdmin: true } | { User: MySet<string> }
+export type LoggedUserDn = { TrustedAdmin: true } | { User: Dn }
 
 export interface CfgAndLU {
     cfg: Config,

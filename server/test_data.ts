@@ -2,7 +2,6 @@ import * as assert from 'assert';
 import * as ldapjs from 'ldapjs'
 import * as ldapP from 'ldapjs-promise-disconnectwhenidle'
 
-import * as my_ldap from './my_ldap'
 import * as api_post from './api_post'
 import * as api_get from './api_get'
 import { people_id_to_dn, sgroup_id_to_dn } from './ldap_helpers'
@@ -88,13 +87,13 @@ export async function add() {
         operation: 'add', modification: { objectClass: "groupaldGroup" }
     }))
 
-    await my_ldap.modify_direct_members_or_rights("", {
-        admin: { add: { [prigaux_dn]: {} } },
-    })
-
     const user_trusted : LoggedUser = { TrustedAdmin: true }
     const user_prigaux : LoggedUser = { User: "prigaux" }
     const user_aanli   : LoggedUser = { User: "aanli" }
+
+    await api_post.modify_members_or_rights(user_trusted, "", {
+        admin: { add: { [prigaux_dn]: {} } },
+    }, undefined)
 
     const root_attrs = {
         description: "Groups. Droits sur l'arborescence entière",

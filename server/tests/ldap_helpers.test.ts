@@ -15,6 +15,7 @@ const ldap_config = (): LdapConfig => ({
         groups_dn: "ou=groups,dc=nodomain",
         stem_object_classes: [],
         group_object_classes: [],
+        group_filter: "",
         stem: { filter: "(objectClass=organizationalRole)", separator: ".", root_id: "" },
         subject_sources: [],
         sgroup_attrs: {},

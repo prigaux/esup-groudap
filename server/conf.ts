@@ -24,8 +24,9 @@ const conf: Config = {
         base_dn: "dc=nodomain",
         groups_dn: "ou=groups,dc=nodomain",
         group_object_classes: [ "groupaldGroup", "groupOfNames", "supannGroupe" ],
-        stem_object_classes: [ "groupaldGroup", "organizationalRole" ], // root stem will have groupald & organizationalUnit,
+        stem_object_classes: [ "groupaldGroup", "organizationalRole", "supannGroupe" ], // root stem will have groupald & organizationalUnit,
         sgroup_filter: "(objectClass=groupaldGroup)",
+        group_filter: "(&(objectClass=groupaldGroup)(objectClass=groupOfNames))",
         stem: {
             filter: "(&(objectClass=groupaldGroup)(!(objectClass=groupOfNames)))",
             //default_separator: ".",
