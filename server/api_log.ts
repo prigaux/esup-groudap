@@ -42,6 +42,12 @@ async function audit(file: string, msg: string) {
     await promisify(fs.writeFile)(file, msg + "\n", { flag: "a" })
 }
 
+/**
+ * Read log entries
+ * @param id - sgroup identifier
+ * @param bytes - maximum number of bytes to read
+ * @returns log entries
+ */
 export async function get_sgroup_logs(id: string, bytes: number) {
     if (!conf.log_dir) throw `you must configure conf.log_dir first`
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -50,6 +56,14 @@ export async function get_sgroup_logs(id: string, bytes: number) {
 
 type action = 'create' | 'modify_attrs' | 'delete' | 'modify_members_or_rights' | 'modify_remote_sql_query'
 
+/**
+ * Add a log entry
+ * @param user - who did the action
+ * @param id - group/stem identifier
+ * @param action - one of "create", "delete"...
+ * @param msg - optional message explaining why the user did this action
+ * @param data - info about this action (content depends on the action)
+ */
 export async function log_sgroup_action(user: LoggedUser, id: string, action: action, msg: Option<string>, data: Record<string, any>) {
     if (conf.log_dir) {
         const who = hLoggedUser.toString(user)

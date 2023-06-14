@@ -18,6 +18,9 @@ import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "
 import { direct_members_to_remote_sql_query } from "./remote_query";
 import { is_stem, validate_sgroup_id } from "./stem_helpers";
 
+/**
+ * Create the stem/group
+ */
 export async function create(logged_user: LoggedUser, id: string, attrs: MonoAttrs) {
     console.log("create({}, _)", id);
     validate_sgroup_id(id)
@@ -38,6 +41,9 @@ async function remove_non_modified_attrs(id: string, attrs: MonoAttrs): Promise<
     return _.pickBy(attrs, (val, attr) => val !== current[attr])
 }
 
+/**
+ * Modify the group/stem attributes (description, ou...)
+ */
 export async function modify_sgroup_attrs(logged_user: LoggedUser, id: string, attrs: MonoAttrs) {
     console.log("modify_attrs({}, _)", id);
     validate_sgroup_id(id)
@@ -51,6 +57,9 @@ export async function modify_sgroup_attrs(logged_user: LoggedUser, id: string, a
     await api_log.log_sgroup_action(logged_user, id, "modify_attrs", undefined, attrs_)
 }
 
+/** 
+ * Delete the group/stem
+ */
 export async function delete_(logged_user: LoggedUser, id: string) {
     validate_sgroup_id(id)
     // are we allowed?
@@ -243,6 +252,12 @@ async function may_check_member_ttl(id: string, my_mods: MyMods) {
     }    
 }
 
+/**
+ * Modify the group/stem members or rights
+ * @param id - group/stem identifier
+ * @param my_mods - members or rights to add/remove/replace
+ * @param msg - optional message explaining why the user did this action
+ */
 export async function modify_members_or_rights(logged_user: LoggedUser, id: string, my_mods: MyMods, msg: Option<string>) {
     console.log("modify_members_or_rights(%s, _)", id);
     validate_sgroup_id(id)
@@ -267,6 +282,12 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
 
 }
 
+/**
+ * Set or modify the SQL query for a group
+ * @param id - group/stem identifier
+ * @param remote - remote name + SQL query + optional mapping
+ * @param msg - optional message explaining why the user did this action
+ */
 export async function modify_remote_sql_query(logged_user: LoggedUser, id: string, remote: RemoteSqlQuery, msg: Option<string>) {
     console.log("modify_remote_sql_query(%s, %s, %s)", id, remote, msg);
     validate_sgroup_id(id)

@@ -45,6 +45,7 @@ export function to_rel_ou(parent_attrs: MonoAttrs, attrs: MonoAttrs): MonoAttrs 
 }
 */
 
+/** Get the stem direct children */
 export async function get_children(id: string): Promise<SgroupsWithAttrs> {
     console.log("  get_children(%s)", id);
     const wanted_attrs = hMyMap.keys(conf.ldap.sgroup_attrs)
@@ -60,7 +61,7 @@ export async function get_children(id: string): Promise<SgroupsWithAttrs> {
     return children
 }
 
-// compute direct right, without taking into account right inheritance (inheritance is handled in "get_parents()")
+/** NB: it computes direct right, without taking into account right inheritance (inheritance is handled in "get_parents()") */
 async function get_parents_raw(filter: string, user_dn: LoggedUserDn, sizeLimit: Option<number>): Promise<MyMap<string, SgroupOutAndRight>> {
     const display_attrs = hMyMap.keys(conf.ldap.sgroup_attrs)
     const wanted_attrs = [ ...display_attrs, ...to_allowed_flattened_attrs('reader') ]
@@ -109,6 +110,7 @@ async function get_right_and_parents(logged_user: LoggedUser, id: string, self_a
     return [best, parents]
 }
 
+/** Get group/stem information for Vue.js UI */
 export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<SgroupAndMoreOut> {
     console.log(`get_sgroup("${id}")`);
     validate_sgroup_id(id)
@@ -151,6 +153,10 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     return { attrs, right, ...more, parents }
 }
 
+/** 
+ * Get the direct privileges on the group/stem
+ * @param id - the group/stem to query
+ */
 export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: string) {
     console.log("get_sgroup_direct_rights(%s)", id);
     validate_sgroup_id(id)
@@ -170,7 +176,11 @@ export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: str
     return r
 }
 
-// sizeLimit is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
+/**
+ * Search the flattened subjects who have the requested mright on this group
+ * @param id - the group to query
+ * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
+ */
 export async function get_group_flattened_mright(_logged_user: LoggedUser, id: string, mright: Mright, search_token: Option<string>, sizeLimit: Option<number>): Promise<SubjectsAndCount> {
     console.log("get_group_flattened_mright(%s)", id);
     validate_sgroup_id(id)
@@ -186,6 +196,12 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
     return { count, subjects }
 }
 
+/**
+ * Search subjects
+ * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
+ * @param source_dn - restrict the search to this specific subject source
+ * @returns 
+ */
 export async function search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
     console.log("search_subjects({}, %s)", search_token, source_dn);
     const r: MyMap<Dn, Subjects> = {}

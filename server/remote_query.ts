@@ -61,6 +61,7 @@ async function sql_values_to_dns_(ssdn: Dn, id_attr: string, sql_values: string[
 }
 
 const hToSubjectSource = {
+    /** NB: syntax inspired by "o=Example?uid" in Apache HTTPD AuthLDAPURL */
     toString: (tss: ToSubjectSource) => (
         `${tss.ssdn}?${tss.id_attr}`
     ),
@@ -87,8 +88,11 @@ function get_param(param_name: string, s: string): Option<[string, string]> {
 
 const optional_param = (param_name: string, s: string): [Option<string>, string] => (
     get_param(param_name, s) ?? [undefined, s]
-)
+);
 
+/**
+ * @param s - string format inspired by "o=Example?uid" in Apache HTTPD AuthLDAPURL
+ */
 function parse_to_subject_source(s: string): ToSubjectSource {
     const [ssdn, id_attr] = before_and_after(s, '?') ?? throw_("expected ou=xxx,dc=xxx?uid, got " + s)
     return { ssdn: toDn(ssdn), id_attr }

@@ -129,6 +129,7 @@ interface SgroupAttrTexts {
 export interface LdapConfig {
     connect: { uri: string[], dn: FlavorDn, password: string, verbose?: boolean },
     base_dn: FlavorDn,
+    /** DN of the branch containing groups&stems groupald is working on. More info comes from the corresponding subject_source */
     groups_dn: FlavorDn,
     stem_object_classes: MySet<string>,
     group_object_classes: MySet<string>,
@@ -149,6 +150,7 @@ const sgroup_sscfg_raw = (self: LdapConfig) => (
     self.subject_sources.find(sscfg => sscfg.dn === self.groups_dn)
 )
 export const hLdapConfig = {
+    /** returns the ldap.subject_sources entry for the groups&stems groupald is working on */
     sgroup_sscfg: (self: LdapConfig) => {
         const sscfg = sgroup_sscfg_raw(self)
         if (!sscfg) {
@@ -156,11 +158,13 @@ export const hLdapConfig = {
         }
         return sscfg
     },
+    /** export LdapConfig to the Vue.js UI */
     to_js_ui: (self: LdapConfig): LdapConfigOut => (
         { groups_dn: toDn(self.groups_dn), subject_sources: self.subject_sources, sgroup_attrs: self.sgroup_attrs }
     ),
 }
 
+/** known remote drivers */
 type RemoteDriver = 'mysql' | 'oracle'
 
 export interface RemoteConfig {
@@ -173,8 +177,10 @@ export interface RemoteConfig {
     user: string,
     password: string,
     
-    periodicity: string, // NB: checked by "remotes_periodicity_checker" below
+    /* checked by "remotes_periodicity_checker" */
+    periodicity: string,
 }
+/** helpers to work on RemoteConfig */
 export const hRemoteConfig = {
     export: (self: RemoteConfig) => (
         _.omit(self, ['user', 'password'])
@@ -196,6 +202,7 @@ export interface Config {
     remotes: MyMap<string, RemoteConfig>,
 }
 
+/** member or right */
 export type Mright = 'member' | Right
 export type Right = 'reader' | 'updater' | 'admin'
 
@@ -211,7 +218,7 @@ export const hMright = {
     ),
 }
 
-// NB: best right first
+/** NB: best rights first */
 const to_allowed_rights = (self: Right): Right[] => {
     switch (self) {
         case 'reader': return ['admin', 'updater', 'reader']
@@ -220,6 +227,7 @@ const to_allowed_rights = (self: Right): Right[] => {
     }
 }
 
+/** helpers to work on rights */
 export const hRight = {
     to_allowed_rights,
     // NB: best right first
@@ -247,6 +255,7 @@ export type Dn = string & { _type: "Dn" } // fake field to enforce types: you ca
 export const toDns = (dns: string[]) => dns as Dn[]
 export const toDn = (dn: string) => dn as Dn
 
+/** members or rights to add/remove/replace (with optional member options) */
 export type MyMods = MyMap<Mright, MyMap<MyMod, DnsOpts>>
 
 export type MonoAttrs = MyMap<string, string>;
@@ -273,6 +282,7 @@ export interface SubjectsAndCount {
     subjects: Subjects,
 }
 
+/** group/stem id & attributes + loggedUser right on this group/stem */
 export interface SgroupOutAndRight {
     attrs: MonoAttrs,
 
@@ -280,12 +290,13 @@ export interface SgroupOutAndRight {
     right?: Right,
 }
 
-
+/** stem children or group direct_members or sync group definition */
 export type SgroupOutMore = 
     { stem: { children: SgroupsWithAttrs } } |
     { group: { direct_members: Subjects } } |
     { synchronizedGroup: { remote_sql_query: RemoteSqlQuery } }
 
+/** group/stem attributes + parents + loggedUser right on this group/stem + stem children or group direct_members or sync group definition */
 export type SgroupAndMoreOut = SgroupOutMore & {
     attrs: MonoAttrs,
     parents: SgroupOutAndRight[],
@@ -293,6 +304,7 @@ export type SgroupAndMoreOut = SgroupOutMore & {
 }
 
 export type LoggedUser = { TrustedAdmin: true } | { User: string }
+/** LoggerUser helpers */
 export const hLoggedUser = {
     toString: (self: LoggedUser) => (
         'User' in self ? self.User : "TrustedAdmin"
@@ -305,13 +317,18 @@ export interface CfgAndLU {
     user: LoggedUser,
 }
 
+/** to transform values returned by SELECT query into DN */
 export interface ToSubjectSource {
+    /** branch DN to search (eg: ou=people,...). If must be listed in conf.ldap.subject_sources */
     ssdn: Dn,
+    /** attribute to use to find values */
     id_attr: string,
 }
 
 export interface RemoteSqlQuery {
     remote_cfg_name: string, 
-    select_query: string, // query returns either a DN or a string to transform into DN using ToSubjectSource
+    /** query which returns either a DN or a string to transform into DN using ToSubjectSource */
+    select_query: string, 
+    /** how to transform values into a DN */
     to_subject_source?: ToSubjectSource,
 }
