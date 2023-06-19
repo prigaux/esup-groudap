@@ -1,5 +1,7 @@
 #!/bin/sh -e
 
+PATH=$PATH:/usr/sbin
+
 mkdir test-db test-db/var test-db/run test-db/config
 for i in minimal/config-core.ldif \
   /etc/ldap/schema/core.ldif \
