@@ -79,7 +79,7 @@ export async function delete_(logged_user: LoggedUser, id: string) {
 // which Right is needed for these modifications?
 function my_mods_to_right(my_mods: MyMods): Right {
     for (const right of hMyMap.keys(my_mods)) {
-        if (right !== 'reader') {
+        if (right !== 'reader' && right !== 'member') {
             return 'admin'
         }
     }
