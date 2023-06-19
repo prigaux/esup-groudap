@@ -19,6 +19,7 @@ const eq = (attr: string, val: string) => (
 
 export default {
     or,
+    and,
     eq,
 
     true_: () => (

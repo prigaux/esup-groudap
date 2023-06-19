@@ -214,11 +214,16 @@ export async function search_subjects(_logged_user: LoggedUser, search_token: st
     return r
 }
 
-async function search_sgroups_with_attrs(filter: string, sizeLimit: Option<number>): Promise<SgroupsWithAttrs> {
+async function search_sgroups_with_attrs(filters: string[], sizeLimit: Option<number>): Promise<SgroupsWithAttrs> {
     const wanted_attrs = hMyMap.keys(conf.ldap.sgroup_attrs);
-    return hMyMap.fromOptionPairs((await ldpSgroup.search_sgroups(filter, wanted_attrs, sizeLimit)).map(e => (
-        dn_to_sgroup_id(e.dn)?.oMap(id => [id, mono_attrs(e)]))
-    ))
+    let id2attrs: SgroupsWithAttrs = {}
+    for (const filter of filters) {
+        for (const e of await ldpSgroup.search_sgroups(filter, wanted_attrs, sizeLimit)) {
+            const id = dn_to_sgroup_id(e.dn)
+            if (id) id2attrs[id] = mono_attrs(e)
+        }
+    }
+    return id2attrs
 }
 
 function simplify_hierachical_ou(attrs: MonoAttrs): MonoAttrs {
@@ -245,8 +250,9 @@ export async function mygroups(logged_user: LoggedUser) {
     if ('TrustedAdmin' in logged_user) {
         throw "mygroups need a real user"
     } else {        
-        const filter = user_has_direct_right_on_group_filter(people_id_to_dn(logged_user.User), 'updater')
-        return await search_sgroups_with_attrs(filter, undefined)
+        const filters = user_has_direct_right_on_group_filter(people_id_to_dn(logged_user.User), 'updater')
+        const filter = ldap_filter.and2(ldap_filter.or(filters), conf.ldap.group_filter)
+        return await search_sgroups_with_attrs([filter], undefined)
     }
 }
 
@@ -263,18 +269,33 @@ async function get_all_stems_id_with_user_right(user_dn: Dn, right: Right): Prom
 export async function search_sgroups(logged_user: LoggedUser, right: Right, search_token: string, sizeLimit: number): Promise<SgroupsWithAttrs> {
     console.log("search_sgroups(%s, %s)", search_token, right);
 
-    const term_filter = hSubjectSourceConfig.search_filter_(hLdapConfig.sgroup_sscfg(conf.ldap), search_token)
+    const search_tokens = search_token.split(/\s+/)
+    let term_filters = [
+        hSubjectSourceConfig.search_filter_(hLdapConfig.sgroup_sscfg(conf.ldap), search_token)
+    ]
+    if (search_tokens.length > 1) {
+        term_filters.push(
+            ldap_filter.and(search_tokens.map(token => 
+                hSubjectSourceConfig.search_filter_(hLdapConfig.sgroup_sscfg(conf.ldap), token)
+            ))
+        )
+    }
 
-    let group_filter: string
+    let group_filters: string[]
     if ('TrustedAdmin' in logged_user) {
-        group_filter = term_filter
+        group_filters = term_filters
     } else {
         const right_filter = await user_right_filter(logged_user, right)
-        group_filter = ldap_filter.and2_if_some(
-            ldap_filter.and2(right_filter, term_filter),
-            conf.ldap.sgroup_filter)        
+        group_filters = term_filters.map(term_filter => 
+            ldap_filter.and(_.compact([
+                right_filter, 
+                term_filter,
+                conf.ldap.sgroup_filter,
+            ]))
+        )
+        console.log(group_filters)
     }
-    return await search_sgroups_with_attrs(group_filter, (sizeLimit))
+    return await search_sgroups_with_attrs(group_filters, (sizeLimit))
 }
 
 /** return `(|(cn=a.*)(cn=b.bb.*))` if logged_user has right on `a.` and `b.bb.` */
@@ -288,15 +309,14 @@ async function user_right_filter(logged_user: { User: string }, right: Right) {
     // example: (|(cn=a.*)(cn=b.bb.*)) if user has right on stems "a."" and "b.bb." 
     // TODO: cache !?
     const stems_id_with_right = await get_all_stems_id_with_user_right(user_dn, right)
-    const children_of_allowed_stems_filter =
+    const children_of_allowed_stems_filter = (
         // TODO: simplify: no need to keep "a." and "a.b."
-        ldap_filter.or(
-            stems_id_with_right.map(stem_id => ldap_filter.sgroup_self_and_children(stem_id))
-        )
+        stems_id_with_right.map(stem_id => ldap_filter.sgroup_self_and_children(stem_id))
+    )
 
     return ldap_filter.or([
-        user_direct_allowed_groups_filter,
-        children_of_allowed_stems_filter,
+        ...user_direct_allowed_groups_filter,
+        ...children_of_allowed_stems_filter,
     ])
 }
 

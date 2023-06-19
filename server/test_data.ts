@@ -162,7 +162,7 @@ export async function add() {
 
     await api_post.create(user_prigaux, "applications.grouper.super-admins", {
         ou: "Grouper super admins",
-        description: "Grouper admins de toute l'arborescence\n\nTicket truc",
+        description: "Grouper admins de toute l'arborescence\n\nTicket groupe truc",
     })
     await api_post.modify_members_or_rights(user_prigaux, "applications.grouper.super-admins", {
         member: { add: { [prigaux_dn]: {} } },
@@ -185,7 +185,7 @@ export async function add() {
 
     const collab_foo_attrs =  {
         ou: "Collab Foo",
-        description: "Collab Foo",
+        description: "Collaboration Admins Foo\nGroupe Ticket machin",
     };
     await api_post.create(user_prigaux, "collab.foo", collab_foo_attrs)
     await api_post.modify_members_or_rights(user_prigaux, "collab.foo", {
@@ -231,16 +231,28 @@ export async function add() {
         "collab.DSIUN": collab_dsiun_attrs,
     })
 
-    assert.deepEqual(await api_get.search_sgroups(user_prigaux, 'reader', "collaboration", 99), {
+    assert.deepEqual(await api_get.search_sgroups(user_prigaux, 'reader', "DSIUN", 99), {
         "collab.DSIUN": collab_dsiun_attrs,
     });
-    assert.deepEqual(await api_get.search_sgroups(user_prigaux, 'admin', "collaboration", 99), {
+    assert.deepEqual(await api_get.search_sgroups(user_prigaux, 'admin', "DSIUN", 99), {
         "collab.DSIUN": collab_dsiun_attrs,
     });
-    assert.deepEqual(await api_get.search_sgroups(user_aanli, 'updater', "collaboration", 99), {
+    assert.deepEqual(await api_get.search_sgroups(user_aanli, 'updater', "DSIUN", 99), {
         "collab.DSIUN": collab_dsiun_attrs,
     });
-    assert.deepEqual(await api_get.search_sgroups(user_aanli, 'admin', "collaboration", 99), {});
+    assert.deepEqual(await api_get.search_sgroups(user_aanli, 'admin', "DSIUN", 99), {});
+
+    assert.deepEqual(await api_get.search_sgroups(user_prigaux, 'reader', "DSIUN Collab", 99), {
+        "collab.DSIUN": collab_dsiun_attrs,
+    });
+    assert.deepEqual(Object.keys(await api_get.search_sgroups(user_prigaux, 'reader', "Ticket groupe", 99)), [
+        "applications.grouper.super-admins",
+        "collab.foo",
+    ]);
+    assert.deepEqual(Object.keys(await api_get.search_sgroups(user_prigaux, 'reader', "groupe ticket", 99)), [
+        "applications.grouper.super-admins",
+        "collab.foo",
+    ]);
 
     assert.deepEqual(await api_get.get_group_flattened_mright(user_prigaux, "collab.DSIUN", 'member', undefined, 1), 
         { count: 1, subjects: prigaux_subject });
