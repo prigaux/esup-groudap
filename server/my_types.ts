@@ -312,11 +312,6 @@ export const hLoggedUser = {
 }
 export type LoggedUserDn = { TrustedAdmin: true } | { User: Dn }
 
-export interface CfgAndLU {
-    cfg: Config,
-    user: LoggedUser,
-}
-
 /** to transform values returned by SELECT query into DN */
 export interface ToSubjectSource {
     /** branch DN to search (eg: ou=people,...). If must be listed in conf.ldap.subject_sources */
