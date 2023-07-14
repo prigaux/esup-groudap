@@ -377,7 +377,7 @@ const transform_SynchronizedGroup_into_group = async () => {
                 <button>Créer un groupe</button>
             </RouterLink></li>
 
-            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id, is_stem: true } }">
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id, is_stem: 'true' } }">
                 <button>Créer un dossier</button>
             </RouterLink></li>
         </template>

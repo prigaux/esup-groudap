@@ -35,7 +35,6 @@ export const hMyMap = {
         return r
     },
     mapValues: <K extends string, V, V_>(map: MyMap<K, V>, cb: (v:V, k:K) => V_) => (
-        // @ts-expect-error (lodash gives a long list of mapValues, typescript chooses the one returning Dictionary<boolean> :'-( )
         _.mapValues(map, cb) as MyMap<K,V_>
     ),
     /*filter_map: <K extends string, K_ extends string, V, V_>(map: MyMap<K, V>, cb: (v:V, k:K) => [K_,V_]) => {
