@@ -54,7 +54,7 @@ export async function get_sgroup_logs(id: string, bytes: number) {
     return await read_jsonl(sgroup_log_file(conf.log_dir, id), bytes)
 }
 
-type action = 'create' | 'modify_attrs' | 'delete' | 'modify_members_or_rights' | 'modify_remote_sql_query'
+export type action = 'create' | 'modify_attrs' | 'delete' | 'modify_members_or_rights' | 'modify_remote_sql_query'
 
 /**
  * Add a log entry
