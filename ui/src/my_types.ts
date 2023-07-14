@@ -1,6 +1,7 @@
 export type PRecord<K extends keyof any, T> = {
     [P in K]?: T;
 };
+export type Option<T> = T | undefined
 
 export type Dn = string
 
