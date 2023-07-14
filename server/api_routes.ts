@@ -8,7 +8,7 @@ import * as api_post from './api_post'
 import * as cache from './cache'
 import conf from './conf';
 import { throw_ } from './helpers';
-import { hLdapConfig, hRemoteConfig, MonoAttrs, MyMods, RemoteQuery, toDn } from './my_types';
+import { hLdapConfig, hMright, hRemoteConfig, MonoAttrs, MyMods, RemoteQuery, toDn } from './my_types';
 import { query_params, q, orig_url, logged_user, query_opt_params, handleJsonP, handleVoidP, handleJson } from './express_helpers';
 
 const api = express.Router();
@@ -58,6 +58,12 @@ api.post("/modify_members_or_rights", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     const { msg } = query_opt_params(req, { msg: q.string })
     await api_post.modify_members_or_rights(logged_user(req), id, req.body as MyMods, msg)
+}))
+
+api.post("/sync", handleVoidP(async (req) => {
+    const { id } = query_params(req, { id: q.string })
+    const { mright } = query_opt_params(req, { mright: q.mright })
+    await api_post.sync(logged_user(req), id, mright ? [mright] : hMright.list() )
 }))
 
 api.post("/modify_remote_query", handleVoidP(async (req) => {

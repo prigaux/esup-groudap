@@ -330,3 +330,12 @@ export async function modify_remote_query(logged_user: LoggedUser, id: string, r
     cache.clear_all();
 }
 
+export async function sync(logged_user: LoggedUser, id: string, mrights: Mright[]) {
+    console.log("sync(%s)", id);
+    validate_sgroup_id(id)
+    await check_right_on_self_or_any_parents(logged_user, id, 'updater')
+    
+    const todo: IdMright[] = mrights.map(mright => ({id, mright}))
+    await may_update_flattened_mrights_rec(logged_user, todo)
+}
+
