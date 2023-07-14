@@ -3,7 +3,7 @@ import _ from "lodash"
 
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
-import { Dn, MonoAttrs, Mright, Right, hRight, MyMap, hMyMap, MultiAttrs } from "./my_types"
+import { Dn, MonoAttrs, Mright, Right, hRight, MyMap, hMyMap, MultiAttrs, Option } from "./my_types"
 
 export type LdapRawValue = string | string[]
 
@@ -36,12 +36,12 @@ export const sgroup_filter = (id: string) => (
         ldap_filter.eq("cn", id)
 )
 
-function singleValue(attr: string, v: LdapRawValue) {
+export function singleValue(attr: string, v: Option<LdapRawValue>) {
     if (_.isArray(v)) {
       if (v.length > 1) console.warn(`attr ${attr} is multi-valued`);
       return v[0];
     } else {
-      return v.toString();
+      return v?.toString();
     }
 }
 
