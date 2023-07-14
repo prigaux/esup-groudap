@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { asyncComputed } from '@vueuse/core'
 import { MonoAttrs } from '@/my_types';
 import * as api from '@/api'

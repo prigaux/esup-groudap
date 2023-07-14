@@ -5,18 +5,18 @@ import _ from "lodash";
 import * as ldp from "./ldap_read_search"
 import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import * as api_log from './api_log'
-import * as remote_query from './remote_query'
 import * as cache from './cache'
 import conf from "./conf";
 import ldap_filter from "./ldap_filter";
-import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteSqlQuery, Right, toDn } from "./my_types";
+import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteQuery, RemoteSqlQuery, Right, toDn, isRqSql } from "./my_types";
 import { hashmap_difference, internal_error } from "./helpers";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
-import { validate_remote } from "./api_get";
+import { parse_remote_query, validate_remote } from "./api_get";
 import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
 import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./ldap_check_rights";
-import { direct_members_to_remote_sql_query } from "./remote_query";
 import { is_stem, validate_sgroup_id } from "./stem_helpers";
+import { sql_query, sql_values_to_dns, to_sql_url } from './remote_query';
+import { ldap_query, to_ldap_url } from './remote_ldap_query';
 
 /**
  * Create the stem/group
@@ -185,18 +185,32 @@ async function get_flattened_dns(direct_dns: MySet<Dn>): Promise<MySet<Dn>> {
 }
 
 async function remote_sql_query_to_dns(_logged_user: LoggedUser, remote: RemoteSqlQuery): Promise<DnsOpts> {
-    const sql_values = await remote_query.query(conf.remotes, remote)
+    const sql_values = await sql_query(remote)
     // TODO: api_log.log_sgroup_action(logged_user, id, "remote_sql_query")
-    return await remote_query.sql_values_to_dns(remote, sql_values)
+    return await sql_values_to_dns(remote, sql_values)
 }
 
-async function urls_to_dns_handling_remote(logged_user: LoggedUser, mright: Mright, urls: string[]): Promise<DnsOpts> {
-    if (mright === 'member') {
-        const remote = direct_members_to_remote_sql_query(urls)
-        if (remote) {
-            return await remote_sql_query_to_dns(logged_user, remote)
+async function remote_query_to_dns(logged_user: LoggedUser, rqs: string) {
+    const rq = parse_remote_query(rqs)
+    if (rq) {
+        if (isRqSql(rq)) {
+            return await remote_sql_query_to_dns(logged_user, rq)
+        } else {
+            console.log("remote_ldap_query", rq, rq)
+            return await ldap_query(rq)
         }
     }
+    throw `invalid remote query ${rqs}`
+}
+
+async function urls_to_dns_handling_remote(logged_user: LoggedUser, group_dn: Dn, mright: Mright): Promise<DnsOpts> {
+    if (mright === 'member') {
+        const rq = await ldp.read_one_mono_attr__or_err(group_dn, hMright.attr_synchronized)
+        if (rq) {
+            return await remote_query_to_dns(logged_user, rq)
+        }
+    }
+    const urls = await ldp.read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
     return urls_to_dns(urls) ?? internal_error()
 }
 
@@ -218,8 +232,7 @@ async function may_update_flattened_mrights(logged_user: LoggedUser, id: string,
     console.log("  may_update_flattened_mrights(%s, %s)", id, mright);
     const group_dn = sgroup_id_to_dn(id);
 
-    const urls = await ldp.read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
-    const direct_dns = await urls_to_dns_handling_remote(logged_user, mright, urls)        
+    const direct_dns = await urls_to_dns_handling_remote(logged_user, group_dn, mright)        
     return await may_update_flattened_mrights_(id, mright, group_dn, hMyMap.keys(direct_dns))
 }
 
@@ -292,16 +305,20 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
 /**
  * Set or modify the SQL query for a group
  * @param id - group/stem identifier
- * @param remote - remote name + SQL query + optional mapping
+ * @param remote - remote name + (SQL query + optional mapping) or (LDAP filter + ...)
  * @param msg - optional message explaining why the user did this action
  */
-export async function modify_remote_sql_query(logged_user: LoggedUser, id: string, remote: RemoteSqlQuery, msg: Option<string>) {
+export async function modify_remote_query(logged_user: LoggedUser, id: string, remote: RemoteQuery | {}, msg: Option<string>) {
     console.log("modify_remote_sql_query(%s, %s, %s)", id, remote, msg);
     validate_sgroup_id(id)
-    validate_remote(remote)
-    
+
+    let remote_string: Option<string>
+    if ("remote_cfg_name" in remote) {
+        validate_remote(remote)    
+        remote_string = isRqSql(remote) ? to_sql_url(remote) : to_ldap_url(remote)
+    }
     await ldapP.modify(sgroup_id_to_dn(id),
-        new ldapjs.Change({ operation: 'replace', modification: { [hMright.to_attr_synchronized('member')]: remote } }),
+        new ldapjs.Change({ operation: 'replace', modification: { [hMright.attr_synchronized]: remote_string } }),
     )
 
     await api_log.log_sgroup_action(logged_user, id, "modify_remote_sql_query", msg, remote)

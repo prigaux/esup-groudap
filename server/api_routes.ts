@@ -1,4 +1,5 @@
 import express from 'express';
+import * as _ from 'lodash'
 
 import * as cas_auth from './cas_auth'
 import * as test_data from './test_data'
@@ -7,10 +8,13 @@ import * as api_post from './api_post'
 import * as cache from './cache'
 import conf from './conf';
 import { throw_ } from './helpers';
-import { hLdapConfig, MonoAttrs, MyMods, RemoteSqlQuery, toDn } from './my_types';
+import { hLdapConfig, hRemoteConfig, MonoAttrs, MyMods, RemoteQuery, toDn } from './my_types';
 import { query_params, q, orig_url, logged_user, query_opt_params, handleJsonP, handleVoidP, handleJson } from './express_helpers';
 
 const api = express.Router();
+
+// JSON body-parser will return {} on empty body
+type AllowEmptyBody<T> = T | {}
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 api.get("/login", async (req, res) => {
@@ -56,15 +60,15 @@ api.post("/modify_members_or_rights", handleVoidP(async (req) => {
     await api_post.modify_members_or_rights(logged_user(req), id, req.body as MyMods, msg)
 }))
 
-api.post("/modify_remote_sql_query", handleVoidP(async (req) => {
+api.post("/modify_remote_query", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     const { msg } = query_opt_params(req, { msg: q.string })
-    await api_post.modify_remote_sql_query(logged_user(req), id, req.body as RemoteSqlQuery, msg)
+    await api_post.modify_remote_query(logged_user(req), id, req.body as AllowEmptyBody<RemoteQuery>, msg)
 }))
 
-api.get("/test_remote_query_sql", handleJsonP(async (req) => {
-    const { id, remote_sql_query } = query_params(req, { id: q.string, remote_sql_query: q.json<RemoteSqlQuery>() })
-    return await api_get.test_remote_query_sql(logged_user(req), id, remote_sql_query)
+api.get("/test_remote_query", handleJsonP(async (req) => {
+    const { id, remote_query } = query_params(req, { id: q.string, remote_query: q.json<RemoteQuery>() })
+    return await api_get.test_remote_query(logged_user(req), id, remote_query)
 }))
 
 api.get("/sgroup", handleJsonP(async (req) => {
@@ -109,6 +113,6 @@ api.get("/search_subjects", handleJsonP(async (req) => {
 
 api.get("/config/public", handleJson(() => ({ "cas_prefix_url": conf.cas.prefix_url })))
 api.get("/config/ldap", handleJson(() => hLdapConfig.to_js_ui(conf.ldap)))
-api.get("/config/remotes", handleJson(() => conf.remotes))
+api.get("/config/remotes", handleJson(() => _.mapValues(conf.remotes, hRemoteConfig.export)))
 
 export default api

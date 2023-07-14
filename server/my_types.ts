@@ -164,25 +164,33 @@ export const hLdapConfig = {
 }
 
 /** known remote drivers */
-type RemoteDriver = 'mysql' | 'oracle'
+export const remoteSqlDrivers = [ 'mysql', 'oracle' ] as const
+export type RemoteSqlDriver = (typeof remoteSqlDrivers)[number]
 
-export interface RemoteConfig {
+export interface RemoteSqlConfig {
+    driver: RemoteSqlDriver,
+
     host: string,
     port?: number, // u16
-    driver: RemoteDriver,
-
-    db_name: string,
-
     user: string,
     password: string,
     
-    /* checked by "remotes_periodicity_checker" */
-    periodicity: string,
+    db_name: string,
 }
+export interface RemoteLdapConfig {
+    driver: 'ldap'
+    connect: LdapConfig['connect']
+    search_branch?: FlavorDn
+}
+export type RemoteConfig = {
+    /* checked by "remotes_periodicity_checker" */
+    periodicity: string
+} & (RemoteLdapConfig | RemoteSqlConfig)
+
 /** helpers to work on RemoteConfig */
 export const hRemoteConfig = {
     export: (self: RemoteConfig) => (
-        _.omit(self, ['user', 'password'])
+        _.omit(self, ['user', 'password', 'connect.user', 'connect.password'])
     ),
 }
 
@@ -209,9 +217,7 @@ export const hMright = {
     to_attr: (self: Mright) => (
         `memberURL;x-${self}`
     ),
-    to_attr_synchronized: (self: Mright) => (
-        `memberURL;x-${self};x-remote`
-    ),
+    attr_synchronized: `memberURL;x-member-remote`,
     list: (): Mright[] => (
         [ 'member', 'reader', 'updater', 'admin' ]
     ),
@@ -293,7 +299,7 @@ export interface SgroupOutAndRight {
 export type SgroupOutMore = 
     { stem: { children: SgroupsWithAttrs } } |
     { group: { direct_members: Subjects } } |
-    { synchronizedGroup: { remote_sql_query: RemoteSqlQuery } }
+    { synchronizedGroup: { remote_query: RemoteQuery } }
 
 /** group/stem attributes + parents + loggedUser right on this group/stem + stem children or group direct_members or sync group definition */
 export type SgroupAndMoreOut = SgroupOutMore & {
@@ -319,10 +325,34 @@ export interface ToSubjectSource {
     id_attr: string,
 }
 
+export interface RemoteLdapQuery {
+    /** empty string means the LDAP server used for groups&subjects */
+    remote_cfg_name: string
+    /** LDAP branch to search (defaults to conf.ldap.base_dn if remote_cfg_name is "") */
+    DN?: string
+    /** LDAP filter on the branch */
+    filter?: string
+    /** usually unset (since the DNs matching the branch & filter are directly used). Useful examples: "member", "seeAlso"... */
+    attribute?: string
+}
 export interface RemoteSqlQuery {
     remote_cfg_name: string, 
     /** query which returns either a DN or a string to transform into DN using ToSubjectSource */
     select_query: string, 
     /** how to transform values into a DN */
     to_subject_source?: ToSubjectSource,
+}
+export type RemoteQuery = RemoteLdapQuery | RemoteSqlQuery
+export const isRqSql = (rq: Option<RemoteQuery>): rq is RemoteSqlQuery => (
+    rq ? "select_query" in rq : false
+)
+export const toRqSql = (rq: Option<RemoteQuery>) => (
+    isRqSql(rq) ? rq : undefined
+)
+
+export interface TestRemoteQuery {
+    count: number,
+    values: string[],
+    values_truncated: boolean,
+    ss_guess: Option<[ToSubjectSource, Subjects]>,
 }

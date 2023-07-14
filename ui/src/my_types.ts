@@ -50,27 +50,43 @@ export interface SgroupAttrTexts {
     input_attrs?: Record<string, string>
 }
 
-export interface RemoteConfig {
+export interface RemoteSqlConfig {
     host: string,
     port?: number,
-    driver: string,
+    driver: 'mysql' | 'oracle',
     db_name: string,
     periodicity: string,
 }
+export interface RemoteLdapConfig {
+    driver: 'ldap',
+    periodicity: string,
+
+    connect: { uri: string[] }
+    search_branch?: Dn
+}
+export type RemoteConfig = RemoteLdapConfig | RemoteSqlConfig
 
 export interface RemoteSqlQuery {
-    remote_cfg_name: string
     select_query: string // query returns either a DN or a string to transform into DN using ToSubjectSource
     to_subject_source: ToSubjectSource
 }
+export interface RemoteLdapQuery {
+    DN?: string
+    filter: string
+    attribute?: string
+}
+export type RemoteQuery = { 
+    isSql: Option<boolean>
+    remote_cfg_name: string
+} & RemoteSqlQuery & RemoteLdapQuery
 
 export interface SgroupOutMore {
     stem?: { children: SgroupsWithAttrs }
     group?: { direct_members: Subjects }
-    synchronizedGroup?: { remote_sql_query: RemoteSqlQuery }
+    synchronizedGroup?: { remote_query: RemoteQuery }
 
     // internal
-    synchronized_group_orig?: { remote_sql_query: RemoteSqlQuery }
+    synchronized_group_orig?: { remote_query: RemoteQuery }
 }
 
 export type SgroupAndMoreOut = SgroupOutMore & {

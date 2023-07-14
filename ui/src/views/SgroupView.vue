@@ -16,7 +16,8 @@ async function get_sgroup(id: string): Promise<SgroupAndMoreOut_> {
         sgroup.group.direct_members = await api.add_sscfg_dns_and_sort(sgroup.group.direct_members)
     }
     if (sgroup.synchronizedGroup) {
-        api.convert.remote_sql_query.from_api(sgroup.synchronizedGroup.remote_sql_query)
+        sgroup.synchronizedGroup.remote_query.isSql = !!sgroup.synchronizedGroup.remote_query.select_query
+        api.convert.remote_query.from_api(sgroup.synchronizedGroup.remote_query)
         sgroup.synchronized_group_orig = cloneDeep(sgroup.synchronizedGroup)
     }
     return sgroup
@@ -194,7 +195,7 @@ const delete_sgroup = async () => {
 
 const send_modify_synchronized_group = async () => {
     if (sgroup.value.synchronizedGroup) {
-        await api.modify_remote_sql_query(props.id, sgroup.value.synchronizedGroup.remote_sql_query);
+        await api.modify_remote_query(props.id, sgroup.value.synchronizedGroup.remote_query);
         sgroup.update()
     }
 }
@@ -204,15 +205,22 @@ const cancel_modify_synchronized_group = () => {
 
 const transform_group_into_SynchronizedGroup = () => {
     delete sgroup.value.group;
-    sgroup.value.synchronizedGroup = { remote_sql_query: {
+    sgroup.value.synchronizedGroup = { remote_query: {
+        isSql: undefined,
         remote_cfg_name: '',
+
+        // LPAP
+        DN: '',
+        filter: '',
+        attribute: '',
+        // SQL
         select_query: '',
         to_subject_source: { ssdn: '', id_attr: '' },
     } }
 }
 const transform_SynchronizedGroup_into_group = async () => {
     if (confirm("Le groupe sera vide. Ok ?")) {
-        await api.modify_members_or_rights(props.id, { member: { replace: {} } })
+        await api.modify_remote_query(props.id, undefined)
         sgroup.update()
     }
 }
@@ -314,7 +322,7 @@ const transform_SynchronizedGroup_into_group = async () => {
             </template>
         </legend>
 
-        <SynchronizedGroupView :id="props.id" :remote_sql_query="sgroup.synchronizedGroup.remote_sql_query" @save="send_modify_synchronized_group" />
+        <SynchronizedGroupView :id="props.id" :remote_query="sgroup.synchronizedGroup.remote_query" @save="send_modify_synchronized_group" />
     </fieldset>
 
     <p></p>

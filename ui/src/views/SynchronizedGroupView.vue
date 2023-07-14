@@ -1,12 +1,13 @@
 <script lang="ts">
 import { asyncComputed } from '@vueuse/core'
-import { RemoteSqlQuery } from '@/my_types';
+import { RemoteQuery } from '@/my_types';
 
 import Prism from 'prismjs'
 import 'prismjs/components/prism-sql'
 import 'prismjs/themes/prism.css'
 
 import * as api from '@/api'
+import * as ldap_filter_parser from '@/ldap_filter_parser'
 import { computed, ref, watch } from 'vue'
 import { setRefAsync, watchOnceP } from '@/vue_helpers'
 
@@ -58,37 +59,54 @@ import { maySingleton } from '@/vue_helpers'
 
 const props = defineProps<{
     id: string,
-    remote_sql_query: RemoteSqlQuery,
+    remote_query: RemoteQuery,
 }>()
 defineEmits(['save'])
 
 const remotes = asyncComputed(() => api.config_remotes())
 const ldapCfg = asyncComputed(api.config_ldap)
 
+const remote = computed(() => remotes.value?.[props.remote_query.remote_cfg_name])
+watch(() => remote.value, (remote) => {
+    props.remote_query.isSql = remote.driver !== 'ldap'
+})
+
 const chosen_subject_source = computed(() => (
-    ldapCfg.value?.subject_sources.find(sscfg => sscfg.dn === props.remote_sql_query.to_subject_source.ssdn)
+    ldapCfg.value?.subject_sources.find(sscfg => sscfg.dn === props.remote_query?.to_subject_source?.ssdn)
 ))
 
-watch(() => props.remote_sql_query.select_query, (query) => {
+const select_or_filter = computed(() => (
+    props.remote_query.isSql ? props.remote_query.select_query : props.remote_query.filter
+))
+const set_select_or_filter = (val: string) => (
+    props.remote_query.isSql ? (props.remote_query.select_query = val) : (props.remote_query.filter = val)
+)
+
+watch(() => select_or_filter.value, (query) => {
+    console.log(query?.length)
     if (query && query.length > 100 && !trim(query).match(/\n/)) {
-        const indented = indent_sql_query(query)
+        const indented = (props.remote_query.isSql ? indent_sql_query : ldap_filter_parser.indent)(query)
         if (indented !== query) {
-            props.remote_sql_query.select_query = indented
+            set_select_or_filter(indented)
         }
     }
 })
-const highlighted_select_query = computed(() => (
-    Prism.highlight(props.remote_sql_query.select_query + ' ', Prism.languages.sql, 'sql')
+const highlighted_select_or_filter = computed(() => (
+    (select_or_filter.value ? 
+        (props.remote_query.isSql ?
+            Prism.highlight(select_or_filter.value, Prism.languages.sql, 'sql') :
+            ldap_filter_parser.to_html(select_or_filter.value || '')) :
+        '') + ' ' /* needed if value ends with \n + avoid empty textarea */
 ))
 
-let last_test_remote_query_sql = ref(undefined as api.TestRemoteQuerySql | undefined)
-const test_remote_query_sql = async () => {
-    const val = await api.test_remote_query_sql(props.id, props.remote_sql_query)
-    if (val.ss_guess) {
-        props.remote_sql_query.to_subject_source = val.ss_guess[0]
+let last_test_remote_query = ref(undefined as api.TestRemoteQuery | undefined)
+const test_remote_query = async () => {
+    const val = await api.test_remote_query(props.id, props.remote_query)
+    if (val.ss_guess && props.remote_query.isSql) {
+        props.remote_query.to_subject_source = val.ss_guess[0]
     }
-    setRefAsync(last_test_remote_query_sql,
-                watchOnceP(() => props.remote_sql_query, () => undefined, { deep: true }),
+    setRefAsync(last_test_remote_query,
+                watchOnceP(() => props.remote_query, () => undefined, { deep: true }),
                 val)
 }
 
@@ -98,28 +116,35 @@ const test_remote_query_sql = async () => {
 <form @submit.prevent="$emit('save')" v-if="remotes">
     <label>
         <span class="label">Remote</span>
-            <select v-model="remote_sql_query.remote_cfg_name">
+            <select v-model="remote_query.remote_cfg_name">
                 <option value="">Choisir</option>    
                 <option v-for="(_cfg, name) in remotes" :value="name">{{name}}</option>
             </select>
     </label>
     <label class="next-to-previous"><span class="label"></span>
-        <div v-for="cfg in maySingleton(remotes[remote_sql_query.remote_cfg_name])">
+        <div v-if="remote">
             <small>
-                <span class="key">hôte:</span> {{cfg.host}}
-                <span class="key">db:</span> {{cfg.db_name}}
-                <span class="key">periodicité:</span> {{cfg.periodicity}}
+                <template v-if="remote.driver === 'ldap'">
+                  <span class="key">uri:</span> {{remote.connect.uri.join(" ")}}
+                  <span class="key" v-if="remote.search_branch">search_branch:</span> {{remote.search_branch}}
+                </template>
+                <template v-else>
+                  <span class="key">hôte:</span> {{remote.host}}
+                  <span class="key">db:</span> {{remote.db_name}}
+                </template>
+                &nbsp;
+                <span class="key">periodicité:</span> {{remote.periodicity}}
             </small>
         </div>
     </label>
 
-    <label>
-        <span class="label">Requête</span>
+    <label v-if="remote_query.isSql !== undefined">
+        <span class="label">{{remote_query.isSql ? 'Requête' : 'Filtre'}}</span>
 
-        <div class="remote_sql_query">
-        <pre class="language-sql">{{
-            }}<code class="language-sql" v-html="highlighted_select_query"></code>{{
-            }}<textarea spellcheck="false" v-model="remote_sql_query.select_query"
+        <div class="remote_query">
+        <pre class="language-sql language-ldap">{{
+            }}<code class="language-sql language-ldap" v-html="highlighted_select_or_filter"></code>{{
+            }}<textarea spellcheck="false" :value="select_or_filter" @input="set_select_or_filter($event.target?.value)"
                 @keypress.enter.ctrl="$emit('save')"
             ></textarea>{{
         }}</pre>
@@ -128,12 +153,16 @@ const test_remote_query_sql = async () => {
 
     <label>
         <span class="label"></span>
-        <button class="warning" v-if="remote_sql_query.remote_cfg_name && remote_sql_query.select_query" @click.prevent="test_remote_query_sql">Valider la requête et deviner les paramètres ci-dessous</button>
+        <button v-if="remote_query.remote_cfg_name && select_or_filter" 
+            class="warning" 
+            @click.prevent="test_remote_query">
+            Valider la requête<span v-if="remote_query.isSql"> et deviner les paramètres ci-dessous</span>
+        </button>
     </label>
 
     <label class="next-to-previous"><span class="label"></span>
         <TransitionGroup>
-        <div v-for="lt in maySingleton(last_test_remote_query_sql)">
+        <div v-for="lt in maySingleton(last_test_remote_query)">
             <p>La requête a renvoyé {{lt.count}} valeurs. 
                 <template v-if="lt.count">
                     <br>
@@ -143,33 +172,37 @@ const test_remote_query_sql = async () => {
                     </blockquote>
                 </template>
             </p>
+            <template v-if="remote_query.isSql">
             <p style="margin-bottom: 0;" v-if="lt.ss_guess?.[1]">
                 Les paramètres ci-dessous ont été devinés ({{size(lt.ss_guess?.[1])}} / {{lt.values.length}} sujets trouvés) :
             </p>
             <p class="warning" v-else>
                 <span class="big">⚠</span> Aucune source de sujets ne correspond aux valeurs
             </p>
+            </template>
         </div>
         </TransitionGroup>
     </label>
 
-    <label v-if="ldapCfg">
+    <template v-if="ldapCfg && remote_query.isSql">
+    <label>
         <span class="label">Source de sujets LDAP</span>
-        <select v-model="remote_sql_query.to_subject_source.ssdn">
+        <select v-model="remote_query.to_subject_source.ssdn">
             <option value="">Aucun (les valeurs sont des DNs)</option>    
             <option v-for="sscfg in ldapCfg.subject_sources" :value="sscfg.dn">{{sscfg.name}}</option>
         </select>
     </label>
 
-    <label v-if="ldapCfg && remote_sql_query.to_subject_source.ssdn">
+    <label v-if="remote_query.to_subject_source.ssdn">
         <span class="label">Attribut LDAP</span>
-        <input v-model="remote_sql_query.to_subject_source.id_attr">
+        <input v-model="remote_query.to_subject_source.id_attr">
     </label>
     <label class="next-to-previous"><span class="label"></span>
         <small v-if="!isEmpty(chosen_subject_source?.id_attrs)">
             Suggestions : {{chosen_subject_source?.id_attrs?.join(', ')}}
         </small>
     </label>
+    </template>
 </form>
 </template>
 
@@ -194,13 +227,13 @@ label > span:not(.label) {
     flex-grow: 0;
 }
 
-.remote_sql_query {
+.remote_query {
     border: 1px solid #00225E;
     border-radius: 8px;
     padding: 0 0.5rem;
 }
 
-pre.language-sql {
+pre {
     position: relative;
     padding: 0;
     background-color: #fff;
@@ -240,5 +273,36 @@ textarea::selection {
 }
 .big {
     font-size: 150%;
+}
+</style>
+
+<style>
+.invalid {
+    font-weight: bold;
+    color: red;
+}
+.punctuation0 {
+    background-color: #ffa;
+    color: #004;
+}
+.punctuation1 {
+    background-color: #cff;
+    color: #422;
+}
+.punctuation2 {
+    background-color: #fef;
+    color: #0c0;
+}
+.punctuation3 {
+    background-color: #aaf;
+    color: #400;
+}
+.punctuation4 {
+    background-color: #faa;
+    color: #242;
+}
+.punctuation5 {
+    background-color: #fef;
+    color: #00c;
 }
 </style>

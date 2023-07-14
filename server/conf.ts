@@ -1,5 +1,11 @@
 import { Config } from "./my_types";
 
+const main_ldap_connect = {
+    uri: ["ldap://localhost:2389"],
+    dn: "cn=Manager,dc=nodomain",
+    password: "secret",
+}
+
 const conf: Config = {
     trusted_auth_bearer: "aa",
     log_dir: "/tmp",
@@ -16,11 +22,7 @@ const conf: Config = {
     },
     
     ldap: {
-        connect: {
-            uri: ["ldap://localhost:2389"],
-            dn: "cn=Manager,dc=nodomain",
-            password: "secret",
-        },
+        connect: main_ldap_connect,
         base_dn: "dc=nodomain",
         groups_dn: "ou=groups,dc=nodomain",
         group_object_classes: [ "groupaldGroup", "groupOfNames", "supannGroupe" ],
@@ -105,6 +107,13 @@ const conf: Config = {
         ],
     },
     remotes: {
+        main_ldap: {
+            periodicity: "12:00",
+            driver: "ldap",
+            connect: main_ldap_connect,
+            search_branch: "dc=nodomain",
+        },
+
         g2t: {
             periodicity: "12:00",
             driver: "mysql",

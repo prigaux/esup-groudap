@@ -1,9 +1,9 @@
 import * as assert from 'assert';
 import {it} from '@jest/globals';
-import { hRemoteSqlQuery, parse_sql_url } from '../remote_query';
+import { parse_sql_url, to_sql_url } from '../remote_query';
 
 const parse_and_to_string = (url: string) => (
-    parse_sql_url(url)?.oMap(rsq => hRemoteSqlQuery.toString(rsq))
+    parse_sql_url(url)?.oMap(to_sql_url)
 )
 function test_ok(url: string) {
     assert.equal(parse_and_to_string(url), url);

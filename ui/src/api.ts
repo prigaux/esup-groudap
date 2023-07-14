@@ -1,6 +1,6 @@
-import { at, pickBy } from "lodash";
+import { at, pick, pickBy } from "lodash";
 import { forEach, objectSortBy } from "./helpers";
-import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, PRecord, RemoteConfig, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more, ToSubjectSource } from "./my_types";
+import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, Option, PRecord, RemoteConfig, RemoteQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more, ToSubjectSource } from "./my_types";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -67,16 +67,16 @@ const api_get = (api_function: string, search_params: Record<string, string>, op
     api_(api_function, search_params, {}, opts)
 )
 
-const api_post = (api_function: string, search_params: Record<string, string>, json_body: Record<string, any>) => {
-    const body = JSON.stringify(json_body)
+const api_post = (api_function: string, search_params: Record<string, string>, json_body: Option<Record<string, any>>) => {
+    const body = json_body && JSON.stringify(json_body)
     return api_(api_function, search_params, { body, method: 'POST' }, {})
 }
 
 export const modify_members_or_rights = (id: string, mods: MyMods) => (
     api_post("modify_members_or_rights", { id }, mods)
 )
-export const modify_remote_sql_query = (id: string, remote: RemoteSqlQuery) => (
-    api_post("modify_remote_sql_query", { id }, convert.remote_sql_query.to_api(remote))
+export const modify_remote_query = (id: string, remote: Option<RemoteQuery>) => (
+    api_post("modify_remote_query", { id }, remote && convert.remote_query.to_api(remote))
 )
 
 export const delete_sgroup = (id: string) => (
@@ -122,14 +122,14 @@ export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
     api_get("config/remotes", {}, { memoize: true })
 )
 
-export interface TestRemoteQuerySql {
+export interface TestRemoteQuery {
     count: number,
     values: string[],
     values_truncated: boolean,
     ss_guess?: [ToSubjectSource, Subjects],
 }
-export const test_remote_query_sql = (id: string, remote_sql_query: RemoteSqlQuery): Promise<TestRemoteQuerySql> => (
-    api_get('test_remote_query_sql', { id, remote_sql_query: JSON.stringify(convert.remote_sql_query.to_api(remote_sql_query)) }, {})
+export const test_remote_query = (id: string, remote_query: RemoteQuery): Promise<TestRemoteQuery> => (
+    api_get('test_remote_query', { id, remote_query: JSON.stringify(convert.remote_query.to_api(remote_query)) }, {})
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {
@@ -159,13 +159,15 @@ export async function add_sscfg_dns_and_sort(subjects: Subjects) {
 }
 
 export const convert = {
-    remote_sql_query: {
-        from_api(remote: RemoteSqlQuery) {
+    remote_query: {
+        from_api(remote: RemoteQuery) {
             remote.to_subject_source ??= { ssdn: '', id_attr: '' }
         },
-        to_api(remote: RemoteSqlQuery): Partial<RemoteSqlQuery> {
-            const { to_subject_source, ...rest } = remote
-            return !to_subject_source.ssdn || !to_subject_source.id_attr ? rest : remote
+        to_api(remote: RemoteQuery): Partial<RemoteQuery> {
+            const has_subject_source = remote.to_subject_source.ssdn && remote.to_subject_source.id_attr
+            return remote.isSql ? 
+                pick(remote, 'remote_cfg_name', 'select_query', ...(has_subject_source ? ['to_subject_source'] : [])) :
+                pick(remote, 'remote_cfg_name', 'filter', 'DN', 'attribute')
         },
     },
 }

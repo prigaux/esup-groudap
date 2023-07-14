@@ -5,16 +5,17 @@ import * as ldp from "./ldap_read_search"
 import * as ldpSgroup from './ldap_sgroup_read_search_modify'
 import * as ldpSubject from './ldap_subject'
 import * as api_log from './api_log'
-import * as remote_query from './remote_query'
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
-import { Dn, hLdapConfig, hMright, hMyMap, hRight, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteSqlQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn } from "./my_types"
+import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./ldap_check_rights"
 import { hSubjectSourceConfig } from "./ldap_subject"
-import { direct_members_to_remote_sql_query, TestRemoteQuerySql } from "./remote_query"
+import { guess_subject_source, parse_sql_url, sql_query } from './remote_query'
+import { ldap_query, parse_ldap_url } from './remote_ldap_query'
+import { throw_ } from './helpers'
 
 const user_dn = (logged_user: LoggedUser): LoggedUserDn => (
     'TrustedAdmin' in logged_user ?
@@ -118,6 +119,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     // we query all the attrs we need: attrs for direct_members + attrs to compute rights + attrs to return
     const wanted_attrs = [ 
         hMright.to_attr('member'),
+        hMright.attr_synchronized,
         ...to_allowed_flattened_attrs('reader'),
         ...hMyMap.keys(conf.ldap.sgroup_attrs),
     ]
@@ -131,7 +133,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     const mattrs = multi_attrs(entry);
     // #1 direct members
     const direct_members_ = mattrs[hMright.to_attr('member')] || []
-    const remote_query = mattrs[hMright.to_attr_synchronized('member')] || []
+    const remote_query_s = mattrs[hMright.attr_synchronized]?.at(0)
     // #2 compute rights (also computing parents because both require user_dn)
     const [right, parents] = await get_right_and_parents(logged_user, id, mattrs)
     // #3 pack sgroup attrs:
@@ -142,9 +144,10 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
         const children = await get_children(id)
         more = { stem: { children } }
     } else {
-        const remote_sql_query = direct_members_to_remote_sql_query(remote_query)
-        if (remote_sql_query) {
-            more = { synchronizedGroup: { remote_sql_query } }
+        if (remote_query_s) {
+            const remote_query = parse_remote_query(remote_query_s)
+            console.log({ remote_query })
+            more = { synchronizedGroup: { remote_query } }
         } else { 
             const direct_members = await ldpSubject.get_subjects_from_urls(direct_members_)
             more = { group: { direct_members } }
@@ -329,26 +332,43 @@ export async function get_sgroup_logs(logged_user: LoggedUser, id: string, bytes
     await api_log.get_sgroup_logs(id, bytes)
 }
 
-export function validate_remote(remote: RemoteSqlQuery) {
-    if (!conf.remotes[remote.remote_cfg_name]) {
-        throw `unknown remove_cfg_name ${remote.remote_cfg_name}`
+export function validate_remote(remote: RemoteQuery) {
+    if (isRqSql(remote) && !remote.remote_cfg_name) {
+        throw "remote_cfg_name is mandatory for remote SQL query"
     }
-    const to_ss = remote.to_subject_source
+    if (remote.remote_cfg_name && !conf.remotes[remote.remote_cfg_name]) {
+        throw `unknown remote_cfg_name ${remote.remote_cfg_name}`
+    }
+    const to_ss = toRqSql(remote)?.to_subject_source
     if (to_ss) {
         if (!conf.ldap.subject_sources.some(ss => ss.dn === to_ss.ssdn)) {
-            throw `unknown to_subject_source.ssdn ${to_ss.ssdn}`
+            throw `unknown to_subject_source.ssdn ${JSON.stringify(to_ss)}`
         }
     }
 }
 
-export async function test_remote_query_sql(logged_user: LoggedUser, id: string, remote_sql_query: RemoteSqlQuery): Promise<TestRemoteQuerySql> {
-    console.log("test_remote_query_sql({}, %s)", id, remote_sql_query);   
+export const parse_remote_query = (rq: string): RemoteQuery => (
+    parse_sql_url(rq) || parse_ldap_url(rq) || throw_(`invalid remote query ${rq}`)
+)
+
+export async function test_remote_query(logged_user: LoggedUser, id: string, rq: RemoteQuery): Promise<TestRemoteQuery> {
+    console.log("test_remote_query(%s, %s)", id, rq);   
     validate_sgroup_id(id)
-    validate_remote(remote_sql_query)
+    validate_remote(rq)
 
     await check_right_on_self_or_any_parents(logged_user, id, 'admin')
 
-    return await remote_query.test_remote_query_sql(remote_sql_query)
+    const all_values = isRqSql(rq) ? await sql_query(rq) : Object.keys(await ldap_query(rq))
+    const count = all_values.length;
+    const max_values = 10;    
+    const values = all_values.slice(0, max_values); // return an extract
+    const ss_guess = count && isRqSql(rq) ? await guess_subject_source(values) : undefined
+    return {
+        count,
+        values,
+        values_truncated: count > max_values,
+        ss_guess,
+    }
 }
 
 export const export_for_tests = { user_highest_right }

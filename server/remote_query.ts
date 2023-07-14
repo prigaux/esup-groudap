@@ -13,9 +13,9 @@ import * as ldpSubject from './ldap_subject'
 import conf from "./conf";
 import ldap_filter from "./ldap_filter";
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
-import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteConfig, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
+import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteSqlConfig, remoteSqlDrivers, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 
-const driver_query: Record<string, (remote: RemoteConfig, db_name: string, select_query: string) => Promise<string[]>> = {
+const driver_query: Record<string, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<string[]>> = {
     mysql: async (remote, db_name, select_query) => {
         const connection = mysql.createConnection({
             host     : remote.host,
@@ -42,7 +42,7 @@ const driver_query: Record<string, (remote: RemoteConfig, db_name: string, selec
     },
 };
 
-async function raw_query(remote: RemoteConfig, db_name: string, select_query: string): Promise<string[]> {
+async function raw_query(remote: RemoteSqlConfig, db_name: string, select_query: string): Promise<string[]> {
     const f = driver_query[remote.driver]
     return await f(remote, db_name, select_query)
 }
@@ -67,13 +67,11 @@ const hToSubjectSource = {
     ),
 }
 
-export const hRemoteSqlQuery = {
-    toString: (rsq: RemoteSqlQuery) => {
+export const to_sql_url = (rsq: RemoteSqlQuery) => {
         const opt = rsq.to_subject_source ?
             ` : subject=${hToSubjectSource.toString(rsq.to_subject_source)}` :
             "";
         return `sql: remote=${rsq.remote_cfg_name}${opt} : ${rsq.select_query}`
-    }
 }
 
 function strip_prefix_and_trim(s: string, prefix: string): Option<string> {
@@ -109,12 +107,17 @@ export const parse_sql_url = (url: string): Option<RemoteSqlQuery> => (
         }
     })
 )
-export const direct_members_to_remote_sql_query = (l : string[]) => (
-    l.length === 1 ? parse_sql_url(l[0]) : undefined
-)
 
-export function query(remotes_cfg: MyMap<string, RemoteConfig>, remote: RemoteSqlQuery) {
-    const remote_cfg = remotes_cfg[remote.remote_cfg_name] ?? throw_("internal error: unknown remote " + remote.remote_cfg_name)
+const to_RemoteSqlConfig = (remote_cfg_name: string): Option<RemoteSqlConfig> => {
+    const remote_cfg = conf.remotes[remote_cfg_name] ?? throw_("internal error: unknown remote " + remote_cfg_name)
+    if (remoteSqlDrivers.includes(remote_cfg.driver as any)) {
+        return remote_cfg as RemoteSqlConfig
+    }
+    return undefined
+}
+
+export function sql_query(remote: RemoteSqlQuery) {
+    const remote_cfg = to_RemoteSqlConfig(remote.remote_cfg_name) ?? throw_("internal error: remote is not SQL " + remote.remote_cfg_name)
     return raw_query(remote_cfg, remote_cfg.db_name, remote.select_query)
 }
 
@@ -128,28 +131,7 @@ export async function sql_values_to_dns(remote: RemoteSqlQuery, sql_values: stri
     }
 }
 
-export interface TestRemoteQuerySql {
-    count: number,
-    values: string[],
-    values_truncated: boolean,
-    ss_guess: Option<[ToSubjectSource, Subjects]>,
-}
-
-export async function test_remote_query_sql(remote_sql_query: RemoteSqlQuery): Promise<TestRemoteQuerySql> {
-    const all_values = await query(conf.remotes, remote_sql_query)
-    const count = all_values.length;
-    const max_values = 10;    
-    const values = all_values.slice(0, max_values); // return an extract
-    const ss_guess = count ? await guess_subject_source(values) : undefined
-    return {
-        count,
-        values,
-        values_truncated: count > max_values,
-        ss_guess,
-    }
-}
-
-async function guess_subject_source(values: string[]) {
+export async function guess_subject_source(values: string[]) {
     let best: Option<[number, [DnsOpts, Dn, string]]>;
     for (const sscfg of conf.ldap.subject_sources) {
         for (const id_attr of sscfg.id_attrs ?? []) {
