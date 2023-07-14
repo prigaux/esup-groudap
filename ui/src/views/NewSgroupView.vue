@@ -52,7 +52,7 @@ Erreur : impossible de créer un groupe/dossier dans un groupe.
         <SgroupLink :sgroup="p" />
         <span> &gt; </span>
     </span>
-    <h2><input v-model="attrs.ou" :placeholder="ldapCfg.sgroup_attrs.ou.label" :title="ldapCfg.sgroup_attrs.ou.description"></h2>
+    <h2><input autofocus v-model="attrs.ou" :placeholder="ldapCfg.sgroup_attrs.ou.label" :title="ldapCfg.sgroup_attrs.ou.description"></h2>
 
     <fieldset>
         <legend>
