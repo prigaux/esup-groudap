@@ -1,0 +1,13 @@
+attributetype ( 1.3.6.1.4.1.7135.1.3.183.3.1.1 
+    NAME 'groupaldOptions' 
+    DESC 'Tagging-option attribute for optional groupald group parameters'
+    EQUALITY caseExactMatch
+    SUBSTR caseExactSubstringsMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+objectclass ( 1.3.6.1.4.1.7135.1.3.183.3.2.1
+    NAME 'groupaldGroup' 
+    DESC 'Groupald managed group'
+    SUP top
+    AUXILIARY
+    MAY ( memberURL $ groupaldOptions $ labeledURI ))
