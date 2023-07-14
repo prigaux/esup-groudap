@@ -108,19 +108,14 @@ const conf: Config = {
         g2t: {
             periodicity: "12:00",
             driver: "mysql",
-            host: "apogee.univ.fr",
-            //port: 3306,
-            user: "user",
-            password: "xxx",
+            host: "apogee.univ.fr", /*port: 3306,*/ user: "user", password: "xxx",
             db_name: "g2t",
         },
         
         foo: {
             periodicity: "hourly",
             driver: "mysql",
-            host: "localhost",
-            user: "groupald",
-            password: "xxx",
+            host: "localhost", user: "groupald", password: "xxx",
             db_name: "foo",
         },
     },
