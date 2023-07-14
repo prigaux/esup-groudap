@@ -9,7 +9,7 @@
     
     "types" : [ "node" ],
     "target": "es2018",
-    "module": "commonjs",
+    "module": "Node16",
     "esModuleInterop": true
   }
 }
