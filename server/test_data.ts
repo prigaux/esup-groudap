@@ -275,4 +275,6 @@ export async function _test_search(ldap: mut Ldap): Promise<string> {
 }
 */
 
-//set().then(console.log, console.log)
+if (require.main === module) {
+    set().catch(err => console.error("\x1b[31mERROR\x1b[0m", err)).then(() => ldapP.destroy())
+}
