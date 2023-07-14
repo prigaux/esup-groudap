@@ -9,8 +9,11 @@ import api_routes from './api_routes'
 
 const staticFilesOptions = { maxAge: process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 0 };
 
+const rel_ui_dist_dir = (__filename.endsWith('/dist/main.js') ? '../' : '') + '../ui/dist';
+const ui_dist_dir = path.join(__dirname, rel_ui_dist_dir)
+
 const index_html = (_req: express.Request, res: express.Response): void => {
-    res.sendFile(path.join(__dirname, "../ui/dist/index.html"), err => {
+    res.sendFile(path.join(ui_dist_dir, "index.html"), err => {
         if (err) console.error(err)
     })
 };
@@ -25,7 +28,7 @@ app.use(express_helpers.session_store());
 app.use("/api", 
     bodyParser.json({type: '*/*'}), // do not bother checking, everything we will get is JSON :)
     api_routes)
-app.use("/", express.static(path.join(__dirname, '../ui/dist'), staticFilesOptions));
+app.use("/", express.static(ui_dist_dir, staticFilesOptions));
 app.get(/[/](sgroup|new_sgroup|sgroup_history)$/, // keep in sync with ui/src/router/index.ts "routes" "path"
         index_html)
 
