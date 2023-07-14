@@ -20,6 +20,10 @@ const ldapCfg = asyncComputed(api.config_ldap)
 let parent = asyncComputed(async () => (
     await api.sgroup(props.parent_id)
 ))
+let all_parents = computed(() => [
+    ...parent.value.parents, 
+    { sgroup_id: props.parent_id, ...parent.value },
+])
 
 let rel_id = ref('')
 let attrs = ref({} as MonoAttrs)
@@ -44,7 +48,7 @@ Erreur : impossible de créer un groupe/dossier dans un groupe.
 </div>
 <form v-else @submit.prevent="create">
     <a href=".">Accueil</a> &gt;
-    <span v-for="p in [ ...parent.parents, parent ]">
+    <span v-for="p in all_parents">
         <SgroupLink :sgroup="p" />
         <span> &gt; </span>
     </span>
