@@ -20,7 +20,7 @@ async function ldap_add_ou_branch(ou: string, description: string) {
 async function ldap_add_people(uid: string, attrs: Record<string, LdapRawValue>) {
     const dn = `uid=${uid},ou=people,dc=nodomain`
     const all_attrs = {
-        objectClass: ["inetOrgPerson", "shadowAccount"],
+        objectClass: ["inetOrgPerson", "shadowAccount", "supannPerson"],
         uid: [uid],
         ...attrs,
     }
@@ -69,11 +69,13 @@ export async function add() {
         cn: "Rigaux Pascal",
         displayName: "Pascal Rigaux",
         sn: "Rigaux",
+        supannEntiteAffectation: "DGHA",
     })
     await ldap_add_people("aanli", {
         cn: "Anli Aymar",
         displayName: "Aymar Anli",
         sn: "Anli",
+        supannEntiteAffectation: "DGHA",
     })
 
     const prigaux_dn = people_id_to_dn("prigaux")
@@ -259,6 +261,15 @@ export async function add() {
 
     await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "", 'admin', undefined, undefined));
     await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "collab.", 'admin', undefined, undefined));
+
+    await api_post.create(user_prigaux, "employees.", { ou: "Employees" })
+    await api_post.create(user_prigaux, "employees.DGHA", { ou: "DSIUN-PAS" })
+    await api_post.modify_remote_query(user_prigaux, "employees.DGHA", {
+        remote_cfg_name: 'main_ldap',
+        filter: '(supannEntiteAffectation=DGHA)'
+    }, undefined)
+    assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), [prigaux_dn, aanli_dn]);
+    assert.deepEqual(await ldpSgroup.read_direct_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), {});
 }
 
 export async function set() {
