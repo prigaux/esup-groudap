@@ -51,7 +51,7 @@ describe('parse then format', () => {
     function check_format_filter(filter: string, unparsed: string, spaces: spaces_option) {
         const r = parse(filter + unparsed)
         expect(unparsed).toEqual(r.unparsed)
-        //console.log(JSON.stringify(ast))
+        //console.log(JSON.stringify(r.ast))
         const filter_ = r.ast && format_filter(r.ast, spaces)
         //console.log(filter_)
         expect(filter_).toEqual(filter)
@@ -86,6 +86,14 @@ describe('parse then format', () => {
         check(`(!
             (!(eduPersonAffiliation=staff))
         )`)
+        check_format_filter(`(&
+  (uid=*)
+  (|
+    (uid=*)
+    (foo=bar)`, `ERR
+      )
+    )`, { keep_spaces: true })
+
     })
 
     it('indents', () => {

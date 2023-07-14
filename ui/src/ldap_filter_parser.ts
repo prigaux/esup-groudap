@@ -50,7 +50,8 @@ function parse(s: string) {
 
                 sub_filters.push(sub.ast)
                 if (sub.ast.unclosed) {
-                    return { offset, ast: { op, sub_filters, unclosed: true } }
+                    ast.unclosed = true
+                    return { offset, ast }
                 }
             }
             if (s.at(offset) === ')') {

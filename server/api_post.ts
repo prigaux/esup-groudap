@@ -305,7 +305,7 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
  * @param msg - optional message explaining why the user did this action
  */
 export async function modify_remote_query(logged_user: LoggedUser, id: string, remote: RemoteQuery | {}, msg: Option<string>) {
-    console.log("modify_remote_sql_query(%s, %s, %s)", id, remote, msg);
+    console.log("modify_remote_query(%s, %s, %s)", id, remote, msg);
     validate_sgroup_id(id)
 
     let remote_string: Option<string>
@@ -324,7 +324,7 @@ export async function modify_remote_query(logged_user: LoggedUser, id: string, r
         } }),
     ])
 
-    await api_log.log_sgroup_action(logged_user, id, "modify_remote_sql_query", msg, remote)
+    await api_log.log_sgroup_action(logged_user, id, "modify_remote_query", msg, remote)
 
     const todo: IdMright[] = [{id, mright: 'member'}];
     await may_update_flattened_mrights_rec(todo)
