@@ -129,3 +129,7 @@ export const promisify_method = (o: any, method: string) => (
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     promisify(o[method]).bind(o)
 )
+
+export const setTimeoutPromise = (time: number) => (
+    new Promise((resolve, _) => setTimeout(resolve, time))
+)

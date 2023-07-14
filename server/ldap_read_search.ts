@@ -4,7 +4,7 @@ import * as ldapP from 'ldapjs-promise-disconnectwhenidle';
 import conf from "./conf"
 import ldap_filter from './ldap_filter'
 import { Dn, Mright, toDn, toDns } from "./my_types";
-import { multiValue, to_flattened_attr } from "./ldap_helpers";
+import { multiValue, singleValue, to_flattened_attr } from "./ldap_helpers";
 import { throw_ } from './helpers';
 
 
@@ -36,11 +36,20 @@ export const read = async (dn: Dn, attrs: string[]) => (
     handle_read_one_search_result(await searchRaw(dn, ldap_filter.true_(), attrs, { sizeLimit: 1 }))
 )
 
+export const read_or_err = async (dn: Dn, attrs: string[]) => (
+    await read(dn, attrs) ?? throw_(`internal error (read_or_err expects ${dn} to exist)`)
+)
+
 export const read_one_multi_attr = async (dn: Dn, attr: string) => {
     const entry = await read(dn, [attr])
     if (!entry) return undefined
     const val = entry[attr]
     return val === undefined ? [] : multiValue(val)
+}
+
+export const read_one_mono_attr__or_err = async (dn: Dn, attr: string) => {
+    const entry = await read_or_err(dn, [attr])
+    return entry ? singleValue(attr, entry[attr]) : undefined
 }
 
 export const read_one_multi_attr__or_err = async (dn: Dn, attr: string) => (
