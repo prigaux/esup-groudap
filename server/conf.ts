@@ -24,11 +24,11 @@ const conf: Config = {
         base_dn: "dc=nodomain",
         groups_dn: "ou=groups,dc=nodomain",
         group_object_classes: [ "groupaldGroup", "groupOfNames", "supannGroupe" ],
-        stem_object_classes: [ "groupaldGroup", "organizationalRole", "supannGroupe" ], // root stem will have groupald & organizationalUnit,
-        sgroup_filter: "(objectClass=groupaldGroup)",
-        group_filter: "(&(objectClass=groupaldGroup)(objectClass=groupOfNames))",
+        stem_object_classes: [ "groupaldStem", "organizationalUnit", "supannGroupe" ],
+        sgroup_filter: "(|(objectClass=groupaldGroup)(objectClass=groupaldStem))",
+        group_filter: "(objectClass=groupaldGroup)",
         stem: {
-            filter: "(&(objectClass=groupaldGroup)(!(objectClass=groupOfNames)))",
+            filter: "(objectClass=groupaldStem)",
             //default_separator: ".",
             //TODO cn: { label: "ID du groupe", description: "l'ID est l'identifiant unique de ce groupe au sein du dossier. Il doit être simple et court, et peut avoir des restrictions de caractères. Une fois créé, il est déconseillé de le modifier." },
             

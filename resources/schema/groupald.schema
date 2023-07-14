@@ -8,6 +8,11 @@ attributetype ( 1.3.6.1.4.1.7135.1.3.183.3.1.1
 objectclass ( 1.3.6.1.4.1.7135.1.3.183.3.2.1
     NAME 'groupaldGroup' 
     DESC 'Groupald managed group'
-    SUP top
-    AUXILIARY
+    SUP top AUXILIARY
     MAY ( memberURL $ groupaldOptions $ labeledURI ))
+
+objectclass ( 1.3.6.1.4.1.7135.1.3.183.3.2.2
+    NAME 'groupaldStem' 
+    DESC 'Groupald managed stem'
+    SUP top AUXILIARY
+    MAY ( cn $ owner $ memberURL $ groupaldOptions $ labeledURI ))

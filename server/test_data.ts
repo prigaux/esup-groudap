@@ -85,7 +85,7 @@ export async function add() {
     } }
 
     await ldapP.modify(sgroup_id_to_dn(""), new ldapjs.Change({
-        operation: 'add', modification: { objectClass: "groupaldGroup" }
+        operation: 'add', modification: { objectClass: "groupaldStem" }
     }))
 
     const user_trusted : LoggedUser = { TrustedAdmin: true }
