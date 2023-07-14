@@ -1,60 +1,53 @@
-/*
-use std::collections::BTreeMap;
-use std::thread;
-use chrono::{Utc, DateTime};
+import _ from "lodash";
+import * as cache from './cache'
+import * as systemd_calendar_events from "./systemd_calendar_events"
+import { Mright } from "./my_types";
+import { may_update_flattened_mrights_rec } from "./api_post";
+import { setTimeoutPromise, throw_ } from "./helpers";
+import conf from "./conf";
 
-use crate::api_post::may_update_flattened_mrights_rec;
-use crate::cache::{AllCaches, self};
-use crate::my_types::{Config, LoggedUser, CfgAndLU, Mright};
-use crate::my_err::{Result, MyErr};
-use crate::ldap_read_search::{LdapW};
-use crate::systemd_calendar_events;
-
-#[tokio::main]
-pub async fn the_loop(cfg: Config, all_caches: AllCaches) -> Result<()> {
-    let r = the_loop_(cfg, all_caches).await;
-    if let Err(err) = &r {
-        eprintln!("synchronize cron failed: {:?}", err);
+export async function the_loop() {
+    try {
+        if (_.isEmpty(conf.remotes)) {
+            console.log("nothing to synchronize (no remotes), exiting cron.");
+            return
+        }
+        await the_loop_()
+    } catch (err) {
+        console.log("synchronize cron failed:", err);
     }
-    r
 }
 
-pub async fn the_loop_(cfg: Config, all_caches: AllCaches) -> Result<()> {
-    if cfg.remotes.is_empty() {
-        eprintln!("nothing to synchronize (no remotes), exiting cron.");
-        return Ok(())
-    }
-    eprintln!("starting synchronize cron");
+export async function the_loop_(): Promise<never> {
+    console.log("starting synchronize cron");
 
-    let cfg_and_lu = CfgAndLU { cfg: &cfg, user: LoggedUser::TrustedAdmin };
+    let remote_to_next_time: Map<string, number> = new Map()
 
-    let mut remote_to_next_time: BTreeMap<String, DateTime<Utc>> = btreemap![];
-
-    loop {
-        let ldp = &mut LdapW::open(&cfg.ldap, &LoggedUser::TrustedAdmin).await?;
-        let remote_to_sgroup_ids = cache::get_remote_to_sgroup_ids(ldp, &all_caches.remote_to_sgroup_ids).await?;
-        let now = Utc::now();
-        for (remote_name, remote_cfg) in cfg.remotes.iter() {
-            let next_time = remote_to_next_time.get(dbg!(remote_name)).unwrap_or(&now);
-            if next_time <= &now {
-                if let Some(sgroup_ids) = remote_to_sgroup_ids.get(remote_name) {
-                    eprintln!("synchronizing {:?}", sgroup_ids);
-                    let todo = sgroup_ids.iter().map(|id| (id.to_owned(), Mright::Member)).collect();
-                    may_update_flattened_mrights_rec(&cfg_and_lu, ldp, todo).await?;
+    while (true) {
+        const remote_to_sgroup_ids = await cache.get_remote_to_sgroup_ids()
+        const now = Date.now();
+        for (const [remote_name, remote_cfg] of Object.entries(conf.remotes)) {
+            if (!remote_cfg) continue
+            const next_time = remote_to_next_time.get(remote_name) || now
+            if (+next_time <= +now) {
+                const sgroup_ids = remote_to_sgroup_ids[remote_name]
+                if (sgroup_ids) {
+                    console.log("synchronizing {:?}", sgroup_ids);
+                    const todo = [...sgroup_ids].map(id => ({ id, mright: 'member' as Mright }))
+                    await may_update_flattened_mrights_rec({ TrustedAdmin: true }, todo)
                 }
                 // compute the next time it should run
-                let next_time = systemd_calendar_events::next_elapse(&remote_cfg.periodicity)?;
-                remote_to_next_time.insert(remote_name.to_owned(), next_time.with_timezone(&Utc));
+                let next_time = await systemd_calendar_events.next_elapse(remote_cfg.periodicity)
+                remote_to_next_time.set(remote_name, +next_time)
             }
         }
-        let earlier_next_time = remote_to_next_time.values().min().ok_or(MyErr::Msg("internal error".to_owned()))?;
-        if let Ok(time_to_sleep) = (*earlier_next_time - Utc::now()).to_std() {
-            eprintln!("sleeping {:?}", time_to_sleep);
-            thread::sleep(time_to_sleep);  
+        let earlier_next_time = Math.min(...remote_to_next_time.values()) || throw_("internal error")
+        const time_to_sleep = earlier_next_time - Date.now()
+        if (time_to_sleep > 0) {
+            console.log("sleeping", time_to_sleep);
+            await setTimeoutPromise(time_to_sleep)
         } else {
-            eprintln!("next remote became ready during computation of other remotes")
+            console.log("next remote became ready during computation of other remotes")
         }
     }
 }
-
-*/
