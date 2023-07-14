@@ -21,6 +21,7 @@ export async function user_has_right_on_at_least_one_sgroups(user_dn: Dn, ids: s
         user_has_right_on_sgroup_filter(user_dn, right),
     );
     
+    //console.log('\x1b[33m  user_has_right_on_at_least_one_sgroups\x1b[0m', right, filter)
     return await ldp.one_group_matches_filter(filter)
 }
 

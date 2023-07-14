@@ -154,8 +154,14 @@ enum UpResult { Modified, Unchanged }
 async function may_update_flattened_mrights__(id: string, mright: Mright, to_add: MySet<Dn>, to_remove: MySet<Dn>): Promise<UpResult> {
     const attr = to_flattened_attr(mright);
     const mods: ldapjs.Change[] = [];
-    if (!_.isEmpty(to_add)) mods.push(new ldapjs.Change({ operation: 'add', modification: { [attr]: to_add } }))
-    if (!_.isEmpty(to_remove)) mods.push(new ldapjs.Change({ operation: 'delete', modification: { [attr]: to_remove } }))
+    if (!_.isEmpty(to_add)) {
+        //console.log("will add", attr, to_add)
+        mods.push(new ldapjs.Change({ operation: 'add', modification: { [attr]: to_add } }))
+    }
+    if (!_.isEmpty(to_remove)) {
+        //console.log("will remove", attr, to_add)
+        mods.push(new ldapjs.Change({ operation: 'delete', modification: { [attr]: to_remove } }))
+    }
     if (_.isEmpty(mods)) {
         return UpResult.Unchanged
     }
