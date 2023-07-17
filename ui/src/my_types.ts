@@ -95,9 +95,13 @@ export interface SubjectsAndCount_with_more {
 
 export interface SubjectSourceConfig {
     dn : Dn
+    /** displayed in search subject results + displayed to choose subject for SQL remotes queries */
     name : string
+    /** Vue.js template using "attrs.xxx" values (where "xxx" is an attribute name which must be listed in "display_attrs" below) */
     vue_template? : string
+    /** attributes used in vue_template.  */
     display_attrs : string[]
+    /** attributes which can be used to identify a user. Used to guess "to_subject_source" of remote SQL query results */
     id_attrs?: string[]
 }
 
