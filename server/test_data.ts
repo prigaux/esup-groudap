@@ -10,6 +10,7 @@ import ldap_filter from './ldap_filter'
 import { people_id_to_dn, sgroup_id_to_dn } from './dn'
 import { LdapRawValue } from './ldap_helpers';
 import { LoggedUser, MonoAttrs, Option, Right, SgroupAndMoreOut, Subjects, toDn } from './my_types'
+import { guess_subject_source } from './remote_query';
 
 
 async function ldap_add_ou_branch(ou: string, description: string) {
@@ -82,6 +83,11 @@ export async function add() {
     const aanli_dn = people_id_to_dn("aanli")
     const prigaux_subject: Subjects = { [prigaux_dn]: { 
         attrs: {displayName: "Pascal Rigaux", uid: "prigaux"},
+        options: {},
+        sgroup_id: undefined,
+    } }
+    const aanli_subject: Subjects = { [aanli_dn]: { 
+        attrs: {displayName: "Aymar Anli", uid: "aanli"},
         options: {},
         sgroup_id: undefined,
     } }
@@ -189,6 +195,17 @@ export async function add() {
         ou: "Collab Foo",
         description: "Collaboration Admins Foo\nGroupe Ticket machin",
     };
+    const collab_foo_subject = {
+        'cn=collab.foo,ou=groups,dc=nodomain': {
+          attrs: {
+            cn: 'collab.foo',
+            ...collab_foo_attrs,
+          },
+          options: {},
+          sgroup_id: 'collab.foo'
+        }
+    }
+    
     await api_post.create(user_prigaux, "collab.foo", collab_foo_attrs)
     await api_post.modify_members_or_rights(user_prigaux, "collab.foo", {
         admin: { add: { [sgroup_id_to_dn("collab.DSIUN")]: {} } },
@@ -270,7 +287,17 @@ export async function add() {
     }, undefined)
     assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), [prigaux_dn, aanli_dn]);
     assert.deepEqual(await ldpSgroup.read_direct_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), {});
-}
+
+    assert.deepEqual(await guess_subject_source(['prigaux', 'foo', 'aanli']), [
+      { ssdn: 'ou=people,dc=nodomain', id_attr: 'uid' },
+      { ...aanli_subject, ...prigaux_subject }
+    ])
+    assert.deepEqual(await guess_subject_source(['collab.foo']), [
+      { ssdn: 'ou=groups,dc=nodomain', id_attr: 'cn' },
+      collab_foo_subject
+    ])
+    assert.deepEqual(await guess_subject_source([sgroup_id_to_dn("collab.foo"), prigaux_dn]), undefined)
+  }
 
 export async function set() {
     await clear()
