@@ -121,8 +121,7 @@ export function sql_query(remote: RemoteSqlQuery) {
     return raw_query(remote_cfg, remote_cfg.db_name, remote.select_query)
 }
 
-export async function sql_values_to_dns(remote: RemoteSqlQuery, sql_values: string[]): Promise<DnsOpts> {
-    const to_ss = remote.to_subject_source
+export async function sql_values_to_dns(to_ss: Option<ToSubjectSource>, sql_values: string[]): Promise<DnsOpts> {
     if (to_ss) {
         return await sql_values_to_dns_(to_ss.ssdn, to_ss.id_attr, sql_values)
     } else {

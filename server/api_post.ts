@@ -187,7 +187,7 @@ async function get_flattened_dns(direct_dns: MySet<Dn>): Promise<MySet<Dn>> {
 async function remote_sql_query_to_dns(_logged_user: LoggedUser, remote: RemoteSqlQuery): Promise<DnsOpts> {
     const sql_values = await sql_query(remote)
     // TODO: api_log.log_sgroup_action(logged_user, id, "remote_sql_query")
-    return await sql_values_to_dns(remote, sql_values)
+    return await sql_values_to_dns(remote.to_subject_source, sql_values)
 }
 
 async function remote_query_to_dns(logged_user: LoggedUser, rqs: string) {
