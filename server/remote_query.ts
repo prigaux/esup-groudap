@@ -14,6 +14,7 @@ import conf from "./conf";
 import ldap_filter from "./ldap_filter";
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
 import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteSqlConfig, remoteSqlDrivers, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
+import { exact_dn_to_subject_source_cfg } from "./dn";
 
 const driver_query: Record<string, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<string[]>> = {
     mysql: async (remote, db_name, select_query) => {
@@ -47,11 +48,13 @@ async function raw_query(remote: RemoteSqlConfig, db_name: string, select_query:
     return await f(remote, db_name, select_query)
 }
 
-async function sql_values_to_dns_(ssdn: Dn, id_attr: string, sql_values: string[]) {
+async function sql_values_to_dns_(ssdn: Dn, id_attrs: string[], sql_values: string[]) {
     const r: DnsOpts = {};
     for (const sql_values_ of _.chunk(sql_values, 10)) {
         const filter = ldap_filter.or(
-            sql_values_.map(val => ldap_filter.eq(id_attr, val))
+            sql_values_.flatMap(val => 
+                id_attrs.map(id_attr => ldap_filter.eq(id_attr, val))
+            )
         );
         for (const e of await ldp.searchRaw(ssdn, filter, [""], {})) {
             r[toDn(e.dn)] = {}
@@ -63,7 +66,7 @@ async function sql_values_to_dns_(ssdn: Dn, id_attr: string, sql_values: string[
 const hToSubjectSource = {
     /** NB: syntax inspired by "o=Example?uid" in Apache HTTPD AuthLDAPURL */
     toString: (tss: ToSubjectSource) => (
-        `${tss.ssdn}?${tss.id_attr}`
+        `${tss.ssdn}?${tss.id_attr || '*'}`
     ),
 }
 
@@ -93,7 +96,7 @@ const optional_param = (param_name: string, s: string): [Option<string>, string]
  */
 function parse_to_subject_source(s: string): ToSubjectSource {
     const [ssdn, id_attr] = before_and_after(s, '?') ?? throw_("expected ou=xxx,dc=xxx?uid, got " + s)
-    return { ssdn: toDn(ssdn), id_attr }
+    return { ssdn: toDn(ssdn), id_attr: id_attr === '*' ? undefined : id_attr }
 }
 
 export const parse_sql_url = (url: string): Option<RemoteSqlQuery> => (
@@ -121,9 +124,15 @@ export function sql_query(remote: RemoteSqlQuery) {
     return raw_query(remote_cfg, remote_cfg.db_name, remote.select_query)
 }
 
+const to_ss_to_id_attrs = (to_ss: ToSubjectSource) => {
+    const sscfg = exact_dn_to_subject_source_cfg(to_ss.ssdn) || throw_(`invalid remote query: no id_attr and ${to_ss.ssdn} is not listed in conf.ldap.subject_sources`)
+    return sscfg.id_attrs || throw_("no id_attrs for " + sscfg.name + " but needed for remote query on DN " + to_ss.ssdn)
+}
+
 export async function sql_values_to_dns(to_ss: Option<ToSubjectSource>, sql_values: string[]): Promise<DnsOpts> {
     if (to_ss) {
-        return await sql_values_to_dns_(to_ss.ssdn, to_ss.id_attr, sql_values)
+        const id_attrs = to_ss.id_attr ? [to_ss.id_attr] : to_ss_to_id_attrs(to_ss)
+        return await sql_values_to_dns_(to_ss.ssdn, id_attrs, sql_values)
     } else {
         // the SQL query must return DNs
         return _.fromPairs(sql_values.map(dn => [dn, {}]))
@@ -138,7 +147,7 @@ export async function guess_subject_source(values: string[]) {
     let best: Option<[number, [DnsOpts, Dn, string]]>;
     for (const sscfg of conf.ldap.subject_sources) {
         for (const id_attr of sscfg.id_attrs ?? []) {
-            const dns = await sql_values_to_dns_(toDn(sscfg.dn), id_attr, values)
+            const dns = await sql_values_to_dns_(toDn(sscfg.dn), [id_attr], values)
             const nb_dns = _.size(dns)
             if (nb_dns > (best?.[0] ?? 0)) {
                 best = [nb_dns, [dns, toDn(sscfg.dn), id_attr]];

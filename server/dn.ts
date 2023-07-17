@@ -30,6 +30,10 @@ export const dn_to_subject_source_cfg = (dn: Dn) => (
     conf.ldap.subject_sources.find(sscfg => dn.endsWith(sscfg.dn))
 ) 
 
+export const exact_dn_to_subject_source_cfg = (dn: Dn) => (
+    conf.ldap.subject_sources.find(sscfg => dn === sscfg.dn)
+) 
+
 export const dn_to_rdn_and_parent_dn = (dn: Dn): [string, Dn] | undefined => (
     before_and_after(dn, ",")?.oMap(([rdn, parent_dn]) => [rdn, toDn(parent_dn)])
 )

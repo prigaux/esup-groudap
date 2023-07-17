@@ -10,7 +10,7 @@ import ldap_filter from './ldap_filter'
 import { people_id_to_dn, sgroup_id_to_dn } from './dn'
 import { LdapRawValue } from './ldap_helpers';
 import { LoggedUser, MonoAttrs, Option, Right, SgroupAndMoreOut, Subjects, toDn } from './my_types'
-import { guess_subject_source } from './remote_query';
+import { guess_subject_source, sql_values_to_dns } from './remote_query';
 
 
 async function ldap_add_ou_branch(ou: string, description: string) {
@@ -77,6 +77,7 @@ export async function add() {
         displayName: "Aymar Anli",
         sn: "Anli",
         supannEntiteAffectation: "DGHA",
+        mail: "Aymar.Anli@univ-paris1.fr",
     })
 
     const prigaux_dn = people_id_to_dn("prigaux")
@@ -87,7 +88,7 @@ export async function add() {
         sgroup_id: undefined,
     } }
     const aanli_subject: Subjects = { [aanli_dn]: { 
-        attrs: {displayName: "Aymar Anli", uid: "aanli"},
+        attrs: { displayName: "Aymar Anli", uid: "aanli", mail: "Aymar.Anli@univ-paris1.fr" },
         options: {},
         sgroup_id: undefined,
     } }
@@ -297,6 +298,13 @@ export async function add() {
       collab_foo_subject
     ])
     assert.deepEqual(await guess_subject_source([sgroup_id_to_dn("collab.foo"), prigaux_dn]), undefined)
+
+    assert.deepEqual(
+        await sql_values_to_dns({ ssdn: toDn('ou=people,dc=nodomain'), id_attr: 'uid' }, ["prigaux", "Aymar.Anli@univ-paris1.fr"]), 
+        { [prigaux_dn]: {} })
+    assert.deepEqual(
+        await sql_values_to_dns({ ssdn: toDn('ou=people,dc=nodomain') }, ["prigaux", "Aymar.Anli@univ-paris1.fr"]), 
+        { [prigaux_dn]: {}, [aanli_dn]: {} })
   }
 
 export async function set() {

@@ -310,8 +310,8 @@ export type LoggedUserDn = { TrustedAdmin: true } | { User: Dn }
 export interface ToSubjectSource {
     /** branch DN to search (eg: ou=people,...). If must be listed in conf.ldap.subject_sources */
     ssdn: Dn,
-    /** attribute to use to find values */
-    id_attr: string,
+    /** attribute to use to find values. If not given, all sscfg.id_attrs will be searched */
+    id_attr?: string,
 }
 
 export interface RemoteLdapQuery {
