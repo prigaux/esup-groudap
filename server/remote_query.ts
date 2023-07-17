@@ -132,6 +132,10 @@ export async function sql_values_to_dns(remote: RemoteSqlQuery, sql_values: stri
 }
 
 export async function guess_subject_source(values: string[]) {
+    if (values.every(value => value.endsWith(conf.ldap.base_dn))) {
+        // all valeurs are DNs, no subject_source needed
+        return undefined
+    }
     let best: Option<[number, [DnsOpts, Dn, string]]>;
     for (const sscfg of conf.ldap.subject_sources) {
         for (const id_attr of sscfg.id_attrs ?? []) {
