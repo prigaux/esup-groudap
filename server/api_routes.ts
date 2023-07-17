@@ -119,6 +119,9 @@ api.get("/search_subjects", handleJsonP(async (req) => {
 
 api.get("/config/public", handleJson(() => ({ "cas_prefix_url": conf.cas.prefix_url })))
 api.get("/config/ldap", handleJson(() => hLdapConfig.to_js_ui(conf.ldap)))
-api.get("/config/remotes", handleJson(() => _.mapValues(conf.remotes, hRemoteConfig.export)))
+api.get("/config/remotes", handleJson(() => ({ 
+    remotes: _.mapValues(conf.remotes, hRemoteConfig.export),
+    additional_periodicities: conf.additional_periodicities
+})))
 
 export default api

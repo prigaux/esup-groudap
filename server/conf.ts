@@ -128,5 +128,13 @@ const conf: Config = {
             db_name: "foo",
         },
     },
+    additional_periodicities: [
+        "toutes les 5 minutes",
+        'toutes les heures',
+        'tous les jours',
+        'tous les jours à 6h30',
+        'tous les jours à 22h27',
+    ],
+    remote_forced_periodicity_attr: 'groupaldOptions;x-forced-periodicity',
 };
 export default conf

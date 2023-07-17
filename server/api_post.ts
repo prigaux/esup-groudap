@@ -135,7 +135,7 @@ async function check_and_simplify_mods(is_stem: boolean, id: string, my_mods: My
     return r
 }
 
-type IdMright = { id: string, mright: Mright }
+export type IdMright = { id: string, mright: Mright }
 
 // Search for groups having this group DN in their member/supannGroupeLecteurDN/supannAdminDN/owner
 async function search_groups_mrights_depending_on_this_group(id: string) {
@@ -313,13 +313,20 @@ export async function modify_remote_query(logged_user: LoggedUser, id: string, r
     validate_sgroup_id(id)
 
     let remote_string: Option<string>
+    let forced_periodicity: Option<string>
     if ("remote_cfg_name" in remote) {
         validate_remote(remote)    
         remote_string = isRqSql(remote) ? to_sql_url(remote) : to_ldap_url(remote)
+        ;({ forced_periodicity } = remote)
     }
-    await ldapP.modify(sgroup_id_to_dn(id),
-        new ldapjs.Change({ operation: 'replace', modification: { [hMright.attr_synchronized]: remote_string } }),
-    )
+    await ldapP.modify(sgroup_id_to_dn(id), [
+        new ldapjs.Change({ operation: 'replace', modification: { 
+            [hMright.attr_synchronized]: remote_string
+        } }),
+        new ldapjs.Change({ operation: 'replace', modification: { 
+            [conf.remote_forced_periodicity_attr]: forced_periodicity
+        } }),
+    ])
 
     await api_log.log_sgroup_action(logged_user, id, "modify_remote_sql_query", msg, remote)
 

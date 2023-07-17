@@ -193,6 +193,8 @@ export interface Config {
     //#[serde(deserialize_with = "ldap_config_checker")] 
     ldap: LdapConfig,
     remotes: MyMap<string, RemoteConfig>,
+    additional_periodicities: Periodicity[]
+    remote_forced_periodicity_attr: string
 }
 
 /** member or right */
@@ -314,6 +316,7 @@ export interface ToSubjectSource {
 export interface RemoteLdapQuery {
     /** empty string means the LDAP server used for groups&subjects */
     remote_cfg_name: string
+    forced_periodicity?: Periodicity
     /** LDAP branch to search (defaults to conf.ldap.base_dn if remote_cfg_name is "") */
     DN?: string
     /** LDAP filter on the branch */
@@ -323,6 +326,7 @@ export interface RemoteLdapQuery {
 }
 export interface RemoteSqlQuery {
     remote_cfg_name: string, 
+    forced_periodicity?: Periodicity
     /** query which returns either a DN or a string to transform into DN using ToSubjectSource */
     select_query: string, 
     /** how to transform values into a DN */

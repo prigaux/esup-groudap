@@ -63,7 +63,9 @@ const props = defineProps<{
 }>()
 defineEmits(['save'])
 
-const remotes = asyncComputed(() => api.config_remotes())
+const remotes_and = asyncComputed(() => api.config_remotes())
+const remotes = computed(() => remotes_and.value?.remotes)
+const additional_periodicities = computed(() => remotes_and.value?.additional_periodicities)
 const ldapCfg = asyncComputed(api.config_ldap)
 
 const remote = computed(() => remotes.value?.[props.remote_query.remote_cfg_name])
@@ -132,10 +134,18 @@ const test_remote_query = async () => {
                   <span class="key">hôte:</span> {{remote.host}}
                   <span class="key">db:</span> {{remote.db_name}}
                 </template>
-                &nbsp;
-                <span class="key">periodicité:</span> {{remote.periodicity}}
             </small>
         </div>
+    </label>
+
+    <label>
+        <span class="label">Périodicité</span>
+        <select v-model="remote_query.periodicity">
+            <option value="">{{remote.periodicity}} (valeur par défaut)</option>    
+            <template v-for="periodicity in additional_periodicities">
+                <option :value="periodicity" v-if="periodicity !== remote.periodicity">{{periodicity}}</option>
+            </template>
+        </select>
     </label>
 
     <label v-if="remote_query.isSql !== undefined">

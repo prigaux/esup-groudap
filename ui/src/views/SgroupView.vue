@@ -208,6 +208,7 @@ const transform_group_into_SynchronizedGroup = () => {
     sgroup.value.synchronizedGroup = { remote_query: {
         isSql: undefined,
         remote_cfg_name: '',
+        periodicity: '',
 
         // LPAP
         DN: '',

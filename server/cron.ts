@@ -1,9 +1,9 @@
 import _ from "lodash";
 import * as cache from './cache'
-import { next_elapse } from "./periodicity";
-import { Mright } from "./my_types";
-import { may_update_flattened_mrights_rec } from "./api_post";
+import { Periodicity, next_elapse } from "./periodicity";
+import { IdMright, may_update_flattened_mrights_rec } from "./api_post";
 import { setTimeoutPromise, throw_ } from "./helpers";
+import { hMyMap } from "./my_types";
 import conf from "./conf";
 
 export async function the_loop() {
@@ -18,30 +18,30 @@ export async function the_loop() {
     }
 }
 
+// @ts-expect-error
+const date_min = (...dates: Date[]) => Math.min(...dates)
+
 export async function the_loop_(): Promise<never> {
     console.log("starting synchronize cron");
 
-    let remote_to_next_time: Map<string, number> = new Map()
+    let periodicity_to_next_time: Map<Periodicity, Date> = new Map()
 
     while (true) {
-        const remote_to_sgroup_ids = await cache.get_remote_to_sgroup_ids()
+        const periodicity_to_sgroup_ids = await cache.get_periodicity_to_sgroup_ids()
         const now = Date.now();
-        for (const [remote_name, remote_cfg] of Object.entries(conf.remotes)) {
-            if (!remote_cfg) continue
-            const next_time = remote_to_next_time.get(remote_name) || now
+        hMyMap.eachAsync(periodicity_to_sgroup_ids, async (sgroup_ids, periodicity) => {
+            const next_time = periodicity_to_next_time.get(periodicity) || now
             if (+next_time <= +now) {
-                const sgroup_ids = remote_to_sgroup_ids[remote_name]
-                if (sgroup_ids) {
-                    console.log("synchronizing {:?}", sgroup_ids);
-                    const todo = [...sgroup_ids].map(id => ({ id, mright: 'member' as Mright }))
-                    await may_update_flattened_mrights_rec({ TrustedAdmin: true }, todo)
-                }
+                console.log("synchronizing {:?}", sgroup_ids);
+                const todo: IdMright[] = [...sgroup_ids].map(id => ({ id, mright: 'member' }))
+                await may_update_flattened_mrights_rec({ TrustedAdmin: true }, todo)
+
                 // compute the next time it should run
-                let next_time = await next_elapse(remote_cfg.periodicity)
-                remote_to_next_time.set(remote_name, +next_time)
+                let next_time = next_elapse(periodicity)
+                periodicity_to_next_time.set(periodicity, next_time)
             }
-        }
-        let earlier_next_time = Math.min(...remote_to_next_time.values()) || throw_("internal error")
+        })
+        let earlier_next_time = date_min(...periodicity_to_next_time.values()) || throw_("internal error")
         const time_to_sleep = earlier_next_time - Date.now()
         if (time_to_sleep > 0) {
             console.log("sleeping", time_to_sleep);

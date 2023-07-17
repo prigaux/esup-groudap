@@ -122,6 +122,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
         hMright.attr_synchronized,
         ...to_allowed_flattened_attrs('reader'),
         ...hMyMap.keys(conf.ldap.sgroup_attrs),
+        conf.remote_forced_periodicity_attr,
     ]
     const entry = await ldpSgroup.read_sgroup(id, wanted_attrs)
     if (!entry) { throw `sgroup ${id} does not exist` }
@@ -146,6 +147,10 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     } else {
         if (remote_query_s) {
             const remote_query = parse_remote_query(remote_query_s)
+
+            const forced_periodicity = mattrs[conf.remote_forced_periodicity_attr]?.at(0)
+            if (forced_periodicity) Object.assign(remote_query, { forced_periodicity })
+
             console.log({ remote_query })
             more = { synchronizedGroup: { remote_query } }
         } else { 

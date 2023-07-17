@@ -118,7 +118,7 @@ export const mygroups = () : Promise<SgroupsWithAttrs> => (
 export const config_ldap = () : Promise<LdapConfigOut> => (
     api_get("config/ldap", {}, { memoize: true })
 )
-export const config_remotes = () : Promise<Record<string, RemoteConfig>> => (
+export const config_remotes = () : Promise<{ remotes: Record<string, RemoteConfig>, additional_periodicities: string[] }> => (
     api_get("config/remotes", {}, { memoize: true })
 )
 
@@ -162,12 +162,14 @@ export const convert = {
     remote_query: {
         from_api(remote: RemoteQuery) {
             remote.to_subject_source ??= { ssdn: '', id_attr: '' }
+            remote.periodicity = remote.forced_periodicity ?? ''
         },
         to_api(remote: RemoteQuery): Partial<RemoteQuery> {
             const has_subject_source = remote.to_subject_source.ssdn && remote.to_subject_source.id_attr
+            remote.forced_periodicity = remote.periodicity === '' ? undefined : remote.periodicity
             return remote.isSql ? 
-                pick(remote, 'remote_cfg_name', 'select_query', ...(has_subject_source ? ['to_subject_source'] : [])) :
-                pick(remote, 'remote_cfg_name', 'filter', 'DN', 'attribute')
+                pick(remote, 'remote_cfg_name', 'forced_periodicity', 'select_query', ...(has_subject_source ? ['to_subject_source'] : [])) :
+                pick(remote, 'remote_cfg_name', 'forced_periodicity', 'filter', 'DN', 'attribute')
         },
     },
 }

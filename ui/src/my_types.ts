@@ -78,6 +78,8 @@ export interface RemoteLdapQuery {
 export type RemoteQuery = { 
     isSql: Option<boolean>
     remote_cfg_name: string
+    forced_periodicity?: string
+    periodicity: string
 } & RemoteSqlQuery & RemoteLdapQuery
 
 export interface SgroupOutMore {
