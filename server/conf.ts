@@ -108,21 +108,21 @@ const conf: Config = {
     },
     remotes: {
         main_ldap: {
-            periodicity: "12:00",
+            periodicity: "tous les jours à 6h00",
             driver: "ldap",
             connect: main_ldap_connect,
             search_branch: "dc=nodomain",
         },
 
         g2t: {
-            periodicity: "12:00",
+            periodicity: "tous les jours",
             driver: "mysql",
             host: "apogee.univ.fr", /*port: 3306,*/ user: "user", password: "xxx",
             db_name: "g2t",
         },
         
         foo: {
-            periodicity: "hourly",
+            periodicity: "toutes les heures",
             driver: "mysql",
             host: "localhost", user: "groupald", password: "xxx",
             db_name: "foo",

@@ -1,8 +1,7 @@
 import _ from 'lodash'
 import { SessionOptions } from 'express-session';
 import { Options as SessionFileStoreOptions } from 'session-file-store';
-
-import * as systemd_calendar_events from "./systemd_calendar_events"
+import { Periodicity } from './periodicity';
 
 
 export type Option<T> = T | undefined
@@ -82,17 +81,6 @@ export type MySet<T> = T[]
 
 export const default_separator = "."
 export const default_root_id = ""
-
-export async function remotes_periodicity_checker(remotes : MyMap<string, RemoteConfig>) {
-    const next_elapses = await systemd_calendar_events.next_elapses(
-            _.uniq(hMyMap.values(remotes).map(cfg => cfg.periodicity))
-    )
-    hMyMap.each(remotes, (cfg, remote_id) => {
-        if (!next_elapses.get(cfg.periodicity)) {
-            throw `expected a valid periodicity for remote ${remote_id}. Hint: validate it with ''systemd-analyze calendar ....''`;
-        }
-    })
-}
 
 export const ldap_config_checker = (cfg : LdapConfig) => {   
     if (!sgroup_sscfg_raw(cfg)) {
@@ -183,8 +171,7 @@ export interface RemoteLdapConfig {
     search_branch?: FlavorDn
 }
 export type RemoteConfig = {
-    /* checked by "remotes_periodicity_checker" */
-    periodicity: string
+    periodicity: Periodicity
 } & (RemoteLdapConfig | RemoteSqlConfig)
 
 /** helpers to work on RemoteConfig */
@@ -205,7 +192,6 @@ export interface Config {
     },
     //#[serde(deserialize_with = "ldap_config_checker")] 
     ldap: LdapConfig,
-    //#[serde(deserialize_with = "remotes_periodicity_checker")] 
     remotes: MyMap<string, RemoteConfig>,
 }
 

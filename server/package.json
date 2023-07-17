@@ -7,7 +7,7 @@
     "build": "esbuild --sourcemap --outdir=dist --bundle --platform=node --target=node10.4 main.ts",
     "start": "node -r source-map-support/register dist/main.js",
     "start:w": "tsx watch main.ts",
-    "test": "jest",
+    "test": "TZ=Etc/GMT-3 jest",
     "test:w": "npm run test -- --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",
     "typecheck:w": "npm run typecheck -- --watch"

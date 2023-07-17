@@ -1,6 +1,6 @@
 import _ from "lodash";
 import * as cache from './cache'
-import * as systemd_calendar_events from "./systemd_calendar_events"
+import { next_elapse } from "./periodicity";
 import { Mright } from "./my_types";
 import { may_update_flattened_mrights_rec } from "./api_post";
 import { setTimeoutPromise, throw_ } from "./helpers";
@@ -37,7 +37,7 @@ export async function the_loop_(): Promise<never> {
                     await may_update_flattened_mrights_rec({ TrustedAdmin: true }, todo)
                 }
                 // compute the next time it should run
-                let next_time = await systemd_calendar_events.next_elapse(remote_cfg.periodicity)
+                let next_time = await next_elapse(remote_cfg.periodicity)
                 remote_to_next_time.set(remote_name, +next_time)
             }
         }

@@ -133,3 +133,9 @@ export const promisify_method = (o: any, method: string) => (
 export const setTimeoutPromise = (time: number) => (
     new Promise((resolve, _) => setTimeout(resolve, time))
 )
+
+export function addSeconds(date: Date | string, seconds: number) {
+    let r = new Date(date);
+    r.setTime(r.getTime() + seconds * 1000);
+    return r;
+}
