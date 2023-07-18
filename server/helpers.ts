@@ -139,3 +139,5 @@ export function addSeconds(date: Date | string, seconds: number) {
     r.setTime(r.getTime() + seconds * 1000);
     return r;
 }
+
+export const is = <T>(v: T) => v
