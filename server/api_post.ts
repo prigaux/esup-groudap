@@ -173,6 +173,7 @@ async function may_update_flattened_mrights__(id: string, mright: Mright, to_add
     }
 }
 
+/** add the group members */
 async function get_flattened_dns(direct_dns: MySet<Dn>): Promise<MySet<Dn>> {
     const r = [...direct_dns]
     for (const dn of direct_dns) {
