@@ -2,11 +2,11 @@ import * as fs from 'fs'
 import { promisify } from 'util'
 
 import conf from './conf'
-import { hLoggedUser, LoggedUser, Option } from './my_types';
+import { Dn, hLoggedUser, LoggedUser, Mright, Option } from './my_types';
 
-function sgroup_log_file(log_dir: string, id: string): string {
+function sgroup_log_file(log_dir: string, id: string, opts?: { sync: true }): string {
     id = id.replace('/', "_"); // it should not be necessary but...
-    return `${log_dir}/${id}.jsonl`
+    return `${log_dir}/${id}${opts?.sync ? '-sync': ''}.jsonl`
 }
 
 function blank_partial_line(b: Buffer) {
@@ -74,6 +74,17 @@ export async function log_sgroup_action(user: LoggedUser, id: string, action: ac
     }
 }
 
-// TODO log group sync date  errs
+/**
+ * Add a log entry
+ * @param id - group identifier
+ */
+export async function log_sgroup_flattened_modifications(id: string, mright: Mright, data: { new_count: number, added: Dn[], removed: Dn[] }) {
+    if (conf.log_dir) {
+        const when = new Date()
+        await audit(
+            sgroup_log_file(conf.log_dir, id, { sync: true }),
+            JSON.stringify({ when, mright, ...data }))
+    }
+}
 
 export const export_for_tests = { parse_jsonl, blank_partial_line }

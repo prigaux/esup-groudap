@@ -217,7 +217,9 @@ async function may_update_flattened_mrights_(id: string, mright: Mright, group_d
     const current_flattened_dns = await ldp.read_flattened_mright_raw(group_dn, mright)
     const to_add = _.difference(flattened_dns, current_flattened_dns);
     const to_remove = _.difference(current_flattened_dns, flattened_dns);
-    return await may_update_flattened_mrights__(id, mright, (to_add), (to_remove))
+    const result = await may_update_flattened_mrights__(id, mright, (to_add), (to_remove))
+    api_log.log_sgroup_flattened_modifications(id, mright, { new_count: flattened_dns.length, added: to_add, removed: to_remove })
+    return result
 }
 
 // read group direct URLs
