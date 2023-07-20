@@ -34,7 +34,7 @@ export async function the_loop_(): Promise<never> {
             if (+next_time <= +now) {
                 console.log("synchronizing {:?}", sgroup_ids);
                 const todo: IdMright[] = [...sgroup_ids].map(id => ({ id, mright: 'member' }))
-                await may_update_flattened_mrights_rec({ TrustedAdmin: true }, todo)
+                await may_update_flattened_mrights_rec(todo)
 
                 // compute the next time it should run
                 let next_time = next_elapse(periodicity)

@@ -184,17 +184,16 @@ async function get_flattened_dns(direct_dns: MySet<Dn>): Promise<MySet<Dn>> {
     return r
 }
 
-async function remote_sql_query_to_dns(_logged_user: LoggedUser, remote: RemoteSqlQuery): Promise<DnsOpts> {
+async function remote_sql_query_to_dns(remote: RemoteSqlQuery): Promise<DnsOpts> {
     const sql_values = await sql_query(remote)
-    // TODO: api_log.log_sgroup_action(logged_user, id, "remote_sql_query")
     return await sql_values_to_dns(remote.to_subject_source, sql_values)
 }
 
-async function remote_query_to_dns(logged_user: LoggedUser, rqs: string) {
+async function remote_query_to_dns(rqs: string) {
     const rq = parse_remote_query(rqs)
     if (rq) {
         if (isRqSql(rq)) {
-            return await remote_sql_query_to_dns(logged_user, rq)
+            return await remote_sql_query_to_dns(rq)
         } else {
             console.log("remote_ldap_query", rq, rq)
             return await ldap_query(rq)
@@ -203,11 +202,11 @@ async function remote_query_to_dns(logged_user: LoggedUser, rqs: string) {
     throw `invalid remote query ${rqs}`
 }
 
-async function urls_to_dns_handling_remote(logged_user: LoggedUser, group_dn: Dn, mright: Mright): Promise<DnsOpts> {
+async function urls_to_dns_handling_remote(group_dn: Dn, mright: Mright): Promise<DnsOpts> {
     if (mright === 'member') {
         const rq = await ldp.read_one_mono_attr__or_err(group_dn, hMright.attr_synchronized)
         if (rq) {
-            return await remote_query_to_dns(logged_user, rq)
+            return await remote_query_to_dns(rq)
         }
     }
     const urls = await ldp.read_one_multi_attr__or_err(group_dn, hMright.to_attr(mright))
@@ -228,19 +227,20 @@ async function may_update_flattened_mrights_(id: string, mright: Mright, group_d
 // read group direct URLs
 // diff with group flattened DNs
 // if (needed, update group flattened DNs
-async function may_update_flattened_mrights(logged_user: LoggedUser, id: string, mright: Mright): Promise<UpResult> {
+async function may_update_flattened_mrights(id: string, mright: Mright): Promise<UpResult> {
     console.log("  may_update_flattened_mrights(%s, %s)", id, mright);
     const group_dn = sgroup_id_to_dn(id);
 
-    const direct_dns = await urls_to_dns_handling_remote(logged_user, group_dn, mright)        
+    const direct_dns = await urls_to_dns_handling_remote(group_dn, mright)
     return await may_update_flattened_mrights_(id, mright, group_dn, hMyMap.keys(direct_dns))
 }
 
-export async function may_update_flattened_mrights_rec(logged_user: LoggedUser, todo: IdMright[]) {
+
+export async function may_update_flattened_mrights_rec(todo: IdMright[]) {
     for (;;) {
         const one = todo.shift()
         if (!one) return
-        const result = await may_update_flattened_mrights(logged_user, one.id, one.mright)
+        const result = await may_update_flattened_mrights(one.id, one.mright)
         if (one.mright === 'member' && result === UpResult.Modified) {
             todo.push(...await search_groups_mrights_depending_on_this_group(one.id))
         } 
@@ -298,7 +298,7 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
     
     // then update flattened groups mrights
     const todo_flattened = hMyMap.mapToArray(my_mods_, (_, mright) => ({id, mright}))
-    await may_update_flattened_mrights_rec(logged_user, todo_flattened)
+    await may_update_flattened_mrights_rec(todo_flattened)
 
 }
 
@@ -331,7 +331,7 @@ export async function modify_remote_query(logged_user: LoggedUser, id: string, r
     await api_log.log_sgroup_action(logged_user, id, "modify_remote_sql_query", msg, remote)
 
     const todo: IdMright[] = [{id, mright: 'member'}];
-    await may_update_flattened_mrights_rec(logged_user, todo)
+    await may_update_flattened_mrights_rec(todo)
 
     // needed for new sync group or if "remote_cfg_name" was modified  
     cache.clear_all();
@@ -343,6 +343,6 @@ export async function sync(logged_user: LoggedUser, id: string, mrights: Mright[
     await check_right_on_self_or_any_parents(logged_user, id, 'updater')
     
     const todo: IdMright[] = mrights.map(mright => ({id, mright}))
-    await may_update_flattened_mrights_rec(logged_user, todo)
+    await may_update_flattened_mrights_rec(todo)
 }
 
