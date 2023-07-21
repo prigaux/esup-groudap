@@ -318,7 +318,7 @@ export async function search_sgroups(logged_user: LoggedUser, right: Right, sear
 }
 
 /** return `(|(cn=a.*)(cn=b.bb.*))` if logged_user has right on `a.` and `b.bb.` */
-async function user_right_filter(logged_user: { User: string }, right: Right) {
+export async function user_right_filter(logged_user: { User: string }, right: Right) {
     const user_dn = people_id_to_dn(logged_user.User)
     // from direct rights
     // example: (|(supannGroupeLecteurDN=uid=prigaux,...)(supannGroupeLecteurDN=uid=owner,...))

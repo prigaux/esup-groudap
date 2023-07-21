@@ -11,7 +11,7 @@ import ldap_filter from "./ldap_filter";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteQuery, RemoteSqlQuery, Right, toDn, isRqSql } from "./my_types";
 import { hashmap_difference, internal_error } from "./helpers";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
-import { parse_remote_query, validate_remote } from "./api_get";
+import { parse_remote_query, user_right_filter, validate_remote } from "./api_get";
 import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
 import { check_right_on_any_parents, check_right_on_self_or_any_parents } from "./ldap_check_rights";
 import { is_stem, validate_sgroup_id } from "./stem_helpers";
@@ -270,6 +270,20 @@ async function may_check_member_ttl(id: string, my_mods: MyMods) {
     }    
 }
 
+async function check_read_right_on_group_subjects(logged_user: LoggedUser, my_mods: MyMods) {
+    if ('TrustedAdmin' in logged_user) return
+    
+    const dns = hMyMap.values(my_mods).flatMap(hMyMap.values).flatMap(hMyMap.keys).filter(dn_is_sgroup)
+    if (_.isEmpty(dns)) return
+    
+    const right_filter = await user_right_filter(logged_user, 'reader')
+    for (const dn of dns) {
+        if (!await ldp.is_dn_matching_filter(dn, right_filter)) {
+            throw "not allowed"
+        }
+    }
+}
+
 /**
  * Modify the group/stem members or rights
  * @param id - group/stem identifier
@@ -283,6 +297,7 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
     await check_right_on_self_or_any_parents(logged_user, id, my_mods_to_right(my_mods))
     // are the modifications valid?
     await may_check_member_ttl(id, my_mods)
+    await check_read_right_on_group_subjects(logged_user, my_mods)
     const my_mods_ = await check_and_simplify_mods(is_stem(id), id, my_mods)
     if (_.isEmpty(my_mods_)) {
         // it happens when a "Replace" has been simplified into 0 Add/Delete
