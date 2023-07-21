@@ -9,7 +9,7 @@ import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
-import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery } from "./my_types"
+import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery, SubjectSourceConfig } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./ldap_check_rights"
 import { hSubjectSourceConfig } from "./ldap_subject"
@@ -274,20 +274,30 @@ async function get_all_stems_id_with_user_right(user_dn: Dn, right: Right): Prom
     return stems_id
 }
 
-export async function search_sgroups(logged_user: LoggedUser, right: Right, search_token: string, sizeLimit: number): Promise<SgroupsWithAttrs> {
-    console.log("search_sgroups(%s, %s)", search_token, right);
-
+function terms_search_filters(sscfg: SubjectSourceConfig, search_token: string) {
     const search_tokens = search_token.split(/\s+/)
     let term_filters = [
-        hSubjectSourceConfig.search_filter_(hLdapConfig.sgroup_sscfg(conf.ldap), search_token)
+        hSubjectSourceConfig.search_filter_(sscfg, search_token)
     ]
     if (search_tokens.length > 1) {
         term_filters.push(
             ldap_filter.and(search_tokens.map(token => 
-                hSubjectSourceConfig.search_filter_(hLdapConfig.sgroup_sscfg(conf.ldap), token)
+                hSubjectSourceConfig.search_filter_(sscfg, token)
             ))
         )
     }
+    return term_filters
+}
+
+/**
+ * search groups marching search_token, for which the {@link logged_user} has the requested {@link right}
+ * if search_token contains multiple words, first search the whole term, then search on each words in various group 
+fields
+ */
+export async function search_sgroups(logged_user: LoggedUser, right: Right, search_token: string, sizeLimit: number): Promise<SgroupsWithAttrs> {
+    console.log("search_sgroups(%s, %s)", search_token, right);
+
+    let term_filters = terms_search_filters(hLdapConfig.sgroup_sscfg(conf.ldap), search_token)
 
     let group_filters: string[]
     if ('TrustedAdmin' in logged_user) {
