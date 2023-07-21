@@ -97,6 +97,7 @@ export interface StemConfig {
 export interface SubjectSourceConfig {
     dn : FlavorDn,
     name : string,
+    /** default template is "display first non empty `display_attrs` value" */
     vue_template ?: string,
     vue_template_if_ambiguous ?: string,    
     display_attrs : string[],

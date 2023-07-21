@@ -251,8 +251,10 @@ function to_sgroup_attrs(id: string, attrs: ldapjs.SearchEntryObject): MonoAttrs
     return attrs_
 }
 
-// returns groups user has DIRECT right update|admin
-// (inherited rights via stems are not taken into account)
+/**
+ * groups for which the {@link logged_user} has DIRECT update|admin right
+ * (inherited rights via stems are not taken into account)
+ */
 export async function mygroups(logged_user: LoggedUser) {
     console.log("mygroups()");
     if ('TrustedAdmin' in logged_user) {
@@ -338,6 +340,12 @@ async function user_right_filter(logged_user: { User: string }, right: Right) {
     ])
 }
 
+/**
+ * Read log entries
+ * @param id - sgroup identifier
+ * @param bytes - maximum number of bytes to read
+ * @returns log entries
+ */
 export async function get_sgroup_logs(logged_user: LoggedUser, id: string, bytes: number) {
     console.log("get_sgroup_logs({}, %s)", id, bytes);   
     validate_sgroup_id(id)
