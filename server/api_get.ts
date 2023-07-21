@@ -208,7 +208,6 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
  * Search subjects
  * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
  * @param source_dn - restrict the search to this specific subject source
- * @returns 
  */
 export async function search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
     console.log("search_subjects({}, %s)", search_token, source_dn);
