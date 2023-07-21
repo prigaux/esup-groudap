@@ -300,20 +300,15 @@ export async function search_sgroups(logged_user: LoggedUser, right: Right, sear
 
     let term_filters = terms_search_filters(hLdapConfig.sgroup_sscfg(conf.ldap), search_token)
 
-    let group_filters: string[]
-    if ('TrustedAdmin' in logged_user) {
-        group_filters = term_filters
-    } else {
-        const right_filter = await user_right_filter(logged_user, right)
-        group_filters = term_filters.map(term_filter => 
+    const right_filter = 'TrustedAdmin' in logged_user ? undefined : await user_right_filter(logged_user, right)
+    const group_filters = term_filters.map(term_filter => 
             ldap_filter.and(_.compact([
                 right_filter, 
                 term_filter,
                 conf.ldap.sgroup_filter,
             ]))
-        )
-        console.log(group_filters)
-    }
+    )
+    console.log(group_filters)
     return await search_sgroups_with_attrs(group_filters, (sizeLimit))
 }
 
