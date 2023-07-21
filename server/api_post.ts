@@ -117,10 +117,6 @@ async function may_transform_replace_into_AddDelete(id: string, mright: Mright, 
 
 // Check validity of modifications
 // - stems do not allow members
-// - "sql://xxx?..." URLs are only allowed:
-//   - as members (not updaters/admins/...)
-//   - only one URL is accepted for simplicity in web interface + similar restriction as in Internet2 Grouper)
-//   - modification must be a Replace (checking mods is simpler that way)
 async function check_and_simplify_mods(is_stem: boolean, id: string, my_mods: MyMods): Promise<MyMods> {
     const r: MyMods = {}
     await hMyMap.eachAsync(my_mods, async (submods, mright) => {
