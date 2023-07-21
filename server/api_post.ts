@@ -101,7 +101,7 @@ function from_submods(submods: MyMap<MyMod, DnsOpts>): [DnsOpts, DnsOpts, Option
     ]
 }
 
-async function check_and_simplify_mods_(id: string, mright: Mright, submods: MyMap<MyMod, DnsOpts>): Promise<MyMap<MyMod, DnsOpts>> {
+async function may_transform_replace_into_AddDelete(id: string, mright: Mright, submods: MyMap<MyMod, DnsOpts>): Promise<MyMap<MyMod, DnsOpts>> {
     const [add, delete_, replace] = from_submods(submods);
 
     if (replace && _.size(replace) > 4) {
@@ -127,7 +127,7 @@ async function check_and_simplify_mods(is_stem: boolean, id: string, my_mods: My
         if (mright === 'member' && is_stem) {
             throw "members are not allowed for stems"
         }
-        const submods_ = await check_and_simplify_mods_(id, mright, submods)
+        const submods_ = await may_transform_replace_into_AddDelete(id, mright, submods)
         if (!_.isEmpty(submods_)) {
             r[mright] = submods_
         }
