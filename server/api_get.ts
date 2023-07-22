@@ -209,12 +209,15 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
  * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
  * @param source_dn - restrict the search to this specific subject source
  */
-export async function search_subjects(_logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
+export async function search_subjects(logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
     console.log("search_subjects({}, %s)", search_token, source_dn);
     const r: MyMap<Dn, Subjects> = {}
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
-            const filter = ldpSubject.hSubjectSourceConfig.search_filter_(sscfg, search_token);
+            let filter = ldpSubject.hSubjectSourceConfig.search_filter_(sscfg, search_token);
+            if (sscfg.dn === conf.ldap.groups_dn && !('TrustedAdmin' in logged_user)) {
+                filter = ldap_filter.and2(filter, await user_right_filter(logged_user, 'reader'))
+            }
             r[toDn(sscfg.dn)] = await ldpSubject.search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
         }
     }
