@@ -374,7 +374,7 @@ const transform_SynchronizedGroup_into_group = async () => {
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
                 Recherchez un utilisateur/groupe/...<br>
-                <p><SearchSubjectToAdd v-slot="{ dn, close }">
+                <p><SearchSubjectToAdd :group_to_avoid="id" v-slot="{ dn, close }">
                     <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
                 </SearchSubjectToAdd></p>
             </p>

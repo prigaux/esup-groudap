@@ -93,8 +93,8 @@ export const search_sgroups = (search_params: { right: Right, search_token: stri
     let search_params_ = { ...search_params, sizelimit: "" + search_params.sizelimit }
     return api_get("search_sgroups", search_params_, {})
 }
-export const search_subjects = (search_params: { search_token: string, sizelimit: number, source_dn?: Dn }) : Promise<PRecord<Dn, Subjects>> => {
-    let search_params_ = { ...search_params, sizelimit: "" + search_params.sizelimit }
+export const search_subjects = (search_params: { search_token: string, sizelimit: number, source_dn?: Dn, group_to_avoid?: string }) : Promise<PRecord<Dn, Subjects>> => {
+    let search_params_ = { ...pickBy(search_params, val => val), sizelimit: "" + search_params.sizelimit }
     return api_get("search_subjects", search_params_, {})
 }
 export const group_flattened_mright = (search_params: { id: string, mright: Mright, sizelimit: number, search_token: string }) : Promise<SubjectsAndCount> => {

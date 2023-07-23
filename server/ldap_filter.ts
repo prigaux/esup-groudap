@@ -31,7 +31,7 @@ export default {
     ),
 
         
-    _not: (filter: string) => (
+    not: (filter: string) => (
         `(!${filter})`
     ),
             

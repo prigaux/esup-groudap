@@ -209,14 +209,18 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
  * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
  * @param source_dn - restrict the search to this specific subject source
  */
-export async function search_subjects(logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>) {
+export async function search_subjects(logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>, group_to_avoid?: string) {
     console.log("search_subjects({}, %s)", search_token, source_dn);
     const r: MyMap<Dn, Subjects> = {}
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
             let filter = ldpSubject.hSubjectSourceConfig.search_filter_(sscfg, search_token);
             if (sscfg.dn === conf.ldap.groups_dn && !('TrustedAdmin' in logged_user)) {
-                filter = ldap_filter.and2(filter, await user_right_filter(logged_user, 'reader'))
+                filter = ldap_filter.and([
+                    filter, 
+                    await user_right_filter(logged_user, 'reader'),
+                    ...(group_to_avoid ? avoid_group_and_groups_including_it__filter(group_to_avoid).ands : []),
+                ])
             }
             r[toDn(sscfg.dn)] = await ldpSubject.search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
         }
@@ -314,6 +318,14 @@ export async function search_sgroups(logged_user: LoggedUser, right: Right, sear
     console.log(group_filters)
     return await search_sgroups_with_attrs(group_filters, (sizeLimit))
 }
+
+/** if group "A" has group member "B", searching for group subjects to add as member of "B" must exclude "B" and "A"
+ * The result is something like: `(& (!(cn=B)) (!(member=cn=B,ou=groups,dc=nodomain)) )`
+*/
+export const avoid_group_and_groups_including_it__filter = (id: string) => ({ ands: [
+    ldap_filter.not(ldap_filter.eq('cn', id)),
+    ldap_filter.not(ldap_filter.member(sgroup_id_to_dn(id))),
+] })
 
 /** return `(|(cn=a.*)(cn=b.bb.*))` if logged_user has right on `a.` and `b.bb.` */
 export async function user_right_filter(logged_user: { User: string }, right: Right) {
