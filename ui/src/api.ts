@@ -107,10 +107,11 @@ export const sgroup_direct_rights = (id: string) : Promise<PRecord<Right, Subjec
 export const sgroup = (id: string) : Promise<SgroupAndMoreOut> => (
     api_get("sgroup", { id }, {})
 )
-export const sgroup_logs = async (id: string, bytes: number) : Promise<SgroupLog[]> => {
-    const l = await api_get("sgroup_logs", { id, bytes: ""+bytes }, {})
+export const sgroup_logs = async (id: string, bytes: number) : Promise<{ whole_file: boolean, logs: SgroupLog[] }> => {
+    const r = await api_get("sgroup_logs", { id, bytes: ""+bytes }, {})
     // @ts-expect-error
-    return l.map(({ when, ...o }) => ({ when: new Date(when), ...o }))
+    r.logs.forEach(log => log.when = new Date(log.when))
+    return r
 }
 export const mygroups = () : Promise<SgroupsWithAttrs> => (
     api_get("mygroups", {}, {})

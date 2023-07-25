@@ -26,7 +26,7 @@ async function read_full_lines(file_path: string, bytes: number) {
 
     if (!whole_file) blank_partial_line(buffer)
 
-    return buffer
+    return { whole_file, buffer }
 }
 
 function parse_jsonl(jsonl: string) {
@@ -36,9 +36,17 @@ function parse_jsonl(jsonl: string) {
 }
 
 async function read_jsonl(file_path: string, bytes: number) {
-    const jsonl = await read_full_lines(file_path, bytes)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return parse_jsonl(jsonl.toString())
+    try {
+        const { whole_file, buffer } = await read_full_lines(file_path, bytes)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return { whole_file, logs: parse_jsonl(buffer.toString()) }
+    } catch (err) {
+        // @ts-expect-error
+        if (err?.code === 'ENOENT') {
+            return { whole_file: true, logs: [] }
+        }
+        throw err
+    }
 }
 
 async function audit(file: string, msg: string) {

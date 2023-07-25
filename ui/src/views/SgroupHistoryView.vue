@@ -14,9 +14,7 @@ const props = defineProps<{
 
 let bytes = ref(5000)
 
-const history = asyncComputed(async () => {
-    return api.sgroup_logs(props.id, bytes.value)
-})
+const history = asyncComputed(() => api.sgroup_logs(props.id, bytes.value))
 
 const formatDate = (date: Date) => helpers.formatDate(date, 'dd/MM/yyyy à HH:mm')
 </script>
@@ -29,13 +27,13 @@ const formatDate = (date: Date) => helpers.formatDate(date, 'dd/MM/yyyy à HH:mm
        <th>Action</th>
        <th>Params</th>
     </tr>
-    <tr v-for="{ when, who, action, ...o } in history">
+    <tr v-for="{ when, who, action, ...o } in history?.logs">
         <td>{{formatDate(when)}}</td>
         <td>{{who}}</td>
         <td>{{action}}</td>
         <td>{{o}}</td>
     </tr>
 </table>
-<button @click="bytes *= 2">Voir plus</button>
+<button v-if="!history?.whole_file" @click="bytes *= 2">Voir plus</button>
 </template>
 
