@@ -358,13 +358,18 @@ const transform_SynchronizedGroup_into_group = async () => {
                 :rights="rights"
                 :can_modify="sgroup.right == 'admin'" @remove="remove_direct_mright" />
         </div>
-        <ul v-else-if="sgroup.stem">
+
+        <div v-else-if="sgroup.stem">
+            <p></p>
             <div v-if="isEmpty(sgroup.stem.children)"> <i>Vide</i> </div>
-            <li v-for="(attrs, id) in sgroup.stem.children">
-                <MyIcon name="folder" class="on-the-left" />
-                <SgroupLink :sgroup="{ attrs }" :id="id" />
-            </li>
-        </ul>
+            <ul v-else>
+                <li v-for="(attrs, id) in sgroup.stem.children">
+                    <MyIcon name="folder" class="on-the-left" />
+                    <SgroupLink :sgroup="{ attrs }" :id="id" />
+                </li>
+            </ul>
+        </div>
+
         <div v-else-if="sgroup.group || sgroup.synchronizedGroup">
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
