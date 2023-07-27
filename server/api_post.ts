@@ -210,7 +210,8 @@ async function urls_to_dns_handling_remote(group_dn: Dn, mright: Mright): Promis
 }
 
 async function may_update_flattened_mrights_(id: string, mright: Mright, group_dn: Dn, direct_dns: MySet<Dn>) {
-    const flattened_dns = await get_flattened_dns(direct_dns)
+    const flattened_dns = _.uniq(await get_flattened_dns(direct_dns))
+    const new_count = flattened_dns.length
     if (_.isEmpty(flattened_dns) && mright === 'member') {
         flattened_dns.push(toDn(""));
     }
@@ -218,7 +219,8 @@ async function may_update_flattened_mrights_(id: string, mright: Mright, group_d
     const to_add = _.difference(flattened_dns, current_flattened_dns);
     const to_remove = _.difference(current_flattened_dns, flattened_dns);
     const result = await may_update_flattened_mrights__(id, mright, (to_add), (to_remove))
-    api_log.log_sgroup_flattened_modifications(id, mright, { new_count: flattened_dns.length, added: to_add, removed: to_remove })
+    // ignoring "" values (which are only there to please LDAP server)
+    api_log.log_sgroup_flattened_modifications(id, mright, { new_count, added: _.compact(to_add), removed: _.compact(to_remove) })
     return result
 }
 
