@@ -78,6 +78,9 @@ export const modify_members_or_rights = (id: string, mods: MyMods) => (
 export const modify_remote_query = (id: string, remote: Option<RemoteQuery>) => (
     api_post("modify_remote_query", { id }, remote && convert.remote_query.to_api(remote))
 )
+export const sync = (id: string, mright?: Mright) => (
+    api_post("sync", { id, ...(mright ? { mright } : {}) }, {})
+)
 
 export const delete_sgroup = (id: string) => (
     api_post('delete', { id }, {})

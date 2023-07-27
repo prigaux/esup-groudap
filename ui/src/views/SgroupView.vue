@@ -225,6 +225,10 @@ const transform_SynchronizedGroup_into_group = async () => {
         sgroup.update()
     }
 }
+const sync = async () => {
+    await api.sync(props.id, 'member')
+    sgroup.update()
+}
 
 </script>
 
@@ -405,6 +409,9 @@ const transform_SynchronizedGroup_into_group = async () => {
             <button>Historique</button>
         </RouterLink></li>
 
+        <li v-if="sgroup.synchronizedGroup && ['updater', 'admin'].includes(sgroup.right)">
+            <button @click="sync">Synchroniser maintenant</button>
+        </li>
         <li v-if="sgroup.synchronizedGroup && sgroup.right === 'admin'">
             <button @click="transform_SynchronizedGroup_into_group">Ne plus synchroniser ce groupe</button>
         </li>
