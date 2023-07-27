@@ -355,13 +355,13 @@ export async function user_right_filter(logged_user: { User: string }, right: Ri
  * @param bytes - maximum number of bytes to read
  * @returns log entries
  */
-export async function get_sgroup_logs(logged_user: LoggedUser, id: string, bytes: number) {
-    console.log("get_sgroup_logs(%s, %s)", id, bytes);   
+export async function get_sgroup_logs(logged_user: LoggedUser, id: string, bytes: number, opts?: { sync: true }) {
+    console.log("get_sgroup_logs(%s, %s, %s)", id, bytes, opts)
     validate_sgroup_id(id)
 
     await check_right_on_self_or_any_parents(logged_user, id, 'admin');
 
-    return await api_log.get_sgroup_logs(id, bytes)
+    return await api_log.get_sgroup_logs(id, bytes, opts)
 }
 
 export function validate_remote(remote: RemoteQuery) {

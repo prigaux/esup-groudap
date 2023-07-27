@@ -70,6 +70,7 @@ export const query_opt_params = <T extends QueryParamsGetters>(req: express.Requ
 )
 export const q = {
     int: (val: string) => (parseInt(val)),
+    boolean: (val: string) => val === 'true',
     string: (val: string) => val,
     right: (val: string) => hRight.list().includes(val as any) ? val as Right : throw_("invalid right"),
     mright: (val: string) => hMright.list().includes(val as any) ? val as Mright : throw_("invalid mright"),

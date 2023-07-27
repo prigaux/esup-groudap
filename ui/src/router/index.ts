@@ -28,7 +28,7 @@ const router = createRouter({
       path: '/sgroup_history',
       name: 'sgroup_history',
       component: SgroupHistoryView,
-      props: route => ({ id: route.query.id }),
+      props: route => ({ id: route.query.id, show_sync: route.query.show_sync === 'true' }),
     },
     // must be kept in sync with isJsUiRoute in Rust code
   ]

@@ -59,10 +59,10 @@ async function audit(file: string, msg: string) {
  * @param bytes - maximum number of bytes to read
  * @returns log entries
  */
-export async function get_sgroup_logs(id: string, bytes: number) {
+export async function get_sgroup_logs(id: string, bytes: number, opts?: { sync: true }) {
     if (!conf.log_dir) throw `you must configure conf.log_dir first`
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return await read_jsonl(sgroup_log_file(conf.log_dir, id), bytes)
+    return await read_jsonl(sgroup_log_file(conf.log_dir, id, opts), bytes)
 }
 
 export type action = 'create' | 'modify_attrs' | 'delete' | 'modify_members_or_rights' | 'modify_remote_query'
