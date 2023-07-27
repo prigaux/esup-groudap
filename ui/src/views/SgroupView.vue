@@ -217,7 +217,7 @@ const transform_group_into_SynchronizedGroup = () => {
         // SQL
         select_query: '',
         to_subject_source: { ssdn: '', id_attr: '' },
-    } }
+    }, last_sync_date: undefined }
 }
 const transform_SynchronizedGroup_into_group = async () => {
     if (confirm("Le groupe sera vide. Ok ?")) {
@@ -381,6 +381,7 @@ const transform_SynchronizedGroup_into_group = async () => {
             <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.synchronizedGroup">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"
+                :last_sync_date="sgroup.synchronizedGroup?.last_sync_date"
                 @remove="(dn, opts) => remove_direct_mright(dn, 'member', opts)" />
         </div>
     </fieldset>

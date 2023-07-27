@@ -24,9 +24,12 @@ defineProps<{
         limited: boolean,
         may_have_indirects: boolean
     } | undefined
+    last_sync_date?: Date
 }>()
 
 const formatDate = (date: Date | string) => helpers.formatDate(helpers.addSeconds(date, -60), 'dd/MM/yyyy')
+const formatDateTime = (date: Date) => helpers.formatDate(date, 'dd/MM/yyyy à HH:mm')
+
 
 </script>
 
@@ -35,6 +38,7 @@ const formatDate = (date: Date | string) => helpers.formatDate(helpers.addSecond
 <div v-else>
     <p>
         Nombre de membres {{flat.show ? ' indirects' : details.may_have_indirects ? ' directs' : ''}} : {{results.count}}
+        <i v-if="last_sync_date">(dernière synchro le {{ formatDateTime(last_sync_date) }})</i>
     </p>
 
     <div v-if="flat.show && results.count > 4">

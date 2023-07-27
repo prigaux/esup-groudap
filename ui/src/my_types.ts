@@ -85,7 +85,7 @@ export type RemoteQuery = {
 export interface SgroupOutMore {
     stem?: { children: SgroupsWithAttrs }
     group?: { direct_members: Subjects }
-    synchronizedGroup?: { remote_query: RemoteQuery }
+    synchronizedGroup?: { remote_query: RemoteQuery, last_sync_date: Option<Date> }
 
     // internal
     synchronized_group_orig?: { remote_query: RemoteQuery }

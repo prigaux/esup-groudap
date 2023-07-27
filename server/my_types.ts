@@ -288,7 +288,7 @@ export interface SgroupOutAndRight {
 export type SgroupOutMore = 
     { stem: { children: SgroupsWithAttrs } } |
     { group: { direct_members: Subjects } } |
-    { synchronizedGroup: { remote_query: RemoteQuery } }
+    { synchronizedGroup: { remote_query: RemoteQuery, last_sync_date: Option<Date> } }
 
 /** group/stem attributes + parents + loggedUser right on this group/stem + stem children or group direct_members or sync group definition */
 export type SgroupAndMoreOut = SgroupOutMore & {

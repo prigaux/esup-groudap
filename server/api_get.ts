@@ -152,7 +152,8 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
             if (forced_periodicity) Object.assign(remote_query, { forced_periodicity })
 
             console.log({ remote_query })
-            more = { synchronizedGroup: { remote_query } }
+            const { last_log_date } = await api_log.get_sgroup_logs(id, 0, { sync: true })
+            more = { synchronizedGroup: { remote_query, last_sync_date: last_log_date } }
         } else { 
             const direct_members = await ldpSubject.get_subjects_from_urls(direct_members_)
             more = { group: { direct_members } }

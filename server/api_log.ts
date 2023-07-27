@@ -19,14 +19,16 @@ function blank_partial_line(b: Buffer) {
 async function read_full_lines(file_path: string, bytes: number) {
     const f = await promisify(fs.open)(file_path, 'r')
     const stat = await promisify(fs.fstat)(f)
+    const last_log_date = stat.mtime
     const whole_file = bytes > stat.size
 
     const buffer = Buffer.alloc(Math.min(bytes, stat.size))
-    await promisify(fs.read)(f, whole_file ? { buffer } : { buffer, length: bytes, position: stat.size - bytes })
+    if (bytes) {
+        await promisify(fs.read)(f, whole_file ? { buffer } : { buffer, length: bytes, position: stat.size - bytes })
+        if (!whole_file) blank_partial_line(buffer)
+    }
 
-    if (!whole_file) blank_partial_line(buffer)
-
-    return { whole_file, buffer }
+    return { last_log_date, whole_file, buffer }
 }
 
 function parse_jsonl(jsonl: string) {
@@ -37,13 +39,13 @@ function parse_jsonl(jsonl: string) {
 
 async function read_jsonl(file_path: string, bytes: number) {
     try {
-        const { whole_file, buffer } = await read_full_lines(file_path, bytes)
+        const { buffer, ...o } = await read_full_lines(file_path, bytes)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return { whole_file, logs: parse_jsonl(buffer.toString()) }
+        return { logs: parse_jsonl(buffer.toString()), ...o }
     } catch (err) {
         // @ts-expect-error
         if (err?.code === 'ENOENT') {
-            return { whole_file: true, logs: [] }
+            return { last_log_date: undefined, whole_file: true, logs: [] }
         }
         throw err
     }
