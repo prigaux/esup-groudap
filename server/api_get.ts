@@ -210,7 +210,7 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
  * @param source_dn - restrict the search to this specific subject source
  */
 export async function search_subjects(logged_user: LoggedUser, search_token: string, sizeLimit: number, source_dn: Option<Dn>, group_to_avoid?: string) {
-    console.log("search_subjects({}, %s)", search_token, source_dn);
+    console.log("search_subjects(%s, %s)", search_token, source_dn);
     const r: MyMap<Dn, Subjects> = {}
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
@@ -356,12 +356,12 @@ export async function user_right_filter(logged_user: { User: string }, right: Ri
  * @returns log entries
  */
 export async function get_sgroup_logs(logged_user: LoggedUser, id: string, bytes: number) {
-    console.log("get_sgroup_logs({}, %s)", id, bytes);   
+    console.log("get_sgroup_logs(%s, %s)", id, bytes);   
     validate_sgroup_id(id)
 
     await check_right_on_self_or_any_parents(logged_user, id, 'admin');
 
-    await api_log.get_sgroup_logs(id, bytes)
+    return await api_log.get_sgroup_logs(id, bytes)
 }
 
 export function validate_remote(remote: RemoteQuery) {

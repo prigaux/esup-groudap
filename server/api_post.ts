@@ -22,7 +22,7 @@ import { ldap_query, to_ldap_url } from './remote_ldap_query';
  * Create the stem/group
  */
 export async function create(logged_user: LoggedUser, id: string, attrs: MonoAttrs) {
-    console.log("create({}, _)", id);
+    console.log("create(%s)", id);
     validate_sgroup_id(id)
     validate_sgroups_attrs(attrs)
     await check_right_on_any_parents(logged_user, id, 'admin')
@@ -45,7 +45,7 @@ async function remove_non_modified_attrs(id: string, attrs: MonoAttrs): Promise<
  * Modify the group/stem attributes (description, ou...)
  */
 export async function modify_sgroup_attrs(logged_user: LoggedUser, id: string, attrs: MonoAttrs) {
-    console.log("modify_attrs({}, _)", id);
+    console.log("modify_attrs(_)", id);
     validate_sgroup_id(id)
     validate_sgroups_attrs(attrs)
     

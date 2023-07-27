@@ -11,7 +11,9 @@ function sgroup_log_file(log_dir: string, id: string, opts?: { sync: true }): st
 
 function blank_partial_line(b: Buffer) {
     const [lf, space] = ["\n", " "].map(s => s.charCodeAt(0))
-    for (let i = 0; b[i] !== lf; i++) b[i] = space
+    let i
+    for (i = 0; b[i] !== lf; i++) b[i] = space
+    b[i] = space
 }
 
 async function read_full_lines(file_path: string, bytes: number) {
@@ -19,7 +21,7 @@ async function read_full_lines(file_path: string, bytes: number) {
     const stat = await promisify(fs.fstat)(f)
     const whole_file = bytes > stat.size
 
-    const buffer = Buffer.alloc(bytes)
+    const buffer = Buffer.alloc(Math.min(bytes, stat.size))
     await promisify(fs.read)(f, whole_file ? { buffer } : { buffer, length: bytes, position: stat.size - bytes })
 
     if (!whole_file) blank_partial_line(buffer)
@@ -28,8 +30,9 @@ async function read_full_lines(file_path: string, bytes: number) {
 }
 
 function parse_jsonl(jsonl: string) {
+    const json = '[' + jsonl.trimEnd().replace(/\n/g, ",") + ']'
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return JSON.parse('[' + jsonl.replace("\n", ",") + ']') as any[]
+    return JSON.parse(json) as any[]
 }
 
 async function read_jsonl(file_path: string, bytes: number) {
