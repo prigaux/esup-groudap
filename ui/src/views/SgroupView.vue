@@ -387,11 +387,11 @@ const transform_SynchronizedGroup_into_group = async () => {
 
     <ul class="inline" v-if="sgroup.right === 'admin'">
         <template v-if="sgroup.stem">
-            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id } }">
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: id } }">
                 <button>Créer un groupe</button>
             </RouterLink></li>
 
-            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: props.id, is_stem: 'true' } }">
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: id, is_stem: 'true' } }">
                 <button>Créer un dossier</button>
             </RouterLink></li>
         </template>
@@ -400,7 +400,7 @@ const transform_SynchronizedGroup_into_group = async () => {
             <li><button @click="delete_sgroup">Supprimer le {{sgroup.stem ? 'dossier' : 'groupe'}}</button></li>
         </template>
 
-        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id: props.id } }">
+        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id } }">
             <button>Historique</button>
         </RouterLink></li>
 
