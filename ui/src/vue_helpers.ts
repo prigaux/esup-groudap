@@ -3,13 +3,16 @@ import { computed, ComputedRef, FunctionDirective, reactive, Ref, ref, UnwrapRef
 
 export type URef<T> = Ref<T | undefined>
 
+/**
+ * useful to have a local variable in Vue template: `v-for="v in maySingleton(long_and_complex_expression)"`
+ */
 export const maySingleton = <T>(val: T | undefined): T[] => (
     val ? [val] : []
 )
 
 /**
- * alike asyncComputed, but returns undefined during re-computation
- * (NB: "asyncComputed" type does not show the undefined initial behaviour, where ours do)
+ * alike `asyncComputed`, but returns undefined during re-computation
+ * (NB: `asyncComputed` type does not show the undefined initial behaviour, where ours do)
  */ 
 export const asyncComputed_ = <T>(evaluationCallback: () => Promise<T>): ComputedRef<T | undefined> => {
     let evaluating = ref(false)
@@ -18,8 +21,8 @@ export const asyncComputed_ = <T>(evaluationCallback: () => Promise<T>): Compute
 }
 
 /**
- * alike asyncComputed, but not reactive => to be used with an existing Ref
- * (alternative would be syncRef, but the lifetime is different)
+ * alike `asyncComputed`, but not reactive => to be used with an existing `Ref`
+ * (alternative would be `syncRef`, but the lifetime is different)
  */
 export function setRefAsync<T>(ref: Ref<T>, initialValue: T, asyncValue: Promise<T>) {
     ref.value = initialValue
@@ -28,7 +31,7 @@ export function setRefAsync<T>(ref: Ref<T>, initialValue: T, asyncValue: Promise
 
 /**
  * when `source` is modified, call `cb` once 
- * (alike watchOnce but returns a Promise)
+ * (alike `watchOnce` but returns a `Promise`)
  */
 export const watchOnceP = <T, R>(source: WatchSource<T>, cb: () => R, options?: WatchOptions<boolean>): Promise<R> => (
     new Promise((resolve) => {
