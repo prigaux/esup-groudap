@@ -27,7 +27,8 @@ export function setRefAsync<T>(ref: Ref<T>, initialValue: T, asyncValue: Promise
 }
 
 /**
- * alike watchOnce but return a Promise
+ * when `source` is modified, call `cb` once 
+ * (alike watchOnce but returns a Promise)
  */
 export const watchOnceP = <T, R>(source: WatchSource<T>, cb: () => R, options?: WatchOptions<boolean>): Promise<R> => (
     new Promise((resolve) => {
@@ -35,6 +36,11 @@ export const watchOnceP = <T, R>(source: WatchSource<T>, cb: () => R, options?: 
     })
 )
 
+/**
+ * @param initial_val initial value
+ * @param min_length minimal string length to take into account
+ * @returns `.throttled` is `.real` value, but throttled (and omits changes if .real value is shorter than `min_length`)
+ */
 export function throttled_ref(initial_val: string, min_length?: number) {
     let real = ref(initial_val)
     let throttled = ref(initial_val)
@@ -45,6 +51,9 @@ export function throttled_ref(initial_val: string, min_length?: number) {
     return reactive({ real, throttled })
 }
 
+/**
+ * alike `computed`, but the value can be forced using async `params.update`
+ */
 export function ref_watching<T>(params : { value: () => T, watch?: any, update?: () => Promise<T> }) {
     const r = ref(params.value()) as Ref<UnwrapRef<T>> & { update: () => void }
     watch(params.watch || params.value, () => {
