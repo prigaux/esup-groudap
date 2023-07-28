@@ -21,7 +21,7 @@ export const asyncComputed_ = <T>(evaluationCallback: () => Promise<T>): Compute
  * alike asyncComputed, but not reactive => to be used with an existing Ref
  * (alternative would be syncRef, but the lifetime is different)
  */
-export function setRefAsync<T>(ref: Ref<T>, asyncValue: Promise<T>, initialValue: T) {
+export function setRefAsync<T>(ref: Ref<T>, initialValue: T, asyncValue: Promise<T>) {
     ref.value = initialValue
     asyncValue.then(value => ref.value = value)
 }
