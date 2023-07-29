@@ -68,3 +68,11 @@ export function formatDate(date : Date | string, format : string) : string {
         } 
     }).join('');    
 } 
+
+export function throw_(err: Error | string): never {
+    throw err
+}
+
+export function internal_error(): never {
+    throw new Error("internal error")
+}
