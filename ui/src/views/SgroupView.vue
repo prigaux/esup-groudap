@@ -1,9 +1,9 @@
 <script lang="ts">
 import { cloneDeep, fromPairs, isEmpty, isEqual, last, mapValues, omit, pickBy } from 'lodash'
-import { computed, defineAsyncComponent, defineComponent, ref } from 'vue'
+import { computed, defineAsyncComponent, defineComponent, ref, watch } from 'vue'
 import router from '@/router';
-import { asyncComputed_, ref_watching } from '@/vue_helpers';
-import { forEachAsync, addDays } from '@/helpers';
+import { asyncComputed_, ref_watching, global_abort } from '@/vue_helpers';
+import { forEachAsync, addDays, internal_error } from '@/helpers';
 import { DirectOptions, Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
 import { list_of_rights, right2text } from '@/lib';
 import { mrights_flat_or_not } from '@/composition/SgroupSubjects';
@@ -196,9 +196,15 @@ const delete_sgroup = async () => {
     }
 }
 
+let dialog_elt = ref(undefined as HTMLDialogElement | undefined)
+watch(global_abort, val => {
+    const elt = dialog_elt.value ?? internal_error()
+    val ? elt.showModal() : elt.close()
+})
+
 const send_modify_synchronized_group = async () => {
     if (sgroup.value.synchronizedGroup) {
-        await api.modify_remote_query(props.id, sgroup.value.synchronizedGroup.remote_query);
+        await api.modify_remote_query(props.id, sgroup.value.synchronizedGroup.remote_query, { abort: global_abort });
         sgroup.update()
     }
 }
@@ -224,18 +230,24 @@ const transform_group_into_SynchronizedGroup = () => {
 }
 const transform_SynchronizedGroup_into_group = async () => {
     if (confirm("Le groupe sera vide. Ok ?")) {
-        await api.modify_remote_query(props.id, undefined)
+        await api.modify_remote_query(props.id, undefined, { abort: global_abort })
         sgroup.update()
     }
 }
 const sync = async () => {
-    await api.sync(props.id, 'member')
+    await api.sync(props.id, 'member', { abort: global_abort })
     sgroup.update()
 }
 
 </script>
 
 <template>
+<dialog ref="dialog_elt">
+    Requête en cours...
+    <p>
+        <button @click="global_abort?.()">Abandonner</button>
+    </p>
+</dialog>
 <div>
     <small class="float-right">
         ID : {{props.id}}
@@ -446,6 +458,12 @@ textarea {
 
 thead > h5 {
     display: inline-block;
+}
+dialog {
+    padding: 2rem 2rem 0;
+}
+dialog p {
+    text-align: right;
 }
 .float-right {
     float: right;

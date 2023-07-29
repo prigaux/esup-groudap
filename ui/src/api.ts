@@ -1,6 +1,7 @@
 import { at, pick, pickBy } from "lodash";
 import { forEach, objectSortBy } from "./helpers";
 import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, Option, PRecord, RemoteConfig, RemoteQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more, ToSubjectSource } from "./my_types";
+import { Ref } from "vue";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
 
@@ -47,39 +48,59 @@ function compute_url(api_function: string, search_params: Record<string, string>
 
 let memoized: Record<string, any> = {}
 
-async function api_(api_function: string, search_params: Record<string, string>, request_params: RequestInit, opts: { memoize?: true }) {
+type opts_abort = { abort?: Ref<Option<() => void>> }
+type opts_get = { memoize?: true } & opts_abort
+type opts_post = opts_abort
+
+async function api_(api_function: string, search_params: Record<string, string>, request_params: RequestInit, opts: opts_post & opts_get) {
     const url = compute_url(api_function, search_params);
     if (opts.memoize && memoized[url]) {
         return memoized[url]
     }
-    const json = await handle_response(await fetch(url, request_params));
-    if (opts.memoize) {
-        memoized[url] = json
+    if (opts.abort) {
+        // abort previous request if it is running
+        opts.abort.value?.()
+
+        const controller = new AbortController();
+        opts.abort.value = () => controller.abort()
+        request_params.signal = controller.signal;
     }
-    return json
+    try {
+        const json = await handle_response(await fetch(url, request_params));
+        if (opts.memoize) {
+            memoized[url] = json
+        }
+        return json
+    } finally {
+        // mark the request as finished
+        if (opts.abort) {
+            console.log('mark the request as finished')
+            opts.abort.value = undefined
+        }
+    }
 }
 
 const remove_empty_params = (params: Record<string, string>) => (
     pickBy(params, (v) => v)
 )
 
-const api_get = (api_function: string, search_params: Record<string, string>, opts: { memoize?: true }) => (
+const api_get = (api_function: string, search_params: Record<string, string>, opts: opts_get) => (
     api_(api_function, search_params, {}, opts)
 )
 
-const api_post = (api_function: string, search_params: Record<string, string>, json_body: Option<Record<string, any>>) => {
+const api_post = (api_function: string, search_params: Record<string, string>, json_body: Option<Record<string, any>>, opts?: opts_post) => {
     const body = json_body && JSON.stringify(json_body)
-    return api_(api_function, search_params, { body, method: 'POST' }, {})
+    return api_(api_function, search_params, { body, method: 'POST' }, opts ?? {})
 }
 
 export const modify_members_or_rights = (id: string, mods: MyMods) => (
     api_post("modify_members_or_rights", { id }, mods)
 )
-export const modify_remote_query = (id: string, remote: Option<RemoteQuery>) => (
-    api_post("modify_remote_query", { id }, remote && convert.remote_query.to_api(remote))
+export const modify_remote_query = (id: string, remote: Option<RemoteQuery>, opts: opts_post) => (
+    api_post("modify_remote_query", { id }, remote && convert.remote_query.to_api(remote), opts)
 )
-export const sync = (id: string, mright?: Mright) => (
-    api_post("sync", { id, ...(mright ? { mright } : {}) }, {})
+export const sync = (id: string, mright: Option<Mright>, opts: opts_abort) => (
+    api_post("sync", { id, ...(mright ? { mright } : {}) }, {}, opts)
 )
 
 export const delete_sgroup = (id: string) => (
@@ -137,8 +158,8 @@ export interface TestRemoteQuery {
     values_truncated: boolean,
     ss_guess?: [ToSubjectSource, Subjects],
 }
-export const test_remote_query = (id: string, remote_query: RemoteQuery): Promise<TestRemoteQuery> => (
-    api_get('test_remote_query', { id, remote_query: JSON.stringify(convert.remote_query.to_api(remote_query)) }, {})
+export const test_remote_query = (id: string, remote_query: RemoteQuery, opts: opts_abort): Promise<TestRemoteQuery> => (
+    api_get('test_remote_query', { id, remote_query: JSON.stringify(convert.remote_query.to_api(remote_query)) }, opts)
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {

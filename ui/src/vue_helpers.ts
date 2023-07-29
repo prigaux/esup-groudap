@@ -1,5 +1,6 @@
 import { asyncComputed, debouncedWatch, watchOnce } from "@vueuse/core"
 import { computed, ComputedRef, FunctionDirective, reactive, Ref, ref, UnwrapRef, watch, WatchOptions, WatchSource } from "vue"
+import { Option } from "./my_types"
 
 export type URef<T> = Ref<T | undefined>
 
@@ -92,4 +93,5 @@ export const vClickWithoutMoving : FunctionDirective<HTMLElement, false | (() =>
     })
 }
 
+export let global_abort = ref(undefined as Option<() => void>)
 

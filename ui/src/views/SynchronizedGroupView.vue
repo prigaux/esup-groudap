@@ -55,7 +55,7 @@ const indent_sql_query = (query: string) => {
 
 <script setup lang="ts">
 import { isEmpty, size, trim } from 'lodash'
-import { maySingleton } from '@/vue_helpers'
+import { global_abort, maySingleton } from '@/vue_helpers'
 
 const props = defineProps<{
     id: string,
@@ -103,7 +103,7 @@ const highlighted_select_or_filter = computed(() => (
 
 let last_test_remote_query = ref(undefined as api.TestRemoteQuery | undefined)
 const test_remote_query = async () => {
-    const val = await api.test_remote_query(props.id, props.remote_query)
+    const val = await api.test_remote_query(props.id, props.remote_query, { abort: global_abort })
     if (val.ss_guess && props.remote_query.isSql) {
         props.remote_query.to_subject_source = val.ss_guess[0]
     }
