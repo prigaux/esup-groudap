@@ -205,6 +205,18 @@ export async function get_group_flattened_mright(_logged_user: LoggedUser, id: s
     return { count, subjects }
 }
 
+async function may_restrict_to_allowed_and_wanted_groups(sscfg: SubjectSourceConfig, logged_user: LoggedUser, filter: string, group_to_avoid: string | undefined) {
+    if (sscfg.dn === conf.ldap.groups_dn && !('TrustedAdmin' in logged_user)) {
+        return ldap_filter.and([
+            filter,
+            await user_right_filter(logged_user, 'reader'),
+            ...(group_to_avoid ? avoid_group_and_groups_including_it__filter(group_to_avoid).ands : []),
+        ])
+    } else {
+        return filter
+    }
+}
+
 /**
  * Search subjects
  * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
@@ -216,13 +228,7 @@ export async function search_subjects(logged_user: LoggedUser, search_token: str
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
             let filter = ldpSubject.hSubjectSourceConfig.search_filter_(sscfg, search_token);
-            if (sscfg.dn === conf.ldap.groups_dn && !('TrustedAdmin' in logged_user)) {
-                filter = ldap_filter.and([
-                    filter, 
-                    await user_right_filter(logged_user, 'reader'),
-                    ...(group_to_avoid ? avoid_group_and_groups_including_it__filter(group_to_avoid).ands : []),
-                ])
-            }
+            filter = await may_restrict_to_allowed_and_wanted_groups(sscfg, logged_user, filter, group_to_avoid)
             r[toDn(sscfg.dn)] = await ldpSubject.search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, sizeLimit)
         }
     }
