@@ -9,13 +9,13 @@ import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
-import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery, SubjectSourceConfig } from "./my_types"
+import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery, SubjectSourceConfig, FlavorDn } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./ldap_check_rights"
 import { hSubjectSourceConfig } from "./ldap_subject"
 import { guess_subject_source, parse_sql_url, sql_query } from './remote_query'
 import { ldap_query, parse_ldap_url } from './remote_ldap_query'
-import { throw_ } from './helpers'
+import { internal_error, mapAsync, throw_ } from './helpers'
 
 const user_dn = (logged_user: LoggedUser): LoggedUserDn => (
     'TrustedAdmin' in logged_user ?
@@ -234,6 +234,37 @@ export async function search_subjects(logged_user: LoggedUser, search_token: str
     }
     return r
 }
+
+type id_to_dn = { id: string, dn: Dn, attrs: MonoAttrs, ssdn: FlavorDn } | { id: string, error: "multiple_match" | "no_match" }
+export async function subject_id_to_dn(logged_user: LoggedUser, id: string, source_dn: Option<Dn>): Promise<id_to_dn> {
+    let r: Option<id_to_dn>
+    for (const sscfg of conf.ldap.subject_sources) {
+        if (!source_dn || source_dn === sscfg.dn) {
+            if (!sscfg.id_attrs) continue;
+            let filter = ldap_filter.or(sscfg.id_attrs.map(id_attr => ldap_filter.eq(id_attr, id)))
+            filter = await may_restrict_to_allowed_and_wanted_groups(sscfg, logged_user, filter, undefined)
+            const subjects = await ldpSubject.search_subjects(toDn(sscfg.dn), sscfg.display_attrs, filter, {}, 2)
+            const nb_matches = hMyMap.keys(subjects).length
+            if (nb_matches < 1) {
+                // ignore
+            } else if (nb_matches > 1 || r) {
+                return { id, error: "multiple_match" }
+            } else {
+                const [dn, {attrs}] = hMyMap.firstEntry(subjects) ?? internal_error()
+                r = { id, dn, attrs, ssdn: sscfg.dn }
+            }
+        }
+    }
+    return r ?? { id, error: "no_match" }
+}
+
+/**
+ * Search subjects by ids
+ * @param source_dn - restrict the search to this specific subject source
+ */
+export const subject_ids_to_dns = (logged_user: LoggedUser, ids: string[], source_dn: Option<Dn>) => (
+    mapAsync(ids, id => subject_id_to_dn(logged_user, id, source_dn))
+)
 
 async function search_sgroups_with_attrs(filters: string[], sizeLimit: Option<number>): Promise<SgroupsWithAttrs> {
     const wanted_attrs = hMyMap.keys(conf.ldap.sgroup_attrs);

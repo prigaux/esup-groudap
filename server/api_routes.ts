@@ -117,6 +117,10 @@ api.get("/search_subjects", handleJsonP(async (req) => {
     const { source_dn, group_to_avoid } = query_opt_params(req, { source_dn: q.string, group_to_avoid: q.string })
     return await api_get.search_subjects(logged_user(req), search_token, sizelimit, source_dn?.oMap(toDn), group_to_avoid)
 }))
+api.post("/subject_ids_to_dns", handleJsonP(async (req) => {
+    const { source_dn } = query_opt_params(req, { source_dn: q.string })
+    return await api_get.subject_ids_to_dns(logged_user(req), req.body as string[], source_dn?.oMap(toDn))
+}))
 
 api.get("/config/public", handleJson(() => ({ "cas_prefix_url": conf.cas.prefix_url })))
 api.get("/config/ldap", handleJson(() => hLdapConfig.to_js_ui(conf.ldap)))
