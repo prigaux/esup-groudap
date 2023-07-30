@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, ref } from "vue";
+import { Ref, computed, ref } from "vue";
 import { asyncComputed } from "@vueuse/core";
 import * as api from '@/api'
 
@@ -8,10 +8,10 @@ const default_moreResultsMsg = (limit: number) => (
     `Votre recherche est limitée à ${limit} résultats.<br>Pour les autres résultats veuillez affiner la recherche.`
 )
 
-const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, sizelimit: number, group_to_avoid?: string, source_dn?: string) => {
+const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, sizelimit: number, group_to_avoid: Option<string>, source_dn: Option<string>, abort: Ref<Option<() => void>>) => {
     let search_params = { search_token, sizelimit, source_dn }
     if (group_to_avoid) Object.assign(search_params, { group_to_avoid })
-    const r = await api.search_subjects(search_params)
+    const r = await api.search_subjects(search_params, { abort })
     forEach(r, (subjects, ssdn) => {
         const sscfg = ldapCfg.subject_sources.find(sscfg => sscfg.dn === ssdn);
         if (sscfg) {
@@ -29,7 +29,7 @@ import { every, forEach, objectSortBy, some } from "@/helpers";
 import { vFocus } from '@/vue_helpers';
 import SubjectOrGroup from "./SubjectOrGroup.vue";
 import MyIcon from "./MyIcon.vue";
-import { LdapConfigOut, PRecord, Dn, Subjects } from "@/my_types";
+import { LdapConfigOut, PRecord, Dn, Subjects, Option } from "@/my_types";
 
 let ldapCfg = asyncComputed(api.config_ldap)
 
@@ -54,10 +54,10 @@ let items = ref({} as PRecord<Dn, Subjects>)
 let noResults = ref(false)
 let moreResults = ref(false)
 let current = ref(0)
-let cancel = ref((_?: unknown) => {})
+let abort = ref(undefined as Option<() => void>)
 
 function open() {
-    cancel.value()
+    abort.value?.()
 
     if (!ldapCfg.value) return
 
@@ -68,11 +68,7 @@ function open() {
 
     setTimeout(() => {
         loading.value = true
-        Promise.race([
-            new Promise((resolve) => cancel.value = resolve),
-            search_subjects(ldapCfg.value, query.value, props.limit+1, props.group_to_avoid, props.source_dn),
-        ]).then((data) => {
-            if (!data) return; // canceled
+        search_subjects(ldapCfg.value, query.value, props.limit+1, props.group_to_avoid, props.source_dn, abort).then((data) => {
             setOptions(data as PRecord<Dn, Subjects>)
         })
     }, 500)
@@ -90,7 +86,7 @@ function setOptions(data: PRecord<Dn, Subjects>) {
 
 function stopAndClose() {
     console.log("stopAndClose")
-    cancel.value()
+    abort.value?.()
     items.value = {}
     noResults.value = false
     loading.value = false
