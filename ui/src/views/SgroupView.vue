@@ -38,6 +38,7 @@ export async function computedProps(to: RouteLocationNormalized) {
 import { vFocus, vClickWithoutMoving } from '@/vue_helpers';
 import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
+import SubjectSourceDnChoose from '@/components/SubjectSourceDnChoose.vue';
 import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 import SgroupRightsView from './SgroupRightsView.vue';
@@ -239,6 +240,8 @@ const sync = async () => {
     sgroup.update()
 }
 
+let search_subject_source_dn = ref('')
+
 </script>
 
 <template>
@@ -358,8 +361,8 @@ const sync = async () => {
 
             <button class="float-right" @click="add_right_show = !add_right_show" v-if="can_modify_member">{{add_right_show ? "Fermer l'ajout de droits" : "Ajouter des droits"}}</button>
             <p v-if="add_right_show" style="padding: 1rem; background: #eee">
-                Recherchez un utilisateur/groupe/...<br>
-                <p><SearchSubjectToAdd v-slot="{ dn, close }">
+                Recherchez des <SubjectSourceDnChoose :ldapCfg="ldapCfg" @chosen="val => search_subject_source_dn = val" />
+                <p><SearchSubjectToAdd :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
                     <template v-for="right of list_of_rights">               
                         <button @click.prevent="add_direct_mright(dn, right); close()">{{right2text[right]}}</button>
                         &nbsp;
@@ -392,8 +395,9 @@ const sync = async () => {
         <div v-else-if="sgroup.group || sgroup.synchronizedGroup">
             <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
             <p v-if="add_member_show" style="padding: 1rem; background: #eee">
-                Recherchez un utilisateur/groupe/...<br>
-                <p><SearchSubjectToAdd :group_to_avoid="id" v-slot="{ dn, close }">
+                Recherchez des <SubjectSourceDnChoose :ldapCfg="ldapCfg" @chosen="val => search_subject_source_dn = val" />
+
+                <p><SearchSubjectToAdd :group_to_avoid="id" :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
                     <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
                 </SearchSubjectToAdd></p>
             </p>

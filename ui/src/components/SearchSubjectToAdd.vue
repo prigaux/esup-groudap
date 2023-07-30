@@ -8,8 +8,8 @@ const default_moreResultsMsg = (limit: number) => (
     `Votre recherche est limitée à ${limit} résultats.<br>Pour les autres résultats veuillez affiner la recherche.`
 )
 
-const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, sizelimit: number, group_to_avoid?: string) => {
-    let search_params = { search_token, sizelimit }
+const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, sizelimit: number, group_to_avoid?: string, source_dn?: string) => {
+    let search_params = { search_token, sizelimit, source_dn }
     if (group_to_avoid) Object.assign(search_params, { group_to_avoid })
     const r = await api.search_subjects(search_params)
     forEach(r, (subjects, ssdn) => {
@@ -38,6 +38,7 @@ interface Props {
     limit?: number
     placeholder?: string
     group_to_avoid?: string
+    source_dn?: string
 }
 
 let props = withDefaults(defineProps<Props>(), {
@@ -69,7 +70,7 @@ function open() {
         loading.value = true
         Promise.race([
             new Promise((resolve) => cancel.value = resolve),
-            search_subjects(ldapCfg.value, query.value, props.limit+1, props.group_to_avoid),
+            search_subjects(ldapCfg.value, query.value, props.limit+1, props.group_to_avoid, props.source_dn),
         ]).then((data) => {
             if (!data) return; // canceled
             setOptions(data as PRecord<Dn, Subjects>)
