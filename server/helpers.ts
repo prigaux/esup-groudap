@@ -141,3 +141,11 @@ export function addSeconds(date: Date | string, seconds: number) {
 }
 
 export const is = <T>(v: T) => v
+
+export async function mapAsync<T,U>(array: T[], f: (e: T) => Promise<U>) {
+    let r: U[] = []
+    for await (const e of array) {
+        r.push(await f(e))
+    }
+    return r
+}
