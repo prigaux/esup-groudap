@@ -61,12 +61,11 @@ function open() {
 
     if (!ldapCfg.value) return
 
-    if (props.minChars && (!query.value || query.value.length < props.minChars)) {
-        stopAndClose()
-        return
-    }
-
     setTimeout(() => {
+        if (props.minChars && (!query.value || query.value.length < props.minChars)) {
+            stopAndClose()
+            return
+        }
         loading.value = true
         search_subjects(ldapCfg.value, query.value, props.limit+1, props.group_to_avoid, props.source_dn, abort).then((data) => {
             setOptions(data as PRecord<Dn, Subjects>)
