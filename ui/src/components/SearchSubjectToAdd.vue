@@ -11,7 +11,7 @@ const default_moreResultsMsg = (limit: number) => (
 const search_subjects = async (ldapCfg: LdapConfigOut, search_token: string, sizelimit: number, group_to_avoid: Option<string>, source_dn: Option<string>, abort: Ref<Option<() => void>>) => {
     let search_params = { search_token, sizelimit, source_dn }
     if (group_to_avoid) Object.assign(search_params, { group_to_avoid })
-    const r = await api.search_subjects(search_params, { abort })
+    const r = await api.search_subjects(search_params, { memoize: true, abort })
     forEach(r, (subjects, ssdn) => {
         const sscfg = ldapCfg.subject_sources.find(sscfg => sscfg.dn === ssdn);
         if (sscfg) {
