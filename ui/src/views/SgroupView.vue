@@ -40,6 +40,7 @@ import SgroupLink from '@/components/SgroupLink.vue';
 import MyIcon from '@/components/MyIcon.vue';
 import SubjectSourceDnChoose from '@/components/SubjectSourceDnChoose.vue';
 import SearchSubjectToAdd from '@/components/SearchSubjectToAdd.vue';
+import SearchSubjectsIds from '@/components/SearchSubjectsIds.vue';
 import SgroupSubjects from './SgroupSubjects.vue';
 import SgroupRightsView from './SgroupRightsView.vue';
 import { RouteLocationNormalized } from 'vue-router';
@@ -82,6 +83,7 @@ let can_modify_member = computed(() => (
 )
 
 let add_member_show = ref(false)
+let add_member_ids = ref(false)
 
 async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod, options: DirectOptions = {}) {
     console.log('add_remove_direct_mright')
@@ -102,6 +104,12 @@ function add_direct_mright(dn: Dn, mright: Mright) {
 }
 function remove_direct_mright(dn: Dn, mright: Mright, options: DirectOptions = {}) {
     add_remove_direct_mright(dn, mright, 'delete', options)
+}
+async function add_direct_members(dns: Dn[]) {
+    const add = fromPairs(dns.map(dn => [dn, groupMemberOptions()]))
+    await api.modify_members_or_rights(props.id, { member: { add } })
+    sgroup.update()
+    add_member_show.value = false
 }
 
 let add_right_show = ref(false)
@@ -393,14 +401,25 @@ let search_subject_source_dn = ref('')
         </div>
 
         <div v-else-if="sgroup.group || sgroup.synchronizedGroup">
-            <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"}}</button>
-            <p v-if="add_member_show" style="padding: 1rem; background: #eee">
+            <button class="float-right" @click="add_member_show = !add_member_show" v-if="can_modify_member">{{
+                add_member_show ? "Fermer l'ajout de membres" : "Ajouter des membres"
+            }}</button>
+            <button class="float-right" @click="add_member_ids = !add_member_ids" v-if="add_member_show">{{
+                add_member_ids ? "Fermer l'import" : "Importer des membres"
+            }}</button>
+            <div v-if="add_member_show" style="padding: 1rem; background: #eee">
+              <p>
                 Recherchez des <SubjectSourceDnChoose :ldapCfg="ldapCfg" @chosen="val => search_subject_source_dn = val" />
-
-                <p><SearchSubjectToAdd :group_to_avoid="id" :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
-                    <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
-                </SearchSubjectToAdd></p>
-            </p>
+                <p v-if="add_member_ids">
+                    <SearchSubjectsIds :direct_members="sgroup.group?.direct_members ?? internal_error()" :source_dn="search_subject_source_dn" @dns="add_direct_members" />
+                </p>
+                <p v-else>
+                    <SearchSubjectToAdd :group_to_avoid="id" :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
+                        <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
+                    </SearchSubjectToAdd>
+                </p>
+              </p>
+            </div>
             <button class="float-right" @click="members.flat.show = !members.flat.show" v-if="members.details?.may_have_indirects && !sgroup.synchronizedGroup">{{members.flat.show ? "Cacher les indirects" : "Voir les indirects"}}</button>
 
             <SgroupSubjects :flat="members.flat" :results="members.results" :details="members.details" :can_modify="can_modify_member"

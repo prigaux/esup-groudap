@@ -121,6 +121,11 @@ export const search_subjects = (search_params: { search_token: string, sizelimit
     let search_params_ = { ...pickBy(search_params, val => val), sizelimit: "" + search_params.sizelimit }
     return api_get("search_subjects", search_params_, {})
 }
+type id_to_dn = { id: string, dn: Dn, attrs: MonoAttrs, ssdn: Dn } | { id: string, error: "multiple_match" | "no_match" }
+export const subject_ids_to_dns = (ids: string[], source_dn: Option<Dn>, opts: opts_post): Promise<id_to_dn[]> => (
+    api_post("subject_ids_to_dns", source_dn ? { source_dn } : {}, ids, opts ?? {})
+)
+
 export const group_flattened_mright = (search_params: { id: string, mright: Mright, sizelimit: number, search_token: string }) : Promise<SubjectsAndCount> => {
     let search_params_ = remove_empty_params({ ...search_params, sizelimit: "" + search_params.sizelimit })
     return api_get("group_flattened_mright", search_params_, {})
