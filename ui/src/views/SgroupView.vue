@@ -91,10 +91,13 @@ async function add_remove_direct_mright(dn: Dn, mright: Mright, mod: MyMod, opti
         rights_force_refresh.value++
     }
 }
-function add_direct_mright(dn: Dn, mright: Mright) {
-    const end_days = mright === 'member' && (sgroup.value.attrs["groupaldOptions;x-member-ttl-default"] || sgroup.value.attrs["groupaldOptions;x-member-ttl-max"])
+function groupMemberOptions() {
+    const end_days = (sgroup.value.attrs["groupaldOptions;x-member-ttl-default"] || sgroup.value.attrs["groupaldOptions;x-member-ttl-max"])
     const enddate = end_days && addDays(new Date(), parseInt(end_days)).toISOString()
-    add_remove_direct_mright(dn, mright, 'add', enddate ? { enddate } : {})
+    return enddate ? { enddate } : {}
+}
+function add_direct_mright(dn: Dn, mright: Mright) {
+    add_remove_direct_mright(dn, mright, 'add', mright === 'member' ? groupMemberOptions() : {})
 }
 function remove_direct_mright(dn: Dn, mright: Mright, options: DirectOptions = {}) {
     add_remove_direct_mright(dn, mright, 'delete', options)
