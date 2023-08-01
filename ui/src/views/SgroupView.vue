@@ -5,7 +5,7 @@ import router from '@/router';
 import { asyncComputed_, ref_watching, global_abort } from '@/vue_helpers';
 import { forEachAsync, addDays, internal_error } from '@/helpers';
 import { DirectOptions, Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
-import { list_of_rights, right2text } from '@/lib';
+import { list_of_rights, mright2noun, right2text } from '@/lib';
 import { mrights_flat_or_not } from '@/composition/SgroupSubjects';
 
 import * as api from '@/api'
@@ -371,8 +371,11 @@ let search_subject_source_dn = ref('')
             <p v-if="add_right_show" style="padding: 1rem; background: #eee">
                 Recherchez des <SubjectSourceDnChoose :ldapCfg="ldapCfg" @chosen="val => search_subject_source_dn = val" />
                 <p><SearchSubjectToAdd :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
-                    <template v-for="right of list_of_rights">               
-                        <button @click.prevent="add_direct_mright(dn, right); close()">{{right2text[right]}}</button>
+                    <template v-for="right of list_of_rights">
+                        <span v-if="dn in (direct_rights?.[right] ?? {})">
+                            (déjà {{mright2noun[right]}})
+                        </span>
+                        <button v-else @click.prevent="add_direct_mright(dn, right); close()">{{right2text[right]}}</button>
                         &nbsp;
                     </template>
                 </SearchSubjectToAdd></p>
@@ -415,7 +418,10 @@ let search_subject_source_dn = ref('')
                 </p>
                 <p v-else>
                     <SearchSubjectToAdd :group_to_avoid="id" :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
-                        <button @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
+                        <span v-if="dn in (sgroup.group?.direct_members ?? {})">
+                            (déjà {{mright2noun.member}})
+                        </span>
+                        <button v-else @click.prevent="add_direct_mright(dn, 'member'); close()">Ajouter</button>
                     </SearchSubjectToAdd>
                 </p>
               </p>
