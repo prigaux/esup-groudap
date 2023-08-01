@@ -77,10 +77,10 @@ export type action = 'create' | 'modify_attrs' | 'delete' | 'modify_members_or_r
  * @param msg - optional message explaining why the user did this action
  * @param data - info about this action (content depends on the action)
  */
-export async function log_sgroup_action(user: LoggedUser, id: string, action: action, msg: Option<string>, data: Record<string, any>) {
+export async function log_sgroup_action(user: LoggedUser, id: string, action: action, msg: Option<string>, data: Record<string, any>, when?: Date) {
     if (conf.log_dir) {
         const who = hLoggedUser.toString(user)
-        const when = new Date()
+        when ??= new Date()
         await audit(
             sgroup_log_file(conf.log_dir, id),
             JSON.stringify({ action, when, who, msg, ...data }))

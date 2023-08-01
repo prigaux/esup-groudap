@@ -328,12 +328,8 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
  * Set or modify the SQL query for a group
  * @param id - group/stem identifier
  * @param remote - remote name + (SQL query + optional mapping) or (LDAP filter + ...)
- * @param msg - optional message explaining why the user did this action
  */
-export async function modify_remote_query(logged_user: LoggedUser, id: string, remote: RemoteQuery | {}, msg: Option<string>) {
-    console.log("modify_remote_query(%s, %s, %s)", id, remote, msg);
-    validate_sgroup_id(id)
-
+export async function modify_remote_query_(id: string, remote: RemoteQuery | {}) {
     let remote_string: Option<string>
     let forced_periodicity: Option<string>
     if ("remote_cfg_name" in remote) {
@@ -349,6 +345,19 @@ export async function modify_remote_query(logged_user: LoggedUser, id: string, r
             [conf.remote_forced_periodicity_attr]: forced_periodicity
         } }),
     ])
+}
+
+/**
+ * Set or modify the SQL query for a group + synchronize the members
+ * @param id - group/stem identifier
+ * @param remote - remote name + (SQL query + optional mapping) or (LDAP filter + ...)
+ * @param msg - optional message explaining why the user did this action
+ */
+export async function modify_remote_query(logged_user: LoggedUser, id: string, remote: RemoteQuery | {}, msg: Option<string>) {
+    console.log("modify_remote_query(%s, %s, %s)", id, remote, msg);
+    validate_sgroup_id(id)
+
+    await modify_remote_query_(id, remote)
 
     await api_log.log_sgroup_action(logged_user, id, "modify_remote_query", msg, remote)
 
