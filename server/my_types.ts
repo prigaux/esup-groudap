@@ -36,6 +36,10 @@ export const hMyMap = {
     mapValues: <K extends string, V, V_>(map: MyMap<K, V>, cb: (v:V, k:K) => V_) => (
         _.mapValues(map, cb) as MyMap<K,V_>
     ),
+    filter: <K extends string, V>(map: MyMap<K, V>, cb: (v:V, k:K) => boolean) => (
+        // @ts-expect-error
+        _.pickBy(map, cb) as MyMap<K,V>
+    ),
     /*filter_map: <K extends string, K_ extends string, V, V_>(map: MyMap<K, V>, cb: (v:V, k:K) => [K_,V_]) => {
         let r: MyMap<K_,V_> = {}
         for (const k in map) {
