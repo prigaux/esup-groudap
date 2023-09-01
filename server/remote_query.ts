@@ -3,50 +3,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/unbound-method */
 import _ from "lodash";
-import mysql from 'mysql'
-// @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
-import oracledb from 'oracledb'
-import { promisify } from "util";
 
 import * as ldp from "./ldap_read_search"
 import * as ldpSubject from './ldap_subject'
 import conf from "./conf";
 import ldap_filter from "./ldap_filter";
 import { before_and_after, strip_prefix, throw_ } from "./helpers";
-import { Dn, DnsOpts, hMyMap, MyMap, Option, RemoteSqlConfig, remoteSqlDrivers, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
+import { Dn, DnsOpts, Option, RemoteSqlConfig, remoteSqlDrivers, RemoteSqlQuery, Subjects, toDn, ToSubjectSource } from "./my_types";
 import { exact_dn_to_subject_source_cfg } from "./dn";
-
-const driver_query: Record<string, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<string[]>> = {
-    mysql: async (remote, db_name, select_query) => {
-        const connection = mysql.createConnection({
-            host     : remote.host,
-            user     : remote.user,
-            password : remote.password,
-            port     : remote.port,
-            database : db_name,
-        });
-        const connect = promisify(connection.connect).bind(connection)
-        const query = promisify(connection.query).bind(connection)
-        const end = promisify(connection.end).bind(connection)
-
-        await connect()
-        const rows = await query(select_query) as MyMap<string, unknown>[]
-        await end()
-
-        return rows.map(hMyMap.firstValue) as string[]
-    },
-    oracle: async (remote, db_name, select_query) => {
-        const port_string = remote.port ? `:${remote.port}` : ""
-        const conn = await oracledb.getConnection({ user: remote.user, password: remote.password, connectString: `${remote.host}${port_string}/${db_name}` })
-        const r = await conn.execute(select_query) as { rows: string[][] }
-        return r.rows.map(e => e[0])
-    },
-};
-
-async function raw_query(remote: RemoteSqlConfig, db_name: string, select_query: string): Promise<string[]> {
-    const f = driver_query[remote.driver]
-    return await f(remote, db_name, select_query)
-}
+import { query_strings } from "./sql";
 
 async function sql_values_to_dns_(ssdn: Dn, id_attrs: string[], sql_values: string[]) {
     const r: DnsOpts = {};
@@ -121,7 +86,7 @@ const to_RemoteSqlConfig = (remote_cfg_name: string): Option<RemoteSqlConfig> =>
 
 export function sql_query(remote: RemoteSqlQuery) {
     const remote_cfg = to_RemoteSqlConfig(remote.remote_cfg_name) ?? throw_("internal error: remote is not SQL " + remote.remote_cfg_name)
-    return raw_query(remote_cfg, remote_cfg.db_name, remote.select_query)
+    return query_strings(remote_cfg, remote_cfg.db_name, remote.select_query)
 }
 
 const to_ss_to_id_attrs = (to_ss: ToSubjectSource) => {
