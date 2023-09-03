@@ -157,7 +157,7 @@ export const hLdapConfig = {
 }
 
 /** known remote drivers */
-export const remoteSqlDrivers = [ 'mysql', 'oracle' ] as const
+export const remoteSqlDrivers = [ 'mysql', 'oracle', 'postgresql' ] as const
 export type RemoteSqlDriver = (typeof remoteSqlDrivers)[number]
 
 export interface RemoteSqlConfig {

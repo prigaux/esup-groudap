@@ -1,12 +1,30 @@
 import _ from "lodash";
 import mysql from 'mysql'
+import * as pg from 'pg'
 // @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
 import oracledb from 'oracledb'
 import { promisify } from "util";
 
-import { hMyMap, MyMap, RemoteSqlConfig } from "./my_types";
+import { hMyMap, MyMap, RemoteSqlConfig, RemoteSqlDriver } from "./my_types";
 
-const driver_query_objects: Record<string, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<MyMap<string, unknown>[]>> = {
+async function postgresql_client<T>(remote: RemoteSqlConfig, db_name: string, f: (client: pg.Client) => Promise<T>): Promise<T> {
+    const client = new pg.Client({
+        host     : remote.host,
+        user     : remote.user,
+        password : remote.password,
+        port     : remote.port,
+        database : db_name,
+    })
+    await client.connect()
+
+    try {
+        return await f(client)
+    } finally {
+        await client.end()    
+    }
+}
+
+const driver_query_objects: MyMap<RemoteSqlDriver, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<MyMap<string, unknown>[]>> = {
     mysql: async (remote, db_name, select_query) => {
         const connection = mysql.createConnection({
             host     : remote.host,
@@ -25,14 +43,24 @@ const driver_query_objects: Record<string, (remote: RemoteSqlConfig, db_name: st
 
         return rows
     },
+    postgresql: async (remote, db_name, select_query) => {
+        return postgresql_client(remote, db_name, async (client) => (
+            (await client.query(select_query)).rows
+        ))
+    },
 }
 
-const driver_query_arrays: Record<string, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<unknown[][]>> = {
+const driver_query_arrays: MyMap<RemoteSqlDriver, (remote: RemoteSqlConfig, db_name: string, select_query: string) => Promise<unknown[][]>> = {
     oracle: async (remote, db_name, select_query) => {
         const port_string = remote.port ? `:${remote.port}` : ""
         const conn = await oracledb.getConnection({ user: remote.user, password: remote.password, connectString: `${remote.host}${port_string}/${db_name}` })
         const r = await conn.execute(select_query) as { rows: unknown[][] }
         return r.rows
+    },
+    postgresql: async (remote, db_name, select_query) => {
+        return postgresql_client(remote, db_name, async (client) => (
+            (await client.query({ text: select_query, rowMode: 'array' })).rows
+        ))
     },
 };
 
