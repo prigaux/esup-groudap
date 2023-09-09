@@ -314,6 +314,40 @@ let search_subject_source_dn = ref('')
         </div>
     </fieldset>
 
+    <ul class="inline" v-if="sgroup.right === 'admin'">
+        <template v-if="sgroup.stem">
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: id } }">
+                <button>Créer un groupe</button>
+            </RouterLink></li>
+
+            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: id, is_stem: 'true' } }">
+                <button>Créer un dossier</button>
+            </RouterLink></li>
+        </template>
+
+        <template v-if="!sgroup.stem || isEmpty(sgroup.stem.children)">
+            <li><button @click="delete_sgroup">Supprimer le {{sgroup.stem ? 'dossier' : 'groupe'}}</button></li>
+        </template>
+
+        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id } }">
+            <button>Historique</button>
+        </RouterLink></li>
+
+        <li v-if="sgroup.synchronizedGroup && ['updater', 'admin'].includes(sgroup.right)">
+            <button @click="sync">Synchroniser maintenant</button>
+        </li>
+        <li v-if="sgroup.synchronizedGroup && sgroup.right === 'admin'">
+            <button @click="transform_SynchronizedGroup_into_group">Ne plus synchroniser ce groupe</button>
+        </li>
+        <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
+            <button @click="transform_group_into_SynchronizedGroup">Transformer en un groupe synchronisé</button>
+        </li>
+        <li v-if="sgroup.right === 'admin' && !modify_attrs.other && isEmpty(other_sgroup_attrs_having_values)">
+            <button @click="start_modify_attr('other')">Champs supplémentaires</button>
+        </li>
+
+    </ul>
+
     <fieldset v-if="modify_attrs.other || !isEmpty(other_sgroup_attrs_having_values)">
         <legend>
             <h4>Divers</h4>
@@ -435,40 +469,6 @@ let search_subject_source_dn = ref('')
                 @remove="(dn, opts) => remove_direct_mright(dn, 'member', opts)" />
         </div>
     </fieldset>
-
-    <ul class="inline" v-if="sgroup.right === 'admin'">
-        <template v-if="sgroup.stem">
-            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: id } }">
-                <button>Créer un groupe</button>
-            </RouterLink></li>
-
-            <li><RouterLink  :to="{ path: 'new_sgroup', query: { parent_id: id, is_stem: 'true' } }">
-                <button>Créer un dossier</button>
-            </RouterLink></li>
-        </template>
-
-        <template v-if="!sgroup.stem || isEmpty(sgroup.stem.children)">
-            <li><button @click="delete_sgroup">Supprimer le {{sgroup.stem ? 'dossier' : 'groupe'}}</button></li>
-        </template>
-
-        <li><RouterLink target="_blank" :to="{ path: 'sgroup_history', query: { id } }">
-            <button>Historique</button>
-        </RouterLink></li>
-
-        <li v-if="sgroup.synchronizedGroup && ['updater', 'admin'].includes(sgroup.right)">
-            <button @click="sync">Synchroniser maintenant</button>
-        </li>
-        <li v-if="sgroup.synchronizedGroup && sgroup.right === 'admin'">
-            <button @click="transform_SynchronizedGroup_into_group">Ne plus synchroniser ce groupe</button>
-        </li>
-        <li v-if="sgroup.group && isEmpty(sgroup.group.direct_members) && sgroup.right === 'admin'">
-            <button @click="transform_group_into_SynchronizedGroup">Transformer en un groupe synchronisé</button>
-        </li>
-        <li v-if="sgroup.right === 'admin' && !modify_attrs.other && isEmpty(other_sgroup_attrs_having_values)">
-            <button @click="start_modify_attr('other')">Champs supplémentaires</button>
-        </li>
-
-    </ul>
 
     <p><i>Mes droits sur ce {{sgroup.stem ? 'dossier' : 'groupe'}} : {{right2text[sgroup.right]}}</i></p>
 </div>
