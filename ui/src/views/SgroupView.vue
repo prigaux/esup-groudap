@@ -3,7 +3,7 @@ import { cloneDeep, fromPairs, isEmpty, isEqual, last, mapValues, omit, pickBy }
 import { computed, defineAsyncComponent, defineComponent, ref, watch } from 'vue'
 import router from '@/router';
 import { asyncComputed_, ref_watching, global_abort } from '@/vue_helpers';
-import { forEachAsync, addDays, internal_error } from '@/helpers';
+import { forEachAsync, addDays, internal_error, objectSortBy } from '@/helpers';
 import { DirectOptions, Dn, LdapConfigOut, Mright, MyMod, PRecord, SgroupAndMoreOut_ } from '@/my_types';
 import { list_of_rights, mright2noun, right2text } from '@/lib';
 import { mrights_flat_or_not } from '@/composition/SgroupSubjects';
@@ -14,6 +14,8 @@ async function get_sgroup(id: string): Promise<SgroupAndMoreOut_> {
     let sgroup = { id, ...await api.sgroup(id) }
     if (sgroup.group) {
         sgroup.group.direct_members = await api.add_sscfg_dns_and_sort(sgroup.group.direct_members)
+    } else if (sgroup.stem) {
+        sgroup.stem.children = objectSortBy(sgroup.stem.children, (sgroup, id) => (sgroup.ou || id).toLocaleLowerCase())
     }
     if (sgroup.synchronizedGroup) {
         sgroup.synchronizedGroup.remote_query.isSql = !!sgroup.synchronizedGroup.remote_query.select_query
