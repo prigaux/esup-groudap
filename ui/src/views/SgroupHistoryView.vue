@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { asyncComputed } from '@vueuse/core'
 import * as api from '@/api'
 import * as helpers from '@/helpers'
-import { isEmpty, sortBy } from 'lodash';
+import { isEmpty, orderBy } from 'lodash';
 import { DnsOpts, MonoAttrs, Mright, MyMod } from '@/my_types';
 import { mright2noun } from '@/lib';
 
@@ -38,7 +38,7 @@ const modify_members_or_rights_to_lines = (o: DnsOpts) => (
 const history = asyncComputed(() => api.sgroup_logs(props.id, bytes.value))
 const history_sync = asyncComputed(() => props.show_sync ? api.sgroup_logs(props.id, bytes.value, { sync: true }) : undefined)
 const logs = computed(() => (
-    sortBy([ ... history.value?.logs || [], ... history_sync.value?.logs || [] ], 'when').map(({ when, who, action, new_count, ...o }) => {
+    orderBy([ ... history.value?.logs || [], ... history_sync.value?.logs || [] ], ['when'], ['desc']).map(({ when, who, action, new_count, ...o }) => {
         let what: string[]
         if (action === 'modify_members_or_rights' ) {
             what = modify_members_or_rights_to_lines(o as any)
