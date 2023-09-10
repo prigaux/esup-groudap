@@ -3,7 +3,7 @@ import _ from "lodash"
 import migration_conf from './migration_conf';
 import * as api_post from '../api_post';
 import { grouper_sql_query_strings, to_id } from './migration_helpers';
-import { create_sgroup, is_sgroup_existing } from '../ldap_sgroup_read_search_modify';
+import { create_sgroup, is_sgroup_existing, modify_sgroup_attrs } from '../ldap_sgroup_read_search_modify';
 import { hMyMap } from "../my_types";
 
 async function create_stems() {
@@ -13,7 +13,8 @@ async function create_stems() {
         if (name && name !== ':' && !name.startsWith('etc')) {
             const id = to_id(name, true)
             if (await is_sgroup_existing(id)) {
-                console.log("skipping already migrated stem", name)
+                console.log("modifying already migrated stem", name)
+                await modify_sgroup_attrs(id, hMyMap.compact({ ou: display_name, description: description }))
             } else {
                 console.log("creating stem", name, display_name, description)
                 await create_sgroup(id, hMyMap.compact({ ou: display_name, description: description }))
@@ -28,7 +29,8 @@ async function create_groups() {
         if (name && name !== ':' && !name.startsWith('etc')) {
             const id = to_id(name, false)
             if (await is_sgroup_existing(id)) {
-                console.log("skipping already migrated group", name)
+                console.log("modifying already migrated group", name)
+                await modify_sgroup_attrs(id, hMyMap.compact({ ou: display_name, description: description }))
             } else {
                 console.log("creating group", name, display_name, description)
                 await create_sgroup(id, hMyMap.compact({ ou: display_name, description: description }))
