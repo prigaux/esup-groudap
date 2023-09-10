@@ -407,7 +407,7 @@ let search_subject_source_dn = ref('')
 
         <div v-if="tabToDisplay === 'rights'">
 
-            <button class="float-right" @click="add_right_show = !add_right_show" v-if="can_modify_member">{{add_right_show ? "Fermer l'ajout de droits" : "Ajouter des droits"}}</button>
+            <button class="float-right" @click="add_right_show = !add_right_show" v-if="sgroup.right === 'admin'">{{add_right_show ? "Fermer l'ajout de droits" : "Ajouter des droits"}}</button>
             <p v-if="add_right_show" style="padding: 1rem; background: #eee">
                 Recherchez des <SubjectSourceDnChoose :ldapCfg="ldapCfg" @chosen="val => search_subject_source_dn = val" />
                 <p><SearchSubjectToAdd :source_dn="search_subject_source_dn" v-slot="{ dn, close }">
