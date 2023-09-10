@@ -200,7 +200,7 @@ export const convert = {
             remote.periodicity = remote.forced_periodicity ?? ''
         },
         to_api(remote: RemoteQuery): Partial<RemoteQuery> {
-            const has_subject_source = remote.to_subject_source.ssdn && remote.to_subject_source.id_attr
+            const has_subject_source = remote.to_subject_source.ssdn
             remote.forced_periodicity = remote.periodicity === '' ? undefined : remote.periodicity
             return remote.isSql ? 
                 pick(remote, 'remote_cfg_name', 'forced_periodicity', 'select_query', ...(has_subject_source ? ['to_subject_source'] : [])) :
