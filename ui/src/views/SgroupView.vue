@@ -266,12 +266,14 @@ let search_subject_source_dn = ref('')
         ID : {{props.id}}
     </small>
 
-    <a href=".">Accueil</a> &gt;
-    <span v-for="(parent, i) in sgroup.parents">
+    <a href=".">Accueil</a>
+    <span v-for="parent in sgroup.parents" class="nowrap">
+        &gt;
         <SgroupLink :sgroup="parent" />
-        <span v-if="i < sgroup.parents.length"> &gt; </span>
     </span>
 
+   <span class="nowrap">
+    <span> &gt; </span>
     <h2>
         <MyIcon :name="sgroup.stem ? 'folder' : 'users'" class="on-the-left"
              :title="ldapCfg.sgroup_attrs.ou.description" />
@@ -290,6 +292,7 @@ let search_subject_source_dn = ref('')
         </span>       
     </template>
     <h2 v-else>{{sgroup.attrs.ou}}</h2>
+   </span>
 
     <fieldset>
         <legend>
@@ -517,5 +520,12 @@ dialog p {
 .label-and-val > input {
     height: 1.3rem;
 }
-
+.nowrap {
+    white-space: nowrap;
+    display: inline-block;
+}
+.nowrap h2 {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
+}
 </style>
