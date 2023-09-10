@@ -246,8 +246,9 @@ const transform_SynchronizedGroup_into_group = async () => {
     }
 }
 const sync = async () => {
-    await api.sync(props.id, 'member', { abort: global_abort })
+    const result = await api.sync(props.id, 'member', { abort: global_abort })
     sgroup.update()
+    alert(result.unchanged ? "Aucune modification" : `${result.added.length} ajouts, ${result.removed.length} suppressions`)
 }
 
 let search_subject_source_dn = ref('')

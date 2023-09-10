@@ -146,6 +146,7 @@ async function search_groups_mrights_depending_on_this_group(id: string) {
 }
 
 enum UpResult { Modified, Unchanged }
+type SyncResult = { unchanged: true } | { new_count: number, added: Dn[], removed: Dn[] }
 
 async function may_update_flattened_mrights__(id: string, mright: Mright, to_add: MySet<Dn>, to_remove: MySet<Dn>): Promise<UpResult> {
     const attr = to_flattened_attr(mright);
@@ -209,7 +210,7 @@ async function urls_to_dns_handling_remote(group_dn: Dn, mright: Mright): Promis
     return urls_to_dns(urls) ?? internal_error()
 }
 
-async function may_update_flattened_mrights_(id: string, mright: Mright, group_dn: Dn, direct_dns: MySet<Dn>) {
+async function may_update_flattened_mrights_(id: string, mright: Mright, group_dn: Dn, direct_dns: MySet<Dn>): Promise<SyncResult> {
     const flattened_dns = _.uniq(await get_flattened_dns(direct_dns))
     const new_count = flattened_dns.length
     if (_.isEmpty(flattened_dns) && mright === 'member') {
@@ -220,14 +221,15 @@ async function may_update_flattened_mrights_(id: string, mright: Mright, group_d
     const to_remove = _.difference(current_flattened_dns, flattened_dns);
     const result = await may_update_flattened_mrights__(id, mright, (to_add), (to_remove))
     // ignoring "" values (which are only there to please LDAP server)
-    api_log.log_sgroup_flattened_modifications(id, mright, { new_count, added: _.compact(to_add), removed: _.compact(to_remove) })
-    return result
+    const summary = { new_count, added: _.compact(to_add), removed: _.compact(to_remove) }
+    api_log.log_sgroup_flattened_modifications(id, mright, summary)
+    return result === UpResult.Modified ? summary : { unchanged: true }
 }
 
 // read group direct URLs
 // diff with group flattened DNs
 // if (needed, update group flattened DNs
-async function may_update_flattened_mrights(id: string, mright: Mright): Promise<UpResult> {
+async function may_update_flattened_mrights(id: string, mright: Mright): Promise<SyncResult> {
     console.log("  may_update_flattened_mrights(%s, %s)", id, mright);
     const group_dn = sgroup_id_to_dn(id);
 
@@ -237,11 +239,12 @@ async function may_update_flattened_mrights(id: string, mright: Mright): Promise
 
 
 export async function may_update_flattened_mrights_rec(todo: IdMright[]) {
+    let result : Option<SyncResult>
     for (;;) {
         const one = todo.shift()
-        if (!one) return
-        const result = await may_update_flattened_mrights(one.id, one.mright)
-        if (one.mright === 'member' && result === UpResult.Modified) {
+        if (!one) return result
+        result = await may_update_flattened_mrights(one.id, one.mright)
+        if (one.mright === 'member' && !('unchanged' in result)) {
             todo.push(...await search_groups_mrights_depending_on_this_group(one.id))
         } 
     }
@@ -374,6 +377,6 @@ export async function sync(logged_user: LoggedUser, id: string, mrights: Mright[
     await check_right_on_self_or_any_parents(logged_user, id, 'updater')
     
     const todo: IdMright[] = mrights.map(mright => ({id, mright}))
-    await may_update_flattened_mrights_rec(todo)
+    return await may_update_flattened_mrights_rec(todo)
 }
 

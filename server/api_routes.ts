@@ -60,10 +60,10 @@ api.post("/modify_members_or_rights", handleVoidP(async (req) => {
     await api_post.modify_members_or_rights(logged_user(req), id, req.body as MyMods, msg)
 }))
 
-api.post("/sync", handleVoidP(async (req) => {
+api.post("/sync", handleJson(async (req) => {
     const { id } = query_params(req, { id: q.string })
     const { mright } = query_opt_params(req, { mright: q.mright })
-    await api_post.sync(logged_user(req), id, mright ? [mright] : hMright.list() )
+    return await api_post.sync(logged_user(req), id, mright ? [mright] : hMright.list() )
 }))
 
 api.post("/modify_remote_query", handleVoidP(async (req) => {
