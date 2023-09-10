@@ -141,9 +141,9 @@ const test_remote_query = async () => {
     <label>
         <span class="label">Périodicité</span>
         <select v-model="remote_query.periodicity">
-            <option value="">{{remote.periodicity}} (valeur par défaut)</option>    
+            <option value="">{{remote?.periodicity}} (valeur par défaut)</option>    
             <template v-for="periodicity in additional_periodicities">
-                <option :value="periodicity" v-if="periodicity !== remote.periodicity">{{periodicity}}</option>
+                <option :value="periodicity" v-if="periodicity !== remote?.periodicity">{{periodicity}}</option>
             </template>
         </select>
     </label>
