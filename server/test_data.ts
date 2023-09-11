@@ -289,6 +289,14 @@ export async function add() {
     assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), [prigaux_dn, aanli_dn]);
     assert.deepEqual(await ldpSgroup.read_direct_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), {});
 
+    await api_post.create(user_prigaux, "employees.all", { ou: "Tous les employés" })
+    await api_post.modify_remote_query(user_prigaux, "employees.all", {
+        remote_cfg_name: 'main_ldap',
+        filter: `(&(objectClass=groupaldGroup)(cn=employees.*)(!(cn=employees.all)))`,
+    }, undefined)
+    assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("employees.all"), 'member'), [sgroup_id_to_dn("employees.DGHA"), prigaux_dn, aanli_dn]);
+    assert.deepEqual(await ldpSgroup.read_direct_mright(sgroup_id_to_dn("employees.all"), 'member'), {});
+
     assert.deepEqual(await guess_subject_source(['prigaux', 'foo', 'aanli']), [
       { ssdn: 'ou=people,dc=nodomain', id_attr: 'uid' },
       { ...aanli_subject, ...prigaux_subject }
