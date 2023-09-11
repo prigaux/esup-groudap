@@ -72,9 +72,9 @@ api.post("/modify_remote_query", handleVoidP(async (req) => {
     await api_post.modify_remote_query(logged_user(req), id, req.body as AllowEmptyBody<RemoteQuery>, msg)
 }))
 
-api.get("/test_remote_query", handleJsonP(async (req) => {
-    const { id, remote_query } = query_params(req, { id: q.string, remote_query: q.json<RemoteQuery>() })
-    return await api_get.test_remote_query(logged_user(req), id, remote_query)
+api.post("/test_remote_query", handleJsonP(async (req) => {
+    const { id } = query_params(req, { id: q.string })
+    return await api_get.test_remote_query(logged_user(req), id, req.body as RemoteQuery)
 }))
 
 api.get("/sgroup", handleJsonP(async (req) => {

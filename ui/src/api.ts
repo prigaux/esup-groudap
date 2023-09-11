@@ -164,7 +164,7 @@ export interface TestRemoteQuery {
     ss_guess?: [ToSubjectSource, Subjects],
 }
 export const test_remote_query = (id: string, remote_query: RemoteQuery, opts: opts_abort): Promise<TestRemoteQuery> => (
-    api_get('test_remote_query', { id, remote_query: JSON.stringify(convert.remote_query.to_api(remote_query)) }, opts)
+    api_post('test_remote_query', { id }, convert.remote_query.to_api(remote_query), opts)
 )
 
 export async function add_sscfg_dns(subjects: Subjects) {
