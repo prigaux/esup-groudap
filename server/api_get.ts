@@ -9,7 +9,7 @@ import conf from "./conf"
 import ldap_filter from "./ldap_filter"
 import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
-import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery, SubjectSourceConfig, FlavorDn } from "./my_types"
+import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery, SubjectSourceConfig, FlavorDn, SubjectsOrNull } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
 import { check_right_on_self_or_any_parents, user_has_right_on_sgroup_filter } from "./ldap_check_rights"
 import { hSubjectSourceConfig } from "./ldap_subject"
@@ -174,7 +174,7 @@ export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: str
     if (!group) { throw `sgroup ${id} does not exist` }
 
     const attrs = multi_attrs(group);
-    const r: MyMap<Right, Subjects> = {}
+    const r: MyMap<Right, SubjectsOrNull> = {}
     for (const right of hRight.to_allowed_rights('reader')) {
         const urls = attrs[hRight.to_attr(right)]
         if (urls) {

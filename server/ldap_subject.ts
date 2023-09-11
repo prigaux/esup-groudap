@@ -3,7 +3,7 @@ import _ from "lodash";
 import * as ldp from "./ldap_read_search"
 import ldap_filter from "./ldap_filter";
 import { dn_to_rdn_and_parent_dn, dn_to_sgroup_id, dn_to_subject_source_cfg, urls_to_dns } from "./dn";
-import { Dn, DnsOpts, hMyMap, MyMap, Option, SubjectAttrs, Subjects, SubjectSourceConfig, toDn } from "./my_types";
+import { Dn, DnsOpts, hMyMap, MyMap, Option, SubjectAttrs, Subjects, SubjectsOrNull, SubjectSourceConfig, toDn } from "./my_types";
 import { mono_attrs } from "./ldap_helpers";
 import { get_delete } from "./helpers";
 
@@ -44,18 +44,18 @@ const fromPairsGrouped = <K extends string, V>(l: [K,V][]): MyMap<K, V[]> => (
         l => l.map(e => e[1]))
 )
 
-export async function get_subjects_(dn2opts: DnsOpts) : Promise<Subjects> {
+export async function get_subjects_(dn2opts: DnsOpts) : Promise<SubjectsOrNull> {
     const dns = hMyMap.keys(dn2opts);
 
     return await get_subjects(dns, dn2opts, undefined, undefined)
 }
 
-export async function get_subjects(dns: Dn[], dn2opts: DnsOpts, search_token: Option<string>, sizelimit: Option<number>) : Promise<Subjects> {
+export async function get_subjects(dns: Dn[], dn2opts: DnsOpts, search_token: Option<string>, sizelimit: Option<number>) {
     const parent_dn_to_rdns = fromPairsGrouped(_.compact(dns.map(dn => (
         dn_to_rdn_and_parent_dn(dn)?.oMap(([rdn, parent_dn]) => [parent_dn, rdn])
     ))))
 
-    const r = {};
+    const r: SubjectsOrNull = hMyMap.fromPairs(dns.map(dn => [dn, null]))
 
     await hMyMap.eachAsync(parent_dn_to_rdns, async (rdns, parent_dn) => {
         const sscfg = dn_to_subject_source_cfg(parent_dn)

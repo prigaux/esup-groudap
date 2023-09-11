@@ -1,6 +1,6 @@
 import { at, pick, pickBy } from "lodash";
 import { forEach, objectSortBy } from "./helpers";
-import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, Option, PRecord, RemoteConfig, RemoteQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, Subjects_with_more, ToSubjectSource } from "./my_types";
+import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, Option, PRecord, RemoteConfig, RemoteQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, SubjectsOrNull, Subjects_with_more, ToSubjectSource } from "./my_types";
 import { Ref } from "vue";
 
 const api_url = document.location.href.replace(/[^/]*$/, 'api');
@@ -130,7 +130,7 @@ export const group_flattened_mright = (search_params: { id: string, mright: Mrig
     let search_params_ = remove_empty_params({ ...search_params, sizelimit: "" + search_params.sizelimit })
     return api_get("group_flattened_mright", search_params_, {})
 }
-export const sgroup_direct_rights = (id: string) : Promise<PRecord<Right, Subjects>> => (
+export const sgroup_direct_rights = (id: string) : Promise<PRecord<Right, SubjectsOrNull>> => (
     api_get("sgroup_direct_rights", { id }, {})
 )
 export const sgroup = (id: string) : Promise<SgroupAndMoreOut> => (
@@ -167,15 +167,17 @@ export const test_remote_query = (id: string, remote_query: RemoteQuery, opts: o
     api_post('test_remote_query', { id }, convert.remote_query.to_api(remote_query), opts)
 )
 
-export async function add_sscfg_dns(subjects: Subjects) {
+export async function add_sscfg_dns(subjects: SubjectsOrNull) {
     const sscfgs = (await config_ldap()).subject_sources
     forEach(subjects as Subjects_with_more, (attrs, dn) => {
+        if (!attrs) return
         attrs.sscfg_dn = sscfgs.find(one => dn?.endsWith(one.dn))?.dn
     })
 }
-async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
+async function add_sscfg_dns_and_sort_field(subjects: SubjectsOrNull) {
     const sscfgs = (await config_ldap()).subject_sources
     forEach(subjects as Subjects_with_more, (subject, dn) => {
+        if (!subject) return
         const i = sscfgs.findIndex(one => dn?.endsWith(one.dn))
         if (i >= 0) {
             const sscfg = sscfgs[i]
@@ -185,11 +187,11 @@ async function add_sscfg_dns_and_sort_field(subjects: Subjects) {
     })
 }
 
-export async function add_sscfg_dns_and_sort(subjects: Subjects) {
+export async function add_sscfg_dns_and_sort(subjects: SubjectsOrNull) {
     let subjects_ = subjects as Subjects_with_more
     await add_sscfg_dns_and_sort_field(subjects_)
-    subjects_ = objectSortBy(subjects_, (subject, _) => subject.sort_field);
-    forEach(subjects_, (attrs, _) => delete attrs.sort_field)
+    subjects_ = objectSortBy(subjects_, (subject, _) => subject?.sort_field);
+    forEach(subjects_, (attrs, _) => delete attrs?.sort_field)
     return subjects_ as Subjects
 }
 

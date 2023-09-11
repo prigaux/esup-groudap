@@ -53,10 +53,10 @@ const formatDateTime = (date: Date) => helpers.formatDate(date, 'dd/MM/yyyy à�
         <tr v-for="(attrs, dn) in results.subjects">
             <td><SubjectOrGroup :dn="dn" :subject="attrs" /></td>
             <td>
-                <i v-if="attrs.indirect">Indirect</i>
-                <button v-else-if="can_modify" @click="emit('remove', dn, attrs.options)">Supprimer</button>
+                <i v-if="attrs?.indirect">Indirect</i>
+                <button v-else-if="can_modify" @click="emit('remove', dn, attrs?.options)">Supprimer</button>
             </td>
-            <td v-if="attrs.options?.enddate">
+            <td v-if="attrs?.options?.enddate">
                 jusqu'au {{formatDate(new Date(attrs.options.enddate))}}
             </td>
         </tr>

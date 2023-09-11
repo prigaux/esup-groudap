@@ -47,11 +47,11 @@ export const hMyMap = {
         }
         return r
     },*/
-    /*fromPairs: <K extends string, V>(pairs: [K,V][]) => {
+    fromPairs: <K extends string, V>(pairs: [K,V][]) => {
         let r: MyMap<K,V> = {}
         for (const [k,v] of pairs) r[k] = v
         return r
-    },*/
+    },
     // same as _.fromPairs(_.compact(...)), but more perfomant
     fromOptionPairs: <K extends string, V>(pairs: Option<[K,V]>[]) => {
         const r: MyMap<K,V> = {}
@@ -282,9 +282,11 @@ export interface SubjectAttrs {
 
 export type Subjects = MyMap<Dn, SubjectAttrs>;
 
+export type SubjectsOrNull = MyMap<Dn, SubjectAttrs | null>;
+
 export interface SubjectsAndCount {
     count: number, // interger
-    subjects: Subjects,
+    subjects: SubjectsOrNull,
 }
 
 /** group/stem id & attributes + loggedUser right on this group/stem */
@@ -298,7 +300,7 @@ export interface SgroupOutAndRight {
 /** stem children or group direct_members or sync group definition */
 export type SgroupOutMore = 
     { stem: { children: SgroupsWithAttrs } } |
-    { group: { direct_members: Subjects } } |
+    { group: { direct_members: SubjectsOrNull } } |
     { synchronizedGroup: { remote_query: RemoteQuery, last_sync_date: Option<Date> } }
 
 /** group/stem attributes + parents + loggedUser right on this group/stem + stem children or group direct_members or sync group definition */

@@ -148,13 +148,13 @@ export async function add() {
     await assert.rejects(api_get.get_sgroup(user_aanli, "collab.DSIUN"))
 
     await api_post.modify_members_or_rights(user_prigaux, "collab.DSIUN", {
-        member: { add: { [prigaux_dn]: {} } },
+        member: { add: { [prigaux_dn]: {}, [people_id_to_dn("foo")]: {} } },
         updater: { add: { [aanli_dn]: {} } },
     }, undefined)
 
     assert.deepEqual((await api_get.get_sgroup(user_aanli, "collab.DSIUN")), { 
         right: 'updater', 
-        group: { direct_members: prigaux_subject }, 
+        group: { direct_members: { 'uid=foo,ou=people,dc=nodomain': null, ...prigaux_subject } }, 
         parents: [ root_with_id(undefined), collab_with_id(undefined) ], 
         attrs: collab_dsiun_attrs,
     });
@@ -212,7 +212,7 @@ export async function add() {
         admin: { add: { [sgroup_id_to_dn("collab.DSIUN")]: {} } },
     }, undefined)
     assert.deepEqual((await ldp.read_flattened_mright(sgroup_id_to_dn("collab.foo"), 'admin')).sort(), [
-        sgroup_id_to_dn("collab.DSIUN"), prigaux_dn,
+        sgroup_id_to_dn("collab.DSIUN"), 'uid=foo,ou=people,dc=nodomain', prigaux_dn,
     ]);
     //const remote_sql_query =  remote_query.parse_sql_url("sql: remote=foo : subject=ou=people,dc=nodomain?uid : select username from users").unwrap().unwrap();
     //api_post.modify_remote_sql_query(Default.default(), user_prigaux, "collab.foo", remote_sql_query(), undefined).await?;
@@ -237,7 +237,7 @@ export async function add() {
         member: { add: { [sgroup_id_to_dn("collab.DSIUN")]: { enddate: ("20991231000000Z") } } },
     }, undefined)
     assert.deepEqual((await ldp.read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member')).sort(), 
-               [ sgroup_id_to_dn("collab.DSIUN"), prigaux_dn ])
+               [ sgroup_id_to_dn("collab.DSIUN"), 'uid=foo,ou=people,dc=nodomain', prigaux_dn ])
     console.log(`prigaux shoud be admin via stem "" via applications.grouper.super-admins via collab.DSIUN`)
     assert.deepEqual(await api_get.get_sgroup(user_prigaux, "collab."), { 
         attrs: collab_attrs, 
@@ -275,7 +275,10 @@ export async function add() {
     ]);
 
     assert.deepEqual(await api_get.get_group_flattened_mright(user_prigaux, "collab.DSIUN", 'member', undefined, 1), 
-        { count: 1, subjects: prigaux_subject });
+        { count: 2, subjects: {
+            'uid=foo,ou=people,dc=nodomain': null,
+            ...prigaux_subject,
+        } });
 
     await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "", 'admin', undefined, undefined));
     await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "collab.", 'admin', undefined, undefined));

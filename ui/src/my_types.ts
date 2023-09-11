@@ -29,7 +29,8 @@ export type SubjectAttrs_with_more = SubjectAttrs & { sscfg_dn?: Dn, indirect?: 
 export type SgroupsWithAttrs = Record<string, MonoAttrs>
 
 export type Subjects = Record<Dn, SubjectAttrs>;
-export type Subjects_with_more = Record<Dn, SubjectAttrs_with_more>;
+export type SubjectsOrNull = Record<Dn, SubjectAttrs | null>;
+export type Subjects_with_more = Record<Dn, SubjectAttrs_with_more | null>;
 
 export interface SgroupOutAndRight {
     attrs: MonoAttrs

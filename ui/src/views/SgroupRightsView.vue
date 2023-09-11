@@ -36,7 +36,7 @@ defineProps<{
         <tr v-for="(subject, dn) in mright_flat_or_not?.results?.subjects">
             <td><SubjectOrGroup :dn="dn" :subject="subject" /></td>
             <td>
-                <i v-if="subject.indirect">Indirect</i>
+                <i v-if="subject?.indirect">Indirect</i>
                 <button v-else-if="can_modify" @click="emit('remove', dn, right)">Supprimer</button>
             </td>
         </tr>
