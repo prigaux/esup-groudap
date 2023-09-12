@@ -1,15 +1,16 @@
 import _ from 'lodash'
 import { ensure_sgroup_object_classes, grouperRight_to_groupaldRight, grouper_sql_query, subject2dn, to_id } from "./migration_helpers";
 import { is_sgroup_matching_filter, modify_direct_members_or_rights } from '../ldap_sgroup_read_search_modify';
-import { hMright } from '../my_types';
+import { Mright, MyMap, Right, hMright, hMyMap, hRight } from '../my_types';
 import migration_conf from './migration_conf';
 import ldap_filter from '../ldap_filter';
 import { dn_to_url } from '../dn';
+import { fromPairsGrouped } from '../helpers';
 
-async function handle_one(group: string, right: string, ss: string, subject: string) {
-    if (group === migration_conf.wheel_group && right === 'members') {
+async function handle_one(group: string, mright: Mright | "ignore", ss: string, subject: string) {
+    if (group === migration_conf.wheel_group && mright === 'member') {
         group = '';
-        right = 'admins';
+        mright = 'admin';
     }
 
     let is_stem = false
@@ -27,19 +28,18 @@ async function handle_one(group: string, right: string, ss: string, subject: str
         return;
     }
 
-    const right_ = grouperRight_to_groupaldRight(right.replace(/s$/, ''))
-    if (right_ === 'ignore') return;
-    const attr = hMright.to_attr(right_)
+    if (mright === 'ignore') return;
+    const attr = hMright.to_attr(mright)
     const subject_dn = subject2dn(ss, subject);
 
     if (subject_dn) {
         const id = to_id(sgroup, is_stem)
         await ensure_sgroup_object_classes(id)
         if (await is_sgroup_matching_filter(id, ldap_filter.eq(attr, dn_to_url(subject_dn)))) {
-            //console.log("skipping", id, right_, subject_dn)
+            //console.log("skipping", id, mright, subject_dn)
         } else {
-            console.log("adding", id, right_, subject_dn)
-            await modify_direct_members_or_rights(id, { [right_]: { add: { [subject_dn]: { } } } })
+            console.log("adding", id, mright, subject_dn)
+            await modify_direct_members_or_rights(id, { [mright]: { add: { [subject_dn]: { } } } })
         }
     }
 }
@@ -75,7 +75,18 @@ ORDER BY grouper_groups.name
 `
 
 export default async function () {
-    for (const [ group, right, ss, subject ] of await grouper_sql_query(query)) {
-      await handle_one(group, right, ss, subject)
-    }
+    const by_mrights: MyMap<string, string[]> = fromPairsGrouped((await grouper_sql_query(query)).map(([ group, mright, ss, subject ]) => 
+        [ [group, ss, subject].join("  "), mright ]
+    ))
+    await hMyMap.eachAsync(by_mrights, async (mrights, s) => {
+        const [ group, ss, subject ] = s.split("  ")
+        const mrights_ = mrights.map(mright => grouperRight_to_groupaldRight(mright.replace(/s$/, '')))
+        const right = hRight.max_(mrights_ as Right[])
+        if (right) {
+            await handle_one(group, right, ss, subject)
+        }
+        if (mrights_.includes('member')) {
+            await handle_one(group, 'member', ss, subject)
+        }
+    })
 }

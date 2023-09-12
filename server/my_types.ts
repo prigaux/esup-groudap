@@ -239,6 +239,13 @@ export const hRight = {
         if (a === 'reader' || b === 'reader') return 'reader'
         return undefined
     },
+    max_: (l: Right[]) => {
+        let r: Option<Right>
+        for (const a of l) {
+            r = hRight.max(r, a)
+        }
+        return r
+    },
     list: (): Right[] => (
         [ 'reader', 'updater', 'admin' ]
     ),
