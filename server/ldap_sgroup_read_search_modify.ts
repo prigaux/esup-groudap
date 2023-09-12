@@ -60,8 +60,12 @@ export async function create_sgroup(id: string, attrs: MonoAttrs) {
 }
 
 export async function modify_sgroup_attrs(id: string, attrs: MonoAttrs) {
-    const modification = _.mapValues(attrs, (val) => val === "" ? [] : val)
-    await ldapP.modify(sgroup_id_to_dn(id), new ldapjs.Change({ operation: 'replace', modification }))
+    await ldapP.modify(sgroup_id_to_dn(id),
+        hMyMap.mapToArray(attrs, (val, attr) => {
+            const modification = { [attr]: (val === "" ? [] : val) }
+            return new ldapjs.Change({ operation: 'replace', modification })
+        })
+    )
 }
 
 function to_ldap_mods(mods: MyMods) {
