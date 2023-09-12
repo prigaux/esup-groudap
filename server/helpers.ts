@@ -45,6 +45,14 @@ export const hashmap_difference = <K extends string, V>(m1: MyMap<K,V>, m2 : MyM
     return r
 }
 
+export function fromPairsGrouped <K extends string, V>(l: [K,V][]): MyMap<K, V[]> {
+    const r : MyMap<K,V[]> = {}
+    for (const [k,v] of l) {
+        (r[k] ??= []).push(v)
+    }
+    return r
+}
+
 import { spawn } from 'child_process';
 import { promisify } from 'util'
 

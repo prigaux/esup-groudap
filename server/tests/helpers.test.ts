@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import {it} from '@jest/globals';
-import { generalized_time_to_iso8601, iso8601_to_generalized_time } from "../helpers";
+import { fromPairsGrouped, generalized_time_to_iso8601, iso8601_to_generalized_time } from "../helpers";
 
 
 it('test_generalized_time_to_iso8601', () => {
@@ -30,4 +30,12 @@ it('oMap', () => {
     assert.deepEqual({ a: "A" }?.oMap(z => z.a), "A")
     assert.equal(undefined_?.oMap(z => z), undefined)
     assert.equal(null_?.oMap(z => z), undefined)
+})
+
+it('fromPairsGrouped', () => {
+    assert.deepEqual(fromPairsGrouped([["a", "A"]]), { "a": ["A"] })
+    assert.deepEqual(fromPairsGrouped([["a", "A"], ["a", "AA"]]), { "a": ["A", "AA"] })
+    assert.deepEqual(fromPairsGrouped([["a", "A"], ["a", "A"]]), { "a": ["A", "A"] })
+    assert.deepEqual(fromPairsGrouped([["a", "A"], ["b", "B"]]), { "a": ["A"], "b": ["B"] })
+    assert.deepEqual(fromPairsGrouped([]), {})
 })

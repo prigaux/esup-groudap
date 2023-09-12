@@ -3,9 +3,9 @@ import _ from "lodash";
 import * as ldp from "./ldap_read_search"
 import ldap_filter from "./ldap_filter";
 import { dn_to_rdn_and_parent_dn, dn_to_sgroup_id, dn_to_subject_source_cfg, urls_to_dns } from "./dn";
-import { Dn, DnsOpts, hMyMap, MyMap, Option, SubjectAttrs, Subjects, SubjectsOrNull, SubjectSourceConfig, toDn } from "./my_types";
+import { Dn, DnsOpts, hMyMap, Option, SubjectAttrs, Subjects, SubjectsOrNull, SubjectSourceConfig, toDn } from "./my_types";
 import { mono_attrs } from "./ldap_helpers";
-import { get_delete } from "./helpers";
+import { fromPairsGrouped, get_delete } from "./helpers";
 
 export const hSubjectSourceConfig = {
     export: (self: SubjectSourceConfig) => (
@@ -36,12 +36,6 @@ async function get_subjects_from_same_branch(sscfg: SubjectSourceConfig, base_dn
 
 export const get_subjects_from_urls = async (urls: string[]) => (
     await get_subjects_(urls_to_dns(urls))
-)
-
-const fromPairsGrouped = <K extends string, V>(l: [K,V][]): MyMap<K, V[]> => (
-    hMyMap.mapValues(
-        _.groupBy(l, e => e[0]),
-        l => l.map(e => e[1]))
 )
 
 export async function get_subjects_(dn2opts: DnsOpts) : Promise<SubjectsOrNull> {
