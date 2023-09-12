@@ -63,4 +63,17 @@ export default {
         }
     },
 
+    sgroup_mostly_direct_children: (id: string) => {
+        if (id === '') {
+            return "(cn=*)"
+        } else {
+            id = escape(id);
+            // for id "a.", 
+            // - allow "a.b" "a.b."
+            // - wrongly allow "a.b.c"
+            // - disallow "a.b.c." "a.b.c.d"
+            return `(&(cn=${id}*)(!(cn=${id}))(!(cn=${id}*.*.*)))`
+        }
+    },
+
 }

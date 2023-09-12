@@ -50,7 +50,7 @@ export function to_rel_ou(parent_attrs: MonoAttrs, attrs: MonoAttrs): MonoAttrs 
 export async function get_children(id: string): Promise<SgroupsWithAttrs> {
     console.log("  get_children(%s)", id);
     const wanted_attrs = hMyMap.keys(conf.ldap.sgroup_attrs)
-    const filter_ = ldap_filter.sgroup_children(id);
+    const filter_ = ldap_filter.sgroup_mostly_direct_children(id);
     const filter = ldap_filter.and2_if_some(filter_, conf.ldap.sgroup_filter);
     const children = hMyMap.fromOptionPairs((await ldpSgroup.search_sgroups(filter, wanted_attrs, undefined)).map(e => {
         const child_id = dn_to_sgroup_id(e.dn)
