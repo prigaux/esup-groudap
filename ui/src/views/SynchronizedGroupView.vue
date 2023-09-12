@@ -148,7 +148,7 @@ const test_remote_query = async () => {
         </select>
     </label>
 
-    <label v-if="remote_query.isSql !== undefined">
+    <label class="allow_any_width" v-if="remote_query.isSql !== undefined">
         <span class="label">{{remote_query.isSql ? 'Requête' : 'Filtre'}}</span>
 
         <div class="remote_query">
@@ -217,10 +217,15 @@ const test_remote_query = async () => {
 </template>
 
 <style scoped>
+
 label {
     display: flex;
     gap: 0.5rem;
     margin-bottom: 1rem;
+    max-width: 55rem;
+}
+.allow_any_width {
+    max-width: initial;
 }
 label.next-to-previous {
     margin-top: -1rem;
