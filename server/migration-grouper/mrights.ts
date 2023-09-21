@@ -11,7 +11,21 @@ async function handle_one(group: string, right: string, ss: string, subject: str
         group = '';
         right = 'admins';
     }
-    if (group.match(/^etc:/)) return;
+
+    let is_stem = false
+    let sgroup = group
+
+    // gérer la convention Paris1 pour mettre des droits sur les stems
+    let m = group.match(/^etc:stem-rights:(.*):stem-(readers|updaters|admins)$/)
+    if (m) {
+        if (mright !== 'member') return
+        const [, stemId, right] = m
+        sgroup = stemId
+        is_stem = true
+        mright = grouperRight_to_groupaldRight(right.replace(/s$/, ''))
+    } else if (group.match(/^etc:/)) {
+        return;
+    }
 
     const right_ = grouperRight_to_groupaldRight(right.replace(/s$/, ''))
     if (right_ === 'ignore') return;
@@ -19,7 +33,7 @@ async function handle_one(group: string, right: string, ss: string, subject: str
     const subject_dn = subject2dn(ss, subject);
 
     if (subject_dn) {
-        const id = to_id(group, false)
+        const id = to_id(sgroup, is_stem)
         await ensure_sgroup_object_classes(id)
         if (await is_sgroup_matching_filter(id, ldap_filter.eq(attr, dn_to_url(subject_dn)))) {
             //console.log("skipping", id, right_, subject_dn)
