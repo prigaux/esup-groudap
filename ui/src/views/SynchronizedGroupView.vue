@@ -313,7 +313,7 @@ textarea::selection {
     color: #400;
 }
 .punctuation4 {
-    background-color: #faa;
+    background-color: #fdd;
     color: #242;
 }
 .punctuation5 {
