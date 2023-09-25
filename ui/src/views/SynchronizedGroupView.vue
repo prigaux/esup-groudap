@@ -86,8 +86,8 @@ const set_select_or_filter = (val: string) => (
 
 watch(() => select_or_filter.value, (query) => {
     console.log(query?.length)
-    if (query && query.length > 100 && !trim(query).match(/\n/)) {
-        const indented = (props.remote_query.isSql ? indent_sql_query : ldap_filter_parser.indent)(query)
+    if (props.remote_query.isSql && query && query.length > 100 && !trim(query).match(/\n/)) {
+        const indented = indent_sql_query(query)
         if (indented !== query) {
             set_select_or_filter(indented)
         }

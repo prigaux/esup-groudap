@@ -1,4 +1,5 @@
 import { at, pick, pickBy } from "lodash";
+import * as ldap_filter_parser from '@/ldap_filter_parser'
 import { forEach, objectSortBy } from "./helpers";
 import { Dn, LdapConfigOut, MonoAttrs, Mright, MyMods, Option, PRecord, RemoteConfig, RemoteQuery, Right, SgroupAndMoreOut, SgroupLog, SgroupsWithAttrs, Subjects, SubjectsAndCount, SubjectsOrNull, Subjects_with_more, ToSubjectSource } from "./my_types";
 import { Ref } from "vue";
@@ -200,13 +201,20 @@ export const convert = {
         from_api(remote: RemoteQuery) {
             remote.to_subject_source ??= { ssdn: '', id_attr: '' }
             remote.periodicity = remote.forced_periodicity ?? ''
+            if (remote.filter) {
+                remote.filter = ldap_filter_parser.indent(remote.filter)
+            }
         },
         to_api(remote: RemoteQuery): Partial<RemoteQuery> {
             const has_subject_source = remote.to_subject_source.ssdn
             remote.forced_periodicity = remote.periodicity === '' ? undefined : remote.periodicity
-            return remote.isSql ? 
+            let remote_ = remote.isSql ? 
                 pick(remote, 'remote_cfg_name', 'forced_periodicity', 'select_query', ...(has_subject_source ? ['to_subject_source'] : [])) :
                 pick(remote, 'remote_cfg_name', 'forced_periodicity', 'filter', 'DN', 'attribute')
+            if (remote_.filter) {
+                remote_.filter = remote_.filter.replace(/\s+/g, '')
+            }
+            return remote_
         },
     },
 }
