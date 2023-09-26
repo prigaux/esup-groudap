@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { MyMap, Option } from './my_types'
 
 export const build_url_from_parts = (scheme: Option<string>, host_only: string, port: Option<string>, path_and_query: string) => {
@@ -38,7 +39,18 @@ export const hashmap_difference = <K extends string, V>(m1: MyMap<K,V>, m2 : MyM
     const r : MyMap<K,V> = {}
     for (const k in m1) {
         const v = m1[k]
-        if (m2[k] !== v) {
+        if (!_.isEqual(m2[k], v)) {
+            r[k] = v
+        }
+    }
+    return r
+}
+
+export const hashmap_intersection = <K extends string, V>(m1: MyMap<K,V>, m2 : MyMap<K,V>) => {
+    const r : MyMap<K,V> = {}
+    for (const k in m1) {
+        const v = m1[k]
+        if (_.isEqual(m2[k], v)) {
             r[k] = v
         }
     }

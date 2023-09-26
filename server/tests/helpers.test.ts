@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import {it} from '@jest/globals';
-import { fromPairsGrouped, generalized_time_to_iso8601, iso8601_to_generalized_time } from "../helpers";
+import { fromPairsGrouped, generalized_time_to_iso8601, hashmap_difference, hashmap_intersection, iso8601_to_generalized_time } from "../helpers";
 
 
 it('test_generalized_time_to_iso8601', () => {
@@ -38,4 +38,26 @@ it('fromPairsGrouped', () => {
     assert.deepEqual(fromPairsGrouped([["a", "A"], ["a", "A"]]), { "a": ["A", "A"] })
     assert.deepEqual(fromPairsGrouped([["a", "A"], ["b", "B"]]), { "a": ["A"], "b": ["B"] })
     assert.deepEqual(fromPairsGrouped([]), {})
+})
+
+it('hashmap_difference', () => {
+    assert.deepEqual(hashmap_difference({ a: "A" }, {}), { a: "A" })
+    assert.deepEqual(hashmap_difference({ a: "A" }, { a: "B" }), { a: "A" })
+    assert.deepEqual(hashmap_difference({ a: "A" }, { a: "A" }), {})
+    assert.deepEqual(hashmap_difference({ a: "A", b: "B" }, { a: "A" }), { b: "B" })
+
+    assert.deepEqual(hashmap_difference({ a: ["A"] }, { a: [] }), { a: ["A"] })
+    assert.deepEqual(hashmap_difference({ a: ["A"] }, { a: ["A"] }), {})
+    assert.deepEqual(hashmap_difference({ a: {} }, { a: {} }), {})
+})
+
+it('hashmap_intersection', () => {
+    assert.deepEqual(hashmap_intersection({ a: "A" }, {}), {})
+    assert.deepEqual(hashmap_intersection({ a: "A" }, { a: "B" }), {})
+    assert.deepEqual(hashmap_intersection({ a: "A" }, { a: "A" }), { a: "A" })
+    assert.deepEqual(hashmap_intersection({ a: "A", b: "B" }, { a: "A" }), { a: "A" })
+
+    assert.deepEqual(hashmap_intersection({ a: ["A"] }, { a: [] }), {})
+    assert.deepEqual(hashmap_intersection({ a: ["A"] }, { a: ["A"] }), { a: ["A"] })
+    assert.deepEqual(hashmap_intersection({ a: {} }, { a: {} }), { a: {} })
 })
