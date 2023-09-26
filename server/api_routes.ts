@@ -56,8 +56,8 @@ api.post("/delete", handleVoidP(async (req) => {
 
 api.post("/modify_members_or_rights", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
-    const { msg } = query_opt_params(req, { msg: q.string })
-    await api_post.modify_members_or_rights(logged_user(req), id, req.body as MyMods, msg)
+    const { msg, strict } = query_opt_params(req, { msg: q.string, strict: q.boolean })
+    await api_post.modify_members_or_rights(logged_user(req), id, req.body as MyMods, msg, strict || false)
 }))
 
 api.post("/sync", handleJson(async (req) => {

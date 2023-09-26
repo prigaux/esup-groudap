@@ -105,6 +105,16 @@ export async function add() {
         admin: { add: { [prigaux_dn]: {} } },
     }, undefined)
 
+    // the second *strict* call should fail
+    assert.rejects(api_post.modify_members_or_rights(user_trusted, "", {
+        admin: { add: { [prigaux_dn]: {} } },
+    }, undefined, true))
+
+    // the second call should not fail, it should do nothing
+    await api_post.modify_members_or_rights(user_trusted, "", {
+        admin: { add: { [prigaux_dn]: {} } },
+    }, undefined)
+
     const root_attrs = {
         description: "Groups. Droits sur l'arborescence entière",
         ou: "Racine",

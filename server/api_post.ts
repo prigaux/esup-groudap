@@ -9,7 +9,7 @@ import * as cache from './cache'
 import conf from "./conf";
 import ldap_filter from "./ldap_filter";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteQuery, RemoteSqlQuery, Right, toDn, isRqSql } from "./my_types";
-import { hashmap_difference, internal_error } from "./helpers";
+import { hashmap_difference, hashmap_intersection, internal_error } from "./helpers";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
 import { avoid_group_and_groups_including_it__filter, parse_remote_query, user_right_filter, validate_remote } from "./api_get";
 import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
@@ -101,7 +101,7 @@ function from_submods(submods: MyMap<MyMod, DnsOpts>): [DnsOpts, DnsOpts, Option
     ]
 }
 
-async function may_transform_replace_into_AddDelete(id: string, mright: Mright, submods: MyMap<MyMod, DnsOpts>): Promise<MyMap<MyMod, DnsOpts>> {
+async function check_and_simplify_submods(id: string, mright: Mright, submods: MyMap<MyMod, DnsOpts>): Promise<MyMap<MyMod, DnsOpts>> {
     let [add, delete_, replace] = from_submods(submods);
 
     if (replace && _.size(replace) > 4) {
@@ -111,6 +111,10 @@ async function may_transform_replace_into_AddDelete(id: string, mright: Mright, 
         delete_ = hashmap_difference(current_dns, replace)
         replace = undefined
         console.log("  replaced long\n    Replace %s with\n    Add %s\n    Replace %s", replace, add, delete_);
+    } else if (!replace) {
+        const current_dns = await ldpSgroup.read_direct_mright(sgroup_id_to_dn(id), mright)
+        add = hashmap_difference(add, current_dns)
+        delete_ = hashmap_intersection(delete_, current_dns)
     }
     return to_submods(add, delete_, replace)
 }
@@ -123,7 +127,7 @@ async function check_and_simplify_mods(is_stem: boolean, id: string, my_mods: My
         if (mright === 'member' && is_stem) {
             throw "members are not allowed for stems"
         }
-        const submods_ = await may_transform_replace_into_AddDelete(id, mright, submods)
+        const submods_ = await check_and_simplify_submods(id, mright, submods)
         if (!_.isEmpty(submods_)) {
             r[mright] = submods_
         }
@@ -300,9 +304,10 @@ async function check_read_right_on_group_subjects__and__non_recursive_member(log
  * Modify the group/stem members or rights
  * @param id - group/stem identifier
  * @param my_mods - members or rights to add/remove/replace
+ * @param strict - by default, actions already done are ignored. If set, actions are executed as is
  * @param msg - optional message explaining why the user did this action
  */
-export async function modify_members_or_rights(logged_user: LoggedUser, id: string, my_mods: MyMods, msg: Option<string>) {
+export async function modify_members_or_rights(logged_user: LoggedUser, id: string, my_mods: MyMods, msg: Option<string>, strict: boolean = false) {
     console.log("modify_members_or_rights(%s, _)", id);
     validate_sgroup_id(id)
     // is logged user allowed to do the modifications?
@@ -310,7 +315,7 @@ export async function modify_members_or_rights(logged_user: LoggedUser, id: stri
     // are the modifications valid?
     await may_check_member_ttl(id, my_mods)
     await check_read_right_on_group_subjects__and__non_recursive_member(logged_user, id, my_mods)
-    const my_mods_ = await check_and_simplify_mods(is_stem(id), id, my_mods)
+    const my_mods_ = strict ? my_mods : await check_and_simplify_mods(is_stem(id), id, my_mods)
     if (_.isEmpty(my_mods_)) {
         // it happens when a "Replace" has been simplified into 0 Add/Delete
         return
