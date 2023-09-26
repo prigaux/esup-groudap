@@ -102,15 +102,15 @@ function from_submods(submods: MyMap<MyMod, DnsOpts>): [DnsOpts, DnsOpts, Option
 }
 
 async function may_transform_replace_into_AddDelete(id: string, mright: Mright, submods: MyMap<MyMod, DnsOpts>): Promise<MyMap<MyMod, DnsOpts>> {
-    const [add, delete_, replace] = from_submods(submods);
+    let [add, delete_, replace] = from_submods(submods);
 
     if (replace && _.size(replace) > 4) {
         const current_dns = await ldpSgroup.read_direct_mright(sgroup_id_to_dn(id), mright)
         // transform Replace into Add/Delete
-        Object.assign(add, hashmap_difference(replace, current_dns));
-        Object.assign(delete_, hashmap_difference(current_dns, replace));
+        add = hashmap_difference(replace, current_dns)
+        delete_ = hashmap_difference(current_dns, replace)
+        replace = undefined
         console.log("  replaced long\n    Replace %s with\n    Add %s\n    Replace %s", replace, add, delete_);
-        return to_submods(add, delete_, undefined)
     }
     return to_submods(add, delete_, replace)
 }
