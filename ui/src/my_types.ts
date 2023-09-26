@@ -21,7 +21,7 @@ export type MonoAttrs = Record<string, string>
 export interface SubjectAttrs { 
     attrs: MonoAttrs
     sgroup_id?: string
-    options?: DirectOptions
+    options: DirectOptions
 
 }
 export type SubjectAttrs_with_more = SubjectAttrs & { sscfg_dn?: Dn, indirect?: boolean, sort_field?: string }
