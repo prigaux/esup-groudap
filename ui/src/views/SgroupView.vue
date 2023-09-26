@@ -438,7 +438,7 @@ let search_subject_source_dn = ref('')
             <ul v-else>
                 <li v-for="(attrs, id) in sgroup.stem.children">
                     <MyIcon name="folder" class="on-the-left" />
-                    <SgroupLink :sgroup="{ attrs }" :id="id" />
+                    <SgroupLink :sgroup="{ attrs, right: 'reader', sgroup_id: id }" />
                 </li>
             </ul>
         </div>

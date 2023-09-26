@@ -45,7 +45,7 @@ const goto = (sgroup: UnknownT) => {
     <ul v-else>
         <li v-for="(attrs, id) in mygroups">
             <MyIcon name="users" class="on-the-left" />
-            <SgroupLink :sgroup="{ attrs }" :id="id" />
+            <SgroupLink :sgroup="{ attrs, right: 'updater', sgroup_id: id }" />
         </li>
     </ul>
 </fieldset>
