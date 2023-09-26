@@ -1,5 +1,7 @@
 import _ from "lodash"
 
+import migration_conf from './migration_conf';
+import * as api_post from '../api_post';
 import { grouper_sql_query_strings, to_id } from './migration_helpers';
 import { create_sgroup, is_sgroup_existing } from '../ldap_sgroup_read_search_modify';
 import { hMyMap } from "../my_types";
@@ -30,6 +32,14 @@ async function create_groups() {
             } else {
                 console.log("creating group", name, display_name, description)
                 await create_sgroup(id, hMyMap.compact({ ou: display_name, description: description }))
+            }
+
+            if (migration_conf.migrate_special__all__groups && name.endsWith(":all")) {
+                const filter = `(&(objectClass=groupaldGroup)(cn=${id.replace(/[.]all$/, '.*')})(!(cn=${id})))`
+                await api_post.modify_remote_query_(id, {
+                    remote_cfg_name: migration_conf.main_ldap_remote_cfg_name,
+                    filter,
+                })
             }
         }
     }

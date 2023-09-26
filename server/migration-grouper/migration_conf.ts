@@ -16,6 +16,7 @@ export default {
     wheel_group: 'etc:sysadmingroup',
     GrouperAll_group: 'applications.grouper.updaters',
     main_ldap_remote_cfg_name: 'main_ldap',
+    migrate_special__all__groups: true,
 
     remap_periodicities: is<MyMap<Periodicity, Periodicity>>({
         "toutes les 10 minutes": "toutes les 5 minutes",
