@@ -107,9 +107,9 @@ const test_remote_query = async () => {
     if (val.ss_guess && props.remote_query.isSql) {
         props.remote_query.to_subject_source = val.ss_guess[0]
     }
-    // when user modifies the `remote_query`, set `last_test_remote_query` to undefined
+    // when user modifies the `select_query`, set `last_test_remote_query` to undefined
     setRefAsync(last_test_remote_query, val,
-                watchOnceP(() => props.remote_query, () => undefined, { deep: true }))
+                watchOnceP(() => props.remote_query?.select_query, () => undefined, { deep: true }))
 }
 
 </script>
