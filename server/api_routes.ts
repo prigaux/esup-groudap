@@ -61,7 +61,8 @@ api.post("/modify_members_or_rights", handleVoidP(async (req) => {
     await api_post.modify_members_or_rights(logged_user(req), id, req.body as MyMods, msg, strict || false)
 }))
 
-api.post("/sync", handleJson(async (req) => {
+// NB: also allowing GET to ease calls in browser
+api.all("/sync", handleJson(async (req) => {
     const { id } = query_params(req, { id: q.string })
     const { mright } = query_opt_params(req, { mright: q.mright })
     return await api_post.sync(logged_user(req), id, 
