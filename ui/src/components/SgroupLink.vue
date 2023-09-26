@@ -15,7 +15,10 @@ let id = computed(() => props.id || props.sgroup.sgroup_id)
 </script>
 
 <template>
-    <span v-if="('right' in sgroup) && !sgroup.right" :title="sgroup.attrs.description">{{
+    <span v-if="
+        // @ts-expect-error
+        !sgroup.options && !sgroup.right
+    " :title="sgroup.attrs.description">{{
         sgroup.attrs.ou || id
     }}</span>
     <RouterLink v-else :to="{ path: '/sgroup', query: { id } }" :title="sgroup.attrs.description">{{
