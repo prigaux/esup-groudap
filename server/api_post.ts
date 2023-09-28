@@ -356,7 +356,7 @@ export async function modify_remote_query_(id: string, remote: RemoteQuery | {})
 }
 
 /**
- * Set or modify the SQL query for a group + synchronize the members
+ * Set or modify the LDAP/SQL query for a group + synchronize the members
  * @param id - group/stem identifier
  * @param remote - remote name + (SQL query + optional mapping) or (LDAP filter + ...)
  * @param msg - optional message explaining why the user did this action
