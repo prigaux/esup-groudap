@@ -42,7 +42,8 @@ api.get("/add_test_data", handleVoidP(test_data.add))
 
 api.post("/create", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
-    await api_post.create(logged_user(req), id, req.body as MonoAttrs)
+    const { strict } = query_opt_params(req, { strict: q.boolean })
+    await api_post.create(logged_user(req), id, req.body as MonoAttrs, strict || false)
 }))
 
 api.post("/modify_sgroup_attrs", handleVoidP(async (req) => {

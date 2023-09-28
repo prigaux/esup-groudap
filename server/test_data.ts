@@ -128,12 +128,12 @@ export async function add() {
     )
     const root_with_id = (right: Option<Right>) => to_parent("", root_attrs, right);
     const collab_with_id = (right: Option<Right>) => to_parent("collab.", collab_attrs, right);
-    await api_post.create(user_prigaux, "collab.", collab_attrs)
+    await api_post.create(user_prigaux, "collab.", collab_attrs, true)
     const collab_dsiun_attrs = {
         ou: "Collaboration DSIUN",
         description: "Collaboration DSIUN",
     };
-    await api_post.create(user_prigaux, "collab.DSIUN", collab_dsiun_attrs)
+    await api_post.create(user_prigaux, "collab.DSIUN", collab_dsiun_attrs, true)
 
     const get_sgroup_collab: SgroupAndMoreOut = { 
         attrs: collab_attrs, 
@@ -172,17 +172,17 @@ export async function add() {
     await api_post.create(user_prigaux, "applications.", { 
         ou: "Applications",
         description: "Applications",
-    })
+    }, true)
 
     await api_post.create(user_prigaux, "applications.grouper.", { 
         ou: "Applications:Grouper",
         description: "Grouper",
-    })
+    }, true)
 
     await api_post.create(user_prigaux, "applications.grouper.super-admins", {
         ou: "Grouper super admins",
         description: "Grouper admins de toute l'arborescence\n\nTicket groupe truc",
-    })
+    }, true)
     await api_post.modify_members_or_rights(user_prigaux, "applications.grouper.super-admins", {
         member: { add: { [prigaux_dn]: {} } },
     }, undefined)
@@ -217,7 +217,7 @@ export async function add() {
         }
     }
     
-    await api_post.create(user_prigaux, "collab.foo", collab_foo_attrs)
+    await api_post.create(user_prigaux, "collab.foo", collab_foo_attrs, true)
     await api_post.modify_members_or_rights(user_prigaux, "collab.foo", {
         admin: { add: { [sgroup_id_to_dn("collab.DSIUN")]: {} } },
     }, undefined)
@@ -293,8 +293,8 @@ export async function add() {
     await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "", 'admin', undefined, undefined));
     await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "collab.", 'admin', undefined, undefined));
 
-    await api_post.create(user_prigaux, "employees.", { ou: "Employees" })
-    await api_post.create(user_prigaux, "employees.DGHA", { ou: "DSIUN-PAS" })
+    await api_post.create(user_prigaux, "employees.", { ou: "Employees" }, true)
+    await api_post.create(user_prigaux, "employees.DGHA", { ou: "DSIUN-PAS" }, true)
     await api_post.modify_remote_query(user_prigaux, "employees.DGHA", {
         remote_cfg_name: 'main_ldap',
         filter: '(supannEntiteAffectation=DGHA)'
@@ -302,7 +302,7 @@ export async function add() {
     assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), [prigaux_dn, aanli_dn]);
     assert.deepEqual(await ldpSgroup.read_direct_mright(sgroup_id_to_dn("employees.DGHA"), 'member'), {});
 
-    await api_post.create(user_prigaux, "employees.all", { ou: "Tous les employés" })
+    await api_post.create(user_prigaux, "employees.all", { ou: "Tous les employés" }, true)
     await api_post.modify_remote_query(user_prigaux, "employees.all", {
         remote_cfg_name: 'main_ldap',
         filter: `(&(objectClass=groupaldGroup)(cn=employees.*)(!(cn=employees.all)))`,

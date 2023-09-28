@@ -21,13 +21,25 @@ import { ldap_query, to_ldap_url } from './remote_ldap_query';
 /**
  * Create the stem/group
  */
-export async function create(logged_user: LoggedUser, id: string, attrs: MonoAttrs) {
+export async function create(logged_user: LoggedUser, id: string, attrs: MonoAttrs, strict: boolean) {
     console.log("create(%s)", id);
     validate_sgroup_id(id)
     validate_sgroups_attrs(attrs)
     await check_right_on_any_parents(logged_user, id, 'admin')
-    await ldpSgroup.create_sgroup(id, attrs)
-    await api_log.log_sgroup_action(logged_user, id, "create", undefined, attrs)
+    try {
+        await ldpSgroup.create_sgroup(id, attrs)
+        await api_log.log_sgroup_action(logged_user, id, "create", undefined, attrs)
+    } catch (err) {
+        if (err instanceof ldapjs.EntryAlreadyExistsError) {
+            if (strict) {
+                throw "sgroup already exists"
+            } else {
+                await modify_sgroup_attrs(logged_user, id, attrs)
+            }
+        } else {
+            throw err
+        }        
+    }
 }
 
 async function current_sgroup_attrs(id: string): Promise<MonoAttrs> {
