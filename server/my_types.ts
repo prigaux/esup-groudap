@@ -360,3 +360,11 @@ export interface TestRemoteQuery {
     values_truncated: boolean,
     ss_guess: Option<[ToSubjectSource, Subjects]>,
 }
+
+export type SgroupLog = { who: string, when: Date, action: string } & Record<string, any>
+
+export interface SgroupLogs { 
+    last_log_date: Option<Date>
+    whole_file: boolean
+    logs: SgroupLog[]
+}

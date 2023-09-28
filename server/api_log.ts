@@ -2,7 +2,7 @@ import * as fs from 'fs'
 import { promisify } from 'util'
 
 import conf from './conf'
-import { Dn, hLoggedUser, LoggedUser, Mright, Option } from './my_types';
+import { Dn, hLoggedUser, LoggedUser, Mright, Option, SgroupLogs } from './my_types';
 
 function sgroup_log_file(log_dir: string, id: string, opts?: { sync: true }): string {
     id = id.replace('/', "_"); // it should not be necessary but...
@@ -37,7 +37,7 @@ function parse_jsonl(jsonl: string) {
     return JSON.parse(json) as any[]
 }
 
-async function read_jsonl(file_path: string, bytes: number) {
+async function read_jsonl(file_path: string, bytes: number): Promise<SgroupLogs> {
     try {
         const { buffer, ...o } = await read_full_lines(file_path, bytes)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
