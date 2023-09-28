@@ -160,6 +160,7 @@ export function addSeconds(date: Date | string, seconds: number) {
     return r;
 }
 
+// NB: typescript "satisfies" operator checks but not force the type
 export const is = <T>(v: T) => v
 
 export async function mapAsync<T,U>(array: T[], f: (e: T) => Promise<U>) {
