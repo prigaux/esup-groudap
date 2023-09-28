@@ -9,7 +9,7 @@ import * as cache from './cache'
 import conf from "./conf";
 import ldap_filter from "./ldap_filter";
 import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteQuery, RemoteSqlQuery, Right, toDn, isRqSql } from "./my_types";
-import { hashmap_difference, hashmap_intersection, internal_error } from "./helpers";
+import { hashmap_difference, hashmap_intersection, internal_error, throw_ } from "./helpers";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
 import { avoid_group_and_groups_including_it__filter, parse_remote_query, user_right_filter, validate_remote } from "./api_get";
 import { dn_is_sgroup, sgroup_id_to_dn, urls_to_dns } from "./dn";
@@ -32,7 +32,7 @@ export async function create(logged_user: LoggedUser, id: string, attrs: MonoAtt
 
 async function current_sgroup_attrs(id: string): Promise<MonoAttrs> {
     const attrs = hMyMap.keys(conf.ldap.sgroup_attrs);
-    const e = await ldpSgroup.read_sgroup(id, attrs) ?? internal_error()
+    const e = await ldpSgroup.read_sgroup(id, attrs) ?? throw_("sgroup does not exist")
     return mono_attrs(e)
 }
 
