@@ -5,7 +5,7 @@ import bodyParser from 'body-parser'
 import * as express_helpers from './express_helpers'
 import conf from './conf';
 import api_routes from './api_routes'
-
+import * as openapi from './openapi'
 
 const staticFilesOptions = { maxAge: process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 0 };
 
@@ -24,6 +24,7 @@ const app = express();
 
 if (conf.trust_proxy) app.set('trust proxy', conf.trust_proxy)
 app.use(express_helpers.session_store());
+openapi.expressJS(app)
 
 app.use("/api", 
     bodyParser.json({type: '*/*'}), // do not bother checking, everything we will get is JSON :)
