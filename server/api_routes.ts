@@ -99,9 +99,9 @@ api.get("/group_flattened_mright", handleJsonP(async (req) => {
 }))
 
 api.get("/sgroup_logs", handleJsonP(async (req) => {
-    const { id, bytes } = query_params(req, { id: q.string, bytes: q.int })
-    const { sync } = query_opt_params(req, { sync: q.boolean })
-    return await api_get.get_sgroup_logs(logged_user(req), id, bytes, sync ? { sync } : undefined)
+    const { id } = query_params(req, { id: q.string })
+    const { bytes, sync } = query_opt_params(req, { bytes: q.int, sync: q.boolean })
+    return await api_get.get_sgroup_logs(logged_user(req), id, bytes || 9999999, sync ? { sync } : undefined)
 }))
 
 api.get("/search_sgroups", handleJsonP(async (req) => {
