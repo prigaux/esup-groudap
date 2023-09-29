@@ -46,7 +46,7 @@ api.post("/create", handleVoidP(async (req) => {
     await api_post.create(logged_user(req), id, req.body as MonoAttrs, strict || false)
 }))
 
-api.post("/modify_sgroup_attrs", handleVoidP(async (req) => {
+api.post("/modify_attrs", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     await api_post.modify_sgroup_attrs(logged_user(req), id, req.body as MonoAttrs)
 }))
@@ -82,23 +82,23 @@ api.post("/test_remote_query", handleJsonP(async (req) => {
     return await api_get.test_remote_query(logged_user(req), id, req.body as RemoteQuery)
 }))
 
-api.get("/sgroup", handleJsonP(async (req) => {
+api.get("/get", handleJsonP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     return await api_get.get_sgroup(logged_user(req), id)
 }))
 
-api.get("/sgroup_direct_rights", handleJsonP(async (req) => {
+api.get("/direct_rights", handleJsonP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     return await api_get.get_sgroup_direct_rights(logged_user(req), id)
 }))
 
-api.get("/sgroup_flattened_mright", handleJsonP(async (req) => {
+api.get("/flattened_mright", handleJsonP(async (req) => {
     const { id, mright } = query_params(req, { id: q.string, mright: q.mright })
     const { search_token, sizelimit } = query_opt_params(req, { search_token: q.string, sizelimit: q.int })
     return await api_get.get_sgroup_flattened_mright(logged_user(req), id, mright, search_token, sizelimit)
 }))
 
-api.get("/sgroup_logs", handleJsonP(async (req) => {
+api.get("/logs", handleJsonP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     const { bytes, sync } = query_opt_params(req, { bytes: q.int, sync: q.boolean })
     return await api_get.get_sgroup_logs(logged_user(req), id, bytes || 9999999, sync ? { sync } : undefined)
