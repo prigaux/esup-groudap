@@ -3,6 +3,7 @@ import mysql from 'mysql'
 import * as pg from 'pg'
 // @ts-expect-error (@types/oracledb 5.2.x does not allow oracledb.getConnection)
 import oracledb from 'oracledb'
+import * as tedious from 'tedious'
 import { promisify } from "util";
 
 import { hMyMap, MyMap, RemoteSqlConfig, RemoteSqlDriver } from "./my_types";
@@ -57,6 +58,32 @@ const driver_query_arrays: MyMap<RemoteSqlDriver, (remote: RemoteSqlConfig, db_n
         const r = await conn.execute(select_query) as { rows: unknown[][] }
         return r.rows
     },
+    sqlserver: (remote, db_name, select_query) => (
+        new Promise((resolve, reject) => {
+            const conn = new tedious.Connection({
+                server: remote.host,
+                options: {
+                    port: remote.port || 1433, database: db_name,
+                    encrypt: true, trustServerCertificate: true, cryptoCredentialsDetails: { ciphers: 'DEFAULT@SECLEVEL=0' },
+                },
+                authentication: { type: 'default', options: { userName: remote.user, password: remote.password } },
+            })
+            conn.on('connect', (err) => {
+                if (err) return reject(err)
+                let rows: any[] = []
+                const request = new tedious.Request(select_query, function(err, _rowCount) {
+                    if (err) { reject(err) } else { resolve(rows) }
+                    conn.close()
+                })
+                request.on('row', (columns) => {
+                    rows.push(columns.map(column => column.value))
+                    //rows.push(_.fromPairs(columns.map(column => [column.metadata.colName, column.value])))
+                });
+                conn.execSql(request);
+            });
+            conn.connect();
+        })
+    ),
     postgresql: async (remote, db_name, select_query) => {
         return postgresql_client(remote, db_name, async (client) => (
             (await client.query({ text: select_query, rowMode: 'array' })).rows
