@@ -127,9 +127,9 @@ export const subject_ids_to_dns = (ids: string[], source_dn: Option<Dn>, opts: o
     api_post("subject_ids_to_dns", source_dn ? { source_dn } : {}, ids, opts ?? {})
 )
 
-export const group_flattened_mright = (search_params: { id: string, mright: Mright, sizelimit: number, search_token: string }) : Promise<SubjectsAndCount> => {
+export const sgroup_flattened_mright = (search_params: { id: string, mright: Mright, sizelimit: number, search_token: string }) : Promise<SubjectsAndCount> => {
     let search_params_ = remove_empty_params({ ...search_params, sizelimit: "" + search_params.sizelimit })
-    return api_get("group_flattened_mright", search_params_, {})
+    return api_get("sgroup_flattened_mright", search_params_, {})
 }
 export const sgroup_direct_rights = (id: string) : Promise<PRecord<Right, SubjectsOrNull>> => (
     api_get("sgroup_direct_rights", { id }, {})

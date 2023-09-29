@@ -8,8 +8,8 @@ import * as api from '@/api'
 
 
 // call API + add flag "indirect" if indirect + add "sscfg_dn"
-async function group_flattened_mright(id: string, mright: Mright, search_token: string, directs: SubjectsOrNull) {
-    const r: SubjectsAndCount_with_more = await api.group_flattened_mright({ id, mright, sizelimit: 100, search_token });
+async function sgroup_flattened_mright(id: string, mright: Mright, search_token: string, directs: SubjectsOrNull) {
+    const r: SubjectsAndCount_with_more = await api.sgroup_flattened_mright({ id, mright, sizelimit: 100, search_token });
 
     forEach(r.subjects, (subject, dn) => {
         if (!subject) return
@@ -29,7 +29,7 @@ export const flat_mrights_show_search = (sgroup: Ref<SgroupAndMoreOut_>, mright:
         if (!show.value || sgroup.value.stem) return;
         const search_token_ = search_token.throttled || ''
         //if (search_token_.length < 3) return;
-        return await group_flattened_mright(sgroup.value.id, mright, search_token_, directs());
+        return await sgroup_flattened_mright(sgroup.value.id, mright, search_token_, directs());
     }, undefined, searching)
     return { show, searching, search_token, results }
 }

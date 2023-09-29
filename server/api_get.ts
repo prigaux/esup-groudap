@@ -190,14 +190,10 @@ export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: str
  * @param id - the group to query
  * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
  */
-export async function get_group_flattened_mright(_logged_user: LoggedUser, id: string, mright: Mright, search_token: Option<string>, sizeLimit: Option<number>): Promise<SubjectsAndCount> {
-    console.log("get_group_flattened_mright(%s)", id);
+export async function get_sgroup_flattened_mright(_logged_user: LoggedUser, id: string, mright: Mright, search_token: Option<string>, sizeLimit: Option<number>): Promise<SubjectsAndCount> {
+    console.log("get_sgroup_flattened_mright(%s)", id);
     validate_sgroup_id(id)
     
-    if (is_stem(id)) {
-        throw "get_group_flattened_mright works only on groups, not stems"
-    }
-
     const flattened_dns = await ldp.read_flattened_mright(sgroup_id_to_dn(id), mright)
 
     const count = flattened_dns.length

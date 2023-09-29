@@ -284,14 +284,14 @@ export async function add() {
         "collab.foo",
     ]);
 
-    assert.deepEqual(await api_get.get_group_flattened_mright(user_prigaux, "collab.DSIUN", 'member', undefined, 1), 
+    assert.deepEqual(await api_get.get_sgroup_flattened_mright(user_prigaux, "collab.DSIUN", 'member', undefined, 1), 
         { count: 2, subjects: {
             'uid=foo,ou=people,dc=nodomain': null,
             ...prigaux_subject,
         } });
 
-    await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "", 'admin', undefined, undefined));
-    await assert.rejects(api_get.get_group_flattened_mright(user_prigaux, "collab.", 'admin', undefined, undefined));
+    await assert.rejects(api_get.get_sgroup_flattened_mright(user_prigaux, "", 'admin', undefined, undefined));
+    await assert.rejects(api_get.get_sgroup_flattened_mright(user_prigaux, "collab.", 'admin', undefined, undefined));
 
     await api_post.create(user_prigaux, "employees.", { ou: "Employees" }, true)
     await api_post.create(user_prigaux, "employees.DGHA", { ou: "DSIUN-PAS" }, true)

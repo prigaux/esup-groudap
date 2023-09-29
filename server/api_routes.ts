@@ -92,10 +92,10 @@ api.get("/sgroup_direct_rights", handleJsonP(async (req) => {
     return await api_get.get_sgroup_direct_rights(logged_user(req), id)
 }))
 
-api.get("/group_flattened_mright", handleJsonP(async (req) => {
+api.get("/sgroup_flattened_mright", handleJsonP(async (req) => {
     const { id, mright } = query_params(req, { id: q.string, mright: q.mright })
     const { search_token, sizelimit } = query_opt_params(req, { search_token: q.string, sizelimit: q.int })
-    return await api_get.get_group_flattened_mright(logged_user(req), id, mright, search_token, sizelimit)
+    return await api_get.get_sgroup_flattened_mright(logged_user(req), id, mright, search_token, sizelimit)
 }))
 
 api.get("/sgroup_logs", handleJsonP(async (req) => {
