@@ -301,7 +301,7 @@ async function check_read_right_on_group_subjects__and__non_recursive_member(log
 }
 
 /**
- * Modify the group/stem members or rights
+ * Modify the group/stem members or rights + synchronize indirect
  * @param id - group/stem identifier
  * @param my_mods - members or rights to add/remove/replace
  * @param strict - by default, actions already done are ignored. If set, actions are executed as is
