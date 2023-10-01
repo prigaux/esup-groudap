@@ -17,7 +17,8 @@ async function sql_values_to_dns_(ssdn: Dn, id_attrs: string[], sql_values: stri
     const r: DnsOpts = {};
     for (const sql_values_ of _.chunk(sql_values, 10)) {
         const filter = ldap_filter.or(
-            sql_values_.flatMap(val => 
+            // NB: "" values leads to invalid LDAP filter => remove them
+            _.compact(sql_values_).flatMap(val => 
                 id_attrs.map(id_attr => ldap_filter.eq(id_attr, val))
             )
         );
