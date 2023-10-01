@@ -49,7 +49,7 @@ export async function get_subjects(dns: Dn[], dn2opts: DnsOpts, search_token: Op
         dn_to_rdn_and_parent_dn(dn)?.oMap(([rdn, parent_dn]) => [parent_dn, rdn])
     ))))
 
-    const r: SubjectsOrNull = hMyMap.fromPairs(dns.map(dn => [dn, null]))
+    const r: SubjectsOrNull = search_token ? {} : hMyMap.fromPairs(dns.map(dn => [dn, null]))
 
     await hMyMap.eachAsync(parent_dn_to_rdns, async (rdns, parent_dn) => {
         const sscfg = dn_to_subject_source_cfg(parent_dn)
