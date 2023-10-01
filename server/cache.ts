@@ -25,7 +25,14 @@ async function get_periodicity_to_group_ids_() {
     for (const entry of await ldpSgroup.search_sgroups(remote_group_filter, [attr], undefined)) {
         const group_id = dn_to_sgroup_id(entry.dn) ?? internal_error();
         const url = mono_attrs(entry)[attr] ?? internal_error()
-        const remote = parse_remote_query(url) ?? internal_error();
+        let remote;
+        try {
+            remote = parse_remote_query(url)
+        } catch (err) {
+            console.error(err) 
+            throw "invalid remote group " + group_id
+        }
+
         const periodicity: Periodicity = remote.forced_periodicity ?? conf.remotes[remote.remote_cfg_name]?.periodicity ?? internal_error()
         ;(map[periodicity] ??= new Set()).add(group_id);
     }
