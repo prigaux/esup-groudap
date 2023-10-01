@@ -41,10 +41,10 @@ export const get_subjects_from_urls = async (urls: string[]) => (
 export async function get_subjects_(dn2opts: DnsOpts) : Promise<SubjectsOrNull> {
     const dns = hMyMap.keys(dn2opts);
 
-    return await get_subjects(dns, dn2opts, undefined, undefined)
+    return await get_subjects(dns, dn2opts, undefined)
 }
 
-export async function get_subjects(dns: Dn[], dn2opts: DnsOpts, search_token: Option<string>, sizelimit: Option<number>) {
+export async function get_subjects(dns: Dn[], dn2opts: DnsOpts, search_token: Option<string>) {
     const parent_dn_to_rdns = fromPairsGrouped(_.compact(dns.map(dn => (
         dn_to_rdn_and_parent_dn(dn)?.oMap(([rdn, parent_dn]) => [parent_dn, rdn])
     ))))
@@ -54,14 +54,9 @@ export async function get_subjects(dns: Dn[], dn2opts: DnsOpts, search_token: Op
     await hMyMap.eachAsync(parent_dn_to_rdns, async (rdns, parent_dn) => {
         const sscfg = dn_to_subject_source_cfg(parent_dn)
         if (sscfg) {
-            let count = 0;
             for (const rdns_ of _.chunk(rdns, 10)) {
                 const subjects = await get_subjects_from_same_branch(sscfg, parent_dn, rdns_, dn2opts, search_token);
-                count += _.size(subjects);
                 Object.assign(r, subjects)
-                if (sizelimit) {
-                    if (count >= sizelimit) break;
-                }
             }
         }
     })

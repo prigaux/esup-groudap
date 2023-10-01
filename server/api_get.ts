@@ -188,7 +188,7 @@ export async function get_sgroup_direct_rights(_logged_user: LoggedUser, id: str
 /**
  * Search the flattened subjects who have the requested mright on this group
  * @param id - the group to query
- * @param sizeLimit - is applied for each subject source, so the max number of results is sizeLimit * nb_subject_sources
+ * @param sizeLimit - max number of flattened subjects
  */
 export async function get_sgroup_flattened_mright(_logged_user: LoggedUser, id: string, mright: Mright, search_token: Option<string>, sizeLimit: Option<number>): Promise<SubjectsAndCount> {
     console.log("get_sgroup_flattened_mright(%s)", id);
@@ -197,7 +197,7 @@ export async function get_sgroup_flattened_mright(_logged_user: LoggedUser, id: 
     const flattened_dns = await ldp.read_flattened_mright(sgroup_id_to_dn(id), mright)
 
     const count = flattened_dns.length
-    const subjects = await ldpSubject.get_subjects(flattened_dns, {}, search_token, sizeLimit)
+    const subjects = await ldpSubject.get_subjects(flattened_dns.slice(0, sizeLimit), {}, search_token)
     return { count, subjects }
 }
 
