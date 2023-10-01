@@ -10,6 +10,7 @@ import * as api from '@/api'
 import * as ldap_filter_parser from '@/ldap_filter_parser'
 import { computed, ref, watch } from 'vue'
 import { setRefAsync, watchOnceP } from '@/vue_helpers'
+import { objectSortBy_ } from '@/helpers';
 
 const indent_sql_query = (query: string) => {
     let r = ""
@@ -64,7 +65,7 @@ const props = defineProps<{
 defineEmits(['save'])
 
 const remotes_and = asyncComputed(() => api.config_remotes())
-const remotes = computed(() => remotes_and.value?.remotes)
+const remotes = computed(() => objectSortBy_(remotes_and.value?.remotes, (_, name) => name))
 const additional_periodicities = computed(() => remotes_and.value?.additional_periodicities)
 const ldapCfg = asyncComputed(api.config_ldap)
 

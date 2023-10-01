@@ -1,5 +1,5 @@
 import { pick, sortBy } from "lodash"
-import { PRecord } from "./my_types"
+import { Option, PRecord } from "./my_types"
 
 // NB: workaround typescript&lodash limitation on type of V param
 export const forEach = <K extends keyof any, V>(o: PRecord<K, V>, f : (v: V, k:K) => void) => {
@@ -32,6 +32,10 @@ export const objectSortBy = <V>(o: Record<string, V>, f : (v: V, k: string) => s
     const sorted_keys = sortBy(Object.keys(o), key => f(o[key] as V, key))
     return pick(o, sorted_keys)
 }
+
+export const objectSortBy_ = <V>(o: Option<Record<string, V>>, f : (v: V, k: string) => string | undefined): Record<string, V> => (
+    o ? objectSortBy(o, f) : undefined
+)
 
 export function padStart(value : any, length : number, char : string) : string {
     value = value + '';
