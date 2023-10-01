@@ -27,7 +27,7 @@ export async function the_loop_(): Promise<never> {
     let periodicity_to_next_time: Map<Periodicity, Date> = new Map()
 
     while (true) {
-        const periodicity_to_sgroup_ids = await cache.get_periodicity_to_sgroup_ids()
+        const periodicity_to_sgroup_ids = await cache.get_periodicity_to_group_ids()
         const now = Date.now();
         hMyMap.eachAsync(periodicity_to_sgroup_ids, async (sgroup_ids, periodicity) => {
             const next_time = periodicity_to_next_time.get(periodicity) || now
