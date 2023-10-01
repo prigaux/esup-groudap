@@ -21,7 +21,8 @@ export const get_periodicity_to_sgroup_ids = async () => (
 async function get_periodicity_to_sgroup_ids_() {
     const attr = hMright.attr_synchronized;
     const map: PeriodicityToSgroupIds = {};
-    for (const entry of await ldpSgroup.search_sgroups(ldap_filter.presence(attr), [attr], undefined)) {
+    const remote_group_filter = ldap_filter.and([ conf.ldap.group_filter, ldap_filter.presence(attr) ])
+    for (const entry of await ldpSgroup.search_sgroups(remote_group_filter, [attr], undefined)) {
         const sgroup_id = dn_to_sgroup_id(entry.dn) ?? internal_error();
         const url = mono_attrs(entry)[attr] ?? internal_error()
         const remote = parse_remote_query(url) ?? internal_error();
