@@ -159,6 +159,10 @@ async function search_groups_mrights_depending_on_this_group(id_: string) {
             r.push({ id, mright });
         }
     }
+    // get groups referencing this group
+    for (const id of (await cache.get_groups_used_in_sync_members())[id_] || []) {
+        r.push({ id, mright: "member" })
+    }
     return r
 }
 
