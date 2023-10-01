@@ -17,6 +17,8 @@ const api = express.Router();
 // JSON body-parser will return {} on empty body
 type AllowEmptyBody<T> = T | {}
 
+api.post("/login", cas_auth.handle_single_logout)
+
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 api.get("/login", async (req, res) => {
     try {

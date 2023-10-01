@@ -27,7 +27,8 @@ app.use(express_helpers.session_store());
 openapi.expressJS(app)
 
 app.use("/api", 
-    bodyParser.json({type: '*/*'}), // do not bother checking, everything we will get is JSON :)
+    bodyParser.urlencoded(), // for CAS back-channel LogoutRequest
+    bodyParser.json({type: '*/*'}), // do not bother checking, everything else we will get is JSON :)
     api_routes)
 app.use("/", express.static(ui_dist_dir, staticFilesOptions));
 app.get(/[/](sgroup|new_sgroup|sgroup_history)$/, // keep in sync with ui/src/router/index.ts "routes" "path"

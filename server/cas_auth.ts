@@ -1,6 +1,7 @@
 // @ts-expect-error
 import fetch from 'node-fetch';
 import { throw_ } from './helpers';
+import { Request, Response } from 'express';
 
 const parse_cas_response = (body: string) => {
     const user = body.includes("<cas:authenticationSuccess>") && body.match(/<cas:user>(.*?)</)?.[1]
@@ -24,5 +25,15 @@ export const validate_ticket = async (cas_prefix_url: string, service: string, t
         return parse_cas_response(body)
     } else {       
         throw `bad HTTP code {status}`
+    }
+}
+
+export const handle_single_logout = async (req: Request, res: Response) => {
+    const m = req.body?.logoutRequest?.match(/<samlp:SessionIndex>(.*)<\/samlp:SessionIndex>/)
+    if (m) {
+        req.sessionStore.destroy(m[1]);
+        res.status(204).end()
+    } else {
+        res.end()
     }
 }

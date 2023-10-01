@@ -14,6 +14,10 @@ import { hRight, Right, hMright, Mright, LoggedUser } from './my_types';
 export function session_store() {
     const FileStore = session_file_store(session);
     return session({
+        genid(req: express.Request) {
+            // to ease CAS back-channel SingleLogout, we use CAS service ticket as sessionID (as done in phpCAS)
+            return req.query.ticket as string
+        },
         store: new FileStore({ retries: 0, ...conf.session_store.file_store }), 
         cookie: { secure: 'auto' },
         resave: false, saveUninitialized: false,
