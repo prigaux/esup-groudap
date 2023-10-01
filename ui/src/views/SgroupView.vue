@@ -264,7 +264,7 @@ let search_subject_source_dn = ref('')
 </dialog>
 <div>
     <small class="float-right">
-        ID : {{props.id}}
+        ID : <span style="user-select: all">{{props.id}}</span>
     </small>
 
     <a href=".">Accueil</a>
