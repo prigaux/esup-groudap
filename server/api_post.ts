@@ -150,11 +150,12 @@ async function check_and_simplify_mods(is_stem: boolean, id: string, my_mods: My
 export type IdMright = { id: string, mright: Mright }
 
 // Search for groups having this group DN in their member/supannGroupeLecteurDN/supannAdminDN/owner
-async function search_groups_mrights_depending_on_this_group(id: string) {
+async function search_groups_mrights_depending_on_this_group(id_: string) {
     const r: IdMright[] = []
-    const group_dn = sgroup_id_to_dn(id);
+    const group_dn = sgroup_id_to_dn(id_);
+    // search groups including this group
     for (const mright of hMright.list()) {
-        for (id of await ldpSgroup.search_sgroups_id(ldap_filter.eq(to_flattened_attr(mright), group_dn))) {
+        for (const id of await ldpSgroup.search_sgroups_id(ldap_filter.eq(to_flattened_attr(mright), group_dn))) {
             r.push({ id, mright });
         }
     }
