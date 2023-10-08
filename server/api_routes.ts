@@ -124,6 +124,11 @@ api.get("/search_subjects", handleJsonP(async (req) => {
     const { source_dn, group_to_avoid } = query_opt_params(req, { source_dn: q.string, group_to_avoid: q.string })
     return await api_get.search_subjects(logged_user(req), search_token, sizelimit, source_dn?.oMap(toDn), group_to_avoid)
 }))
+api.get("/get_subject", handleJsonP(async (req) => {
+    const { subject_id } = query_params(req, { subject_id: q.string })
+    const { source_dn } = query_opt_params(req, { source_dn: q.string })
+    return await api_get.subject_id_to_dn(logged_user(req), subject_id, source_dn?.oMap(toDn))
+}))
 api.post("/subject_ids_to_dns", handleJsonP(async (req) => {
     const { source_dn } = query_opt_params(req, { source_dn: q.string })
     return await api_get.subject_ids_to_dns(logged_user(req), req.body as string[], source_dn?.oMap(toDn))

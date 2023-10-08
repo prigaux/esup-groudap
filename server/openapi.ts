@@ -118,6 +118,18 @@ const parameters = {
         in: "query", schema: { type: "integer" }
     } satisfies OpenAPIV3.ParameterObject,
 
+    subject_id: {
+        name: "subject_id", description: "subject identifier",
+        in: "query", required: true, schema: { type: "string" },
+        example: "prigaux",
+    } satisfies OpenAPIV3.ParameterObject,
+
+    source_dn: {
+        name: "source_dn", description: "restrict the search to this specific subject source",
+        in: "query", schema: { type: "string" },
+        example: "ou=people,dc=nodomain",
+    } satisfies OpenAPIV3.ParameterObject,
+
     search_token: {
         name: "search_token", description: "return subjects matching this string",
         in: "query", schema: { type: "string" }
@@ -221,6 +233,58 @@ const openAPIDocument: OpenAPIV3.Document = {
               "application/json": {
                 schema: { type: "object", additionalProperties: {} },
                 example: examples.logs
+              }
+            }
+          }
+        }
+    } },    
+
+    "/api/get_subject": { "get": {
+        summary: "Get subject by id",
+        operationId: "get_subject",
+        tags: [ "subject" ],
+        parameters: [ parameters.subject_id, parameters.source_dn ],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { type: "object" },
+                example: [ {
+                    "dn": "uid=prigaux,ou=people,dc=nodomain",
+                    "attrs": { "uid": "prigaux", "displayName": "Pascal Rigaux" },
+                    "ssdn": "ou=people,dc=nodomain"
+                } ]
+              }
+            }
+          }
+        }
+    } },    
+
+    "/api/subject_ids_to_dns": { "post": {
+        summary: "Get subjects by ids",
+        operationId: "subject_ids_to_dns",
+        tags: [ "subject" ],
+        parameters: [ parameters.source_dn ],
+        requestBody: {
+            required: true,
+            content: { "application/json": { 
+                schema: { type: "array", items: { type: "string" } },
+                example: [ "prigaux" ],
+            } }
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { type: "array", items: { type: "object" } },
+                example: [ {
+                    "id": "prigaux",
+                    "dn": "uid=prigaux,ou=people,dc=nodomain",
+                    "attrs": { "uid": "prigaux", "displayName": "Pascal Rigaux" },
+                    "ssdn": "ou=people,dc=nodomain"
+                } ]
               }
             }
           }
