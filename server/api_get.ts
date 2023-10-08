@@ -231,9 +231,9 @@ export async function search_subjects(logged_user: LoggedUser, search_token: str
     return r
 }
 
-type id_to_dn = { id: string, dn: Dn, attrs: MonoAttrs, ssdn: FlavorDn } | { id: string, error: "multiple_match" | "no_match" }
-export async function subject_id_to_dn(logged_user: LoggedUser, id: string, source_dn: Option<Dn>): Promise<id_to_dn> {
-    let r: Option<id_to_dn>
+type SubjectOut = { dn: Dn, attrs: MonoAttrs, ssdn: FlavorDn } | { error: "multiple_match" | "no_match" }
+export async function subject_id_to_dn(logged_user: LoggedUser, id: string, source_dn: Option<Dn>): Promise<SubjectOut> {
+    let r: Option<SubjectOut>
     for (const sscfg of conf.ldap.subject_sources) {
         if (!source_dn || source_dn === sscfg.dn) {
             if (!sscfg.id_attrs) continue;
@@ -244,22 +244,26 @@ export async function subject_id_to_dn(logged_user: LoggedUser, id: string, sour
             if (nb_matches < 1) {
                 // ignore
             } else if (nb_matches > 1 || r) {
-                return { id, error: "multiple_match" }
+                return { error: "multiple_match" }
             } else {
                 const [dn, {attrs}] = hMyMap.firstEntry(subjects) ?? internal_error()
-                r = { id, dn, attrs, ssdn: sscfg.dn }
+                r = { dn, attrs, ssdn: sscfg.dn }
             }
         }
     }
-    return r ?? { id, error: "no_match" }
+    return r ?? { error: "no_match" }
 }
 
 /**
- * Search subjects by ids
+ * Get subjects by ids
  * @param source_dn - restrict the search to this specific subject source
  */
 export const subject_ids_to_dns = (logged_user: LoggedUser, ids: string[], source_dn: Option<Dn>) => (
-    mapAsync(ids, id => subject_id_to_dn(logged_user, id, source_dn))
+    mapAsync(ids, async id => {
+        const subjectOut = await subject_id_to_dn(logged_user, id, source_dn)
+        // NB: adding "id" to each array element to ease matching searched id to the result
+        return { id, ...subjectOut }
+    })
 )
 
 async function search_sgroups_with_attrs(filters: string[], sizeLimit: Option<number>): Promise<SgroupsWithAttrs> {
