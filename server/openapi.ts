@@ -156,6 +156,23 @@ const openAPIDocument: OpenAPIV3.Document = {
         }
     } },
 
+    "/api/exists": { "get": {
+        summary: "Does the group/stem exist?",
+        operationId: "exists",
+        tags: [ "basic" ],
+        parameters: [ parameters.id ],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { type: "boolean" },
+              }
+            }
+          }
+        }
+    } },
+
     "/api/direct_rights": { "get": {
         summary: "Get the direct privileges on the group/stem",
         operationId: "direct_rights",

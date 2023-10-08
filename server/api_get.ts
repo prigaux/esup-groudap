@@ -388,6 +388,18 @@ export async function user_right_filter(logged_user: { User: string }, right: Ri
 }
 
 /**
+ * Is group/stem already created
+ * @param id - sgroup identifier
+ */
+export async function sgroup_exists(logged_user: LoggedUser, id: string) {
+    validate_sgroup_id(id)
+
+    await check_right_on_self_or_any_parents(logged_user, id, 'reader');
+
+    return await ldpSgroup.is_sgroup_existing(id);
+}
+
+/**
  * Read log entries
  * @param id - sgroup identifier
  * @param bytes - maximum number of bytes to read

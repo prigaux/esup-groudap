@@ -84,6 +84,11 @@ api.get("/get", handleJsonP(async (req) => {
     return await api_get.get_sgroup(logged_user(req), id)
 }))
 
+api.get("/exists", handleJsonP(async (req) => {
+    const { id } = query_params(req, { id: q.string })
+    return await api_get.sgroup_exists(logged_user(req), id)
+}))
+
 api.get("/direct_rights", handleJsonP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     return await api_get.get_sgroup_direct_rights(logged_user(req), id)
