@@ -51,7 +51,7 @@ NB : the requests to API are proxied to the server/API (cf `vite.config.ts`)
 Example of API use:
 
 ```bash
-curl -s -H 'Authorization: Bearer aa' localhost:8000/api/set_test_data
+curl -s -H 'Authorization: Bearer aa' localhost:8080/api/get?id=
 ```
 
 # Divers

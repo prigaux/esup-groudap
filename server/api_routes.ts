@@ -2,7 +2,6 @@ import express from 'express';
 import * as _ from 'lodash'
 
 import * as cas_auth from './cas_auth'
-import * as test_data from './test_data'
 import * as api_get from './api_get'
 import * as api_post from './api_post'
 import * as cache from './cache'
@@ -37,10 +36,6 @@ api.get("/login", async (req, res) => {
         res.send("internal error")
     }
 })
-
-api.get("/set_test_data", handleVoidP(test_data.set))
-api.get("/clear_test_data", handleVoidP(test_data.clear))
-api.get("/add_test_data", handleVoidP(test_data.add))
 
 api.post("/create", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
