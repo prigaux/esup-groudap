@@ -8,7 +8,7 @@ import * as api_log from './api_log'
 import * as cache from './cache'
 import conf from "./conf";
 import ldap_filter from "./ldap_filter";
-import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteQuery, RemoteSqlQuery, Right, toDn, isRqSql } from "./my_types";
+import { Dn, DnsOpts, hMright, hMyMap, LoggedUser, MonoAttrs, Mright, MyMap, MyMod, MyMods, MySet, Option, RemoteQuery, RemoteSqlQuery, Right, toDn, isRqSql, SimpleMod } from "./my_types";
 import { hashmap_difference, hashmap_intersection, internal_error, throw_ } from "./helpers";
 import { mono_attrs, to_flattened_attr, validate_sgroups_attrs } from "./ldap_helpers";
 import { avoid_group_and_groups_including_it__filter, parse_remote_query, user_right_filter, validate_remote } from "./api_get";
@@ -315,6 +315,20 @@ async function check_read_right_on_group_subjects__and__non_recursive_member(log
             }
         }
     })
+}
+
+/**
+ * Modify the group/stem member or right + synchronize indirect
+ * @param id - group/stem identifier
+ * @param modification - "add" or "delete"?
+ * @param mright - member/right to add/delete
+ * @param subject_dn - Subject DN to add/delete
+ * @param strict - by default, actions already done are ignored. If set, actions are executed as is
+ * @param msg - optional message explaining why the user did this action
+ */
+export async function modify_member_or_right(logged_user: LoggedUser, id: string, simple_mod: SimpleMod, msg: Option<string>, strict: boolean = false) {
+    const { mright, mod, dn, options } = simple_mod
+    return await modify_members_or_rights(logged_user, id, { [mright]: { [mod]: { [dn]: options || {} } } }, msg, strict)
 }
 
 /**

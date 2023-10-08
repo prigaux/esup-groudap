@@ -101,18 +101,18 @@ export async function add() {
     const user_prigaux : LoggedUser = { User: "prigaux" }
     const user_aanli   : LoggedUser = { User: "aanli" }
 
-    await api_post.modify_members_or_rights(user_trusted, "", {
-        admin: { add: { [prigaux_dn]: {} } },
+    await api_post.modify_member_or_right(user_trusted, "", {
+        mright: 'admin', mod: 'add', dn: prigaux_dn
     }, undefined)
 
     // the second *strict* call should fail
-    assert.rejects(api_post.modify_members_or_rights(user_trusted, "", {
-        admin: { add: { [prigaux_dn]: {} } },
+    assert.rejects(api_post.modify_member_or_right(user_trusted, "", {
+        mright: 'admin', mod: 'add', dn: prigaux_dn,
     }, undefined, true))
 
     // the second call should not fail, it should do nothing
-    await api_post.modify_members_or_rights(user_trusted, "", {
-        admin: { add: { [prigaux_dn]: {} } },
+    await api_post.modify_member_or_right(user_trusted, "", {
+        mright: 'admin', mod: 'add', dn: prigaux_dn,
     }, undefined)
 
     const root_attrs = {
@@ -183,8 +183,8 @@ export async function add() {
         ou: "Grouper super admins",
         description: "Grouper admins de toute l'arborescence\n\nTicket groupe truc",
     }, true)
-    await api_post.modify_members_or_rights(user_prigaux, "applications.grouper.super-admins", {
-        member: { add: { [prigaux_dn]: {} } },
+    await api_post.modify_member_or_right(user_prigaux, "applications.grouper.super-admins", {
+        mright: 'member', mod: 'add', dn: prigaux_dn,
     }, undefined)
     assert.deepEqual(await ldp.read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member'), [prigaux_dn]);
 
@@ -218,8 +218,8 @@ export async function add() {
     }
     
     await api_post.create(user_prigaux, "collab.foo", collab_foo_attrs, true)
-    await api_post.modify_members_or_rights(user_prigaux, "collab.foo", {
-        admin: { add: { [sgroup_id_to_dn("collab.DSIUN")]: {} } },
+    await api_post.modify_member_or_right(user_prigaux, "collab.foo", {
+        mright: 'admin', mod: 'add', dn: sgroup_id_to_dn("collab.DSIUN"),
     }, undefined)
     assert.deepEqual((await ldp.read_flattened_mright(sgroup_id_to_dn("collab.foo"), 'admin')).sort(), [
         sgroup_id_to_dn("collab.DSIUN"), 'uid=foo,ou=people,dc=nodomain', prigaux_dn,
@@ -235,16 +235,16 @@ export async function add() {
     //);
 
     console.log(`remove last "member". Need to put an empty member back`)
-    await api_post.modify_members_or_rights(user_prigaux, "applications.grouper.super-admins", {
-        member: { delete: { [prigaux_dn]: {} } },
+    await api_post.modify_member_or_right(user_prigaux, "applications.grouper.super-admins", {
+        mright: 'member', mod: 'delete', dn: prigaux_dn,
     }, undefined);
     assert.deepEqual(await ldp.read_one_multi_attr__or_err(sgroup_id_to_dn("applications.grouper.super-admins"), "member"), [""]);
     console.log(`prigaux is no more admin...`)
     await assert.rejects(api_get.get_sgroup(user_prigaux, "collab."))
 
     console.log(`add group in group "super-admins"`)
-    await api_post.modify_members_or_rights(user_trusted, "applications.grouper.super-admins", {
-        member: { add: { [sgroup_id_to_dn("collab.DSIUN")]: { enddate: ("20991231000000Z") } } },
+    await api_post.modify_member_or_right(user_trusted, "applications.grouper.super-admins", {
+        mright: 'member', mod: 'add', dn: sgroup_id_to_dn("collab.DSIUN"), options: { enddate: ("20991231000000Z") },
     }, undefined)
     assert.deepEqual((await ldp.read_flattened_mright(sgroup_id_to_dn("applications.grouper.super-admins"), 'member')).sort(), 
                [ sgroup_id_to_dn("collab.DSIUN"), 'uid=foo,ou=people,dc=nodomain', prigaux_dn ])

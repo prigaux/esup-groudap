@@ -141,6 +141,17 @@ const parameters = {
     } satisfies OpenAPIV3.ParameterObject,
 }
 
+const schema = {
+    SimpleMod(json: boolean): OpenAPIV3.SchemaObject { return {
+        type: "object", properties: { 
+            "mright": { enum: hMright.list() },
+            "mod": { enum: ["add", "delete"] },
+            "dn": { type: "string", example: "uid=prigaux,ou=people,dc=nodomain" },
+            ...json ? { "options": { type: "object" } } : {},
+        }, required: ['mright', 'mod', 'dn'] }
+    },
+}
+
 const openAPIDocument: OpenAPIV3.Document = {
   openapi: "3.0.0",
   info: { title: "Groupald API", version: "1.0" },
@@ -325,6 +336,21 @@ const openAPIDocument: OpenAPIV3.Document = {
                 schema: { type: "object", additionalProperties: { type: "string" } },
                 example: { description:"Collaboration Admins Foo", "ou":"Collab Foo" }
             } }
+        },
+        responses: { ...responses.ok, ...responses.err_does_not_exist },
+    } },
+
+    "/api/modify_member_or_right": { "post": {
+        summary: "Modify the group/stem member or right + synchronize indirect",
+        operationId: "modify_member_or_right",
+        tags: [ "members|rights" ],
+        parameters: [ parameters.id, parameters.strict, parameters.msg ],
+        requestBody: {
+            required: true,
+            content: { 
+                "application/x-www-form-urlencoded": { schema: schema.SimpleMod(false) },
+                "application/json": { schema: schema.SimpleMod(true) },
+            },
         },
         responses: { ...responses.ok, ...responses.err_does_not_exist },
     } },

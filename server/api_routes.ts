@@ -7,7 +7,7 @@ import * as api_post from './api_post'
 import * as cache from './cache'
 import conf from './conf';
 import { throw_ } from './helpers';
-import { hLdapConfig, hMright, hRemoteConfig, hRight, MonoAttrs, MyMods, RemoteQuery, toDn } from './my_types';
+import { hLdapConfig, hMright, hRemoteConfig, hRight, MonoAttrs, MyMods, RemoteQuery, SimpleMod, toDn } from './my_types';
 import { query_params, q, orig_url, logged_user, query_opt_params, handleJsonP, handleVoidP, handleJson } from './express_helpers';
 import { is_stem } from './stem_helpers';
 
@@ -53,6 +53,11 @@ api.post("/delete", handleVoidP(async (req) => {
     await api_post.delete_(logged_user(req), id)
 }))
 
+api.post("/modify_member_or_right", handleVoidP(async (req) => {
+    const { id } = query_params(req, { id: q.string })
+    const { msg, strict } = query_opt_params(req, { msg: q.string, strict: q.boolean })
+    await api_post.modify_member_or_right(logged_user(req), id, req.body as SimpleMod, msg, strict || false)
+}))
 api.post("/modify_members_or_rights", handleVoidP(async (req) => {
     const { id } = query_params(req, { id: q.string })
     const { msg, strict } = query_opt_params(req, { msg: q.string, strict: q.boolean })

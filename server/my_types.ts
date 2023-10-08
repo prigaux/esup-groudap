@@ -260,6 +260,14 @@ export type Dn = string & { _type: "Dn" } // fake field to enforce types: you ca
 export const toDns = (dns: string[]) => dns as Dn[]
 export const toDn = (dn: string) => dn as Dn
 
+/** member or right to add/remove (with optional member options) */
+export type SimpleMod = { 
+    mright: Mright
+    mod: 'add'|'delete'
+    dn: Dn 
+    options?: DirectOptions
+}
+
 /** members or rights to add/remove/replace (with optional member options) */
 export type MyMods = MyMap<Mright, MyMap<MyMod, DnsOpts>>
 
