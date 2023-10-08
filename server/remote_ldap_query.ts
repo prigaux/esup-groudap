@@ -37,7 +37,7 @@ async function raw_query(remote_cfg: RemoteLdapConfig, remote: RemoteLdapQuery):
         const clientP = ldapP.may_bind(remote_cfg.connect, client)
         const search_dn = remote.DN || remote_cfg.search_branch || throw_(`remote config has no base_dn, and ldap URI has no DN`)
         try {
-            entries = await ldapP.searchRaw(search_dn, filter, attributes, {}, clientP)
+            entries = await ldapP.searchRaw(search_dn, filter, attributes, { timeLimit: 999 }, clientP)
         } finally {
             client.destroy()
         }
