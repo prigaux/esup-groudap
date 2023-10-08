@@ -135,7 +135,7 @@ export async function get_sgroup(logged_user: LoggedUser, id: string): Promise<S
     // #1 direct members
     const direct_members_ = mattrs[hMright.to_attr('member')] || []
     const remote_query_s = mattrs[hMright.attr_synchronized]?.at(0)
-    // #2 compute rights (also computing parents because both require user_dn)
+    // #2 compute rights (also computing parents because both require user_dn) + check user is allowed
     const [right, parents] = await get_right_and_parents(logged_user, id, mattrs)
     // #3 pack sgroup attrs:
     const attrs = to_sgroup_attrs(id, entry);
