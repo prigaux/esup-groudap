@@ -9,7 +9,7 @@ export type LdapRawValue = string | string[]
 
 export const to_flattened_attr = (mright: Mright) => {
     const r = conf.ldap.groups_flattened_attr[mright]
-    if (r === undefined) throw "missing ${mright} key in ldap.groups_flattened_attr configuration"
+    if (r === undefined) throw `missing ${mright} key in ldap.groups_flattened_attr configuration`
     return r
 }
 export const to_allowed_flattened_attrs = (right: Right) => (
