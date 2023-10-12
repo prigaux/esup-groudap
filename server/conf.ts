@@ -32,7 +32,7 @@ const conf: Config = {
         group_filter: "(objectClass=groupaldGroup)",
         stem: {
             filter: "(objectClass=groupaldStem)",
-            //default_separator: ".",
+            separator: ".",
             //TODO cn: { label: "ID du groupe", description: "l'ID est l'identifiant unique de ce groupe au sein du dossier. Il doit être simple et court, et peut avoir des restrictions de caractères. Une fois créé, il est déconseillé de le modifier." },
             
         },

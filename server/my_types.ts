@@ -83,7 +83,6 @@ export const hMyMap = {
 
 export type MySet<T> = T[]
 
-export const default_separator = "."
 export const default_root_id = ""
 
 export const ldap_config_checker = (cfg : LdapConfig) => {   
@@ -94,7 +93,7 @@ export const ldap_config_checker = (cfg : LdapConfig) => {
 
 export interface StemConfig {
     filter: string,
-    separator?: string,
+    separator: string,
     root_id?: string,
 }
 

@@ -1,6 +1,6 @@
 import conf from "./conf"
 import { may_strip_suffix, strip_prefix } from "./helpers"
-import { default_root_id, default_separator } from "./my_types"
+import { default_root_id } from "./my_types"
 
 // ("a.b.c", ".") => "a.b."
 // ("a", ".") => undefined
@@ -10,7 +10,7 @@ const rbefore = (s: string, end: string) => {
 }
 
 
-export const stem_separator = () => conf.ldap.stem.separator ?? default_separator
+export const stem_separator = () => conf.ldap.stem.separator
 export const root_id = () => conf.ldap.stem.root_id ?? default_root_id
 // "a.b.c." => "a.b."
 // "a.b.c" => "a.b."
