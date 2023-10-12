@@ -336,7 +336,7 @@ function terms_search_filters(sscfg: SubjectSourceConfig, search_token: string) 
 }
 
 /**
- * search groups marching search_token, for which the {@link logged_user} has the requested {@link right}
+ * search groups matching search_token, for which the {@link logged_user} has the requested {@link right}
  * if search_token contains multiple words, first search the whole term, then search on each words in various group 
 fields
  */
