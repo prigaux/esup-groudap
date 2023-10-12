@@ -1,0 +1,196 @@
+groupaldWS = new groupald.HttpRequestGroupaldWS(System.getenv("url"), System.getenv("trusted_auth_bearer"));
+stem_separator = groupaldWS.request("/api/config/ldap").path("stem").path("separator").textValue();
+
+isStem(dn) { return dn.endsWith(stem_separator); }
+to_id(id) { return id.replace(":", stem_separator); }
+
+
+Membership(sgroup_id, subject_dn, mright) {
+    delete() {
+        groupaldWS.modify_member_or_right(this.sgroup_id, this.mright, "delete", this.subject_dn);
+    }
+    return this;
+}
+
+
+Subject(dn) { 
+    getImmediateMemberships(mright) {
+        list = new ArrayList();
+        for (group_id : groupaldWS.search_raw_sgroups_using_a_subject(this.dn, mright)) {
+            list.add(Membership(group_id, this.dn, mright));
+        }
+        return list;
+    }
+    getImmediateMemberships() {
+        return this.getImmediateMemberships("member");
+    }
+
+    return this;
+}
+toSubject(subject_id) {
+    return Subject(groupaldWS.get_subject(to_id(this.subject_id)).path("dn").textValue());
+}
+
+Member(dn) {
+    getSubject() { return Subject(this.dn); }
+    return this;
+}
+
+AccessPrivilege_(right) {
+    getField() { return this.right; }
+    return this;
+}
+
+
+Sgroup(id) {
+    this.attrs = groupaldWS.get_attrs(this.id);
+
+    getName() {
+        return this.id;
+    }
+    toSubject() {
+        return toSubject(this.id);
+    }
+    setDisplayExtension(name) {
+        this.attrs.put("ou", name);
+    }
+    setDescription(descr) {
+        print("setDescription: " + descr);
+        this.attrs.put("description", descr);
+    }
+    store() {
+        return groupaldWS.modify_attrs(id, this.attrs);
+    }
+    delete() {
+        return groupaldWS.delete(this.id);
+    }
+    // group only
+    getImmediateMembers() {
+        list = new ArrayList();
+        for (member_dn : groupaldWS.direct_members(this.id).keySet()) {
+            list.add(Member(member_dn));
+        }
+        return list;
+    }
+    getImmediateMembers(right) {
+        list = new ArrayList();
+        for (member_dn : groupaldWS.direct_rights(this.id).path(right).fieldNames()) {
+            list.add(Member(member_dn));
+        }
+        return list;
+    }
+    getImmediateMemberships() {
+        return this.toSubject().getImmediateMemberships();
+    }
+
+    // stem only
+    getChildGroups() {
+        list = new ArrayList();
+        for (member_id : groupaldWS.get(this.id).path("stem").path("children").fieldNames()) {
+            if (!isStem(member_id))
+                list.add(Sgroup(member_id));
+        }
+        return list;
+    }
+    // stem only
+    getChildStems() {
+        list = new ArrayList();
+        for (member_id : groupaldWS.get(this.id).path("stem").path("children").fieldNames()) {
+            if (isStem(member_id))
+                list.add(Sgroup(member_id));
+        }
+        return list;
+    }
+
+    hasMember(subject) {
+        return groupaldWS.direct_members(this.id).keySet().contains(subject.dn);
+    }
+    addMember(subject) {
+        groupaldWS.modify_member_or_right(this.id, "member", "add", subject.dn);
+    }
+    deleteMember(subject) {
+        groupaldWS.modify_member_or_right(this.id, "member", "delete", subject.dn);
+    }
+    grantPriv(subject, privilege) {
+        groupaldWS.modify_member_or_right(this.id, privilege.right, "add", subject.dn);
+    }
+    revokePriv(subject, privilege) {
+        groupaldWS.modify_member_or_right(this.id, privilege.right, "delete", subject.dn);
+    }
+    addMember(subject, _) { this.addMember(subject); }
+    deleteMember(subject, _) { this.deleteMember(subject); }
+    grantPriv(subject, privilege, _) { this.grantPriv(subject, privilege); }
+    revokePriv(subject, privilege, _) { this.revokePriv(subject, privilege); }
+
+    return this;
+}
+
+GroupFinderFactory() {
+    findByName(_, id, _) {
+        try {
+            return Sgroup(to_id(id));
+        } catch (e) {
+            return null;
+        }
+    }
+    return this;
+}
+GroupFinder = GroupFinderFactory();
+
+StemFinderFactory() {
+    findByName(_, id) {
+        return Sgroup(to_id(id) + stem_separator);
+    }
+    return this;
+}
+StemFinder = StemFinderFactory();
+
+SubjectFinderFactory() {
+    findByIdOrIdentifier(subject_id, _) {
+        return toSubject(subject_id);
+    }
+    findByIdentifier(subject_id, _) {
+        return toSubject(subject_id);
+    }
+    return this;
+}
+SubjectFinder = SubjectFinderFactory();
+
+
+AccessPrivilegeFactory(VIEW, READ, UPDATE, ADMIN) {
+    return this;
+}
+AccessPrivilege = AccessPrivilegeFactory(AccessPrivilege_("reader"), AccessPrivilege_("reader"), AccessPrivilege_("updater"), AccessPrivilege_("admin"));
+
+
+GrouperSessionFactory() {
+    startRootSession() {
+        return null;
+    }
+    return this;
+}
+GrouperSession = GrouperSessionFactory();
+
+
+// root helpers
+addGroup(parentStemId, rel_id, rel_name) {
+    id = to_id(parentStemId) + stem_separator + rel_id;
+    groupaldWS.create(id, Collections.singletonMap("ou", rel_name));
+    return Sgroup(id);
+}
+addStem(parentStemId, rel_id, rel_name) {
+    id = to_id(parentStemId) + stem_separator + rel_id + stem_separator;
+    groupaldWS.create(id, Collections.singletonMap("ou", rel_name));
+    return Sgroup(id);
+}
+addRootStem(rel_id, rel_name) {
+    id = rel_id + stem_separator;
+    groupaldWS.create(id, Collections.singletonMap("ou", rel_name));
+    return Sgroup(id);
+}
+hasMember(groupId, subject_id) {
+    return Sgroup(to_id(groupId)).hasMember(toSubject(subject_id));
+}
+grantPriv(groupId, subject_id, privilege) {
+    Sgroup(to_id(groupId)).grantPriv(toSubject(subject_id), privilege);
+}
