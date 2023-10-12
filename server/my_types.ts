@@ -135,6 +135,7 @@ export interface LdapConfigOut {
     groups_dn: Dn,
     subject_sources: SubjectSourceConfig[],
     sgroup_attrs: MyMap<string, SgroupAttrTexts>,
+    stem: StemConfig,
 }
 
 const sgroup_sscfg_raw = (self: LdapConfig) => (
@@ -151,7 +152,7 @@ export const hLdapConfig = {
     },
     /** export LdapConfig to the Vue.js UI */
     to_js_ui: (self: LdapConfig): LdapConfigOut => (
-        { groups_dn: toDn(self.groups_dn), subject_sources: self.subject_sources, sgroup_attrs: self.sgroup_attrs }
+        { groups_dn: toDn(self.groups_dn), subject_sources: self.subject_sources, sgroup_attrs: self.sgroup_attrs, stem: self.stem }
     ),
 }
 
