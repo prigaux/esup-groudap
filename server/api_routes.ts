@@ -116,6 +116,14 @@ api.get("/search_sgroups", handleJsonP(async (req) => {
     return await api_get.search_sgroups(logged_user(req), right, search_token, sizelimit)
 }))
 
+/**
+ * NB: /raw/xxx APIs are not used by Vue.js UI
+ *  */
+api.get("/raw/search_sgroups_using_a_subject", handleJsonP(async (req) => {
+    const { subject_dn, mright } = query_params(req, { subject_dn: q.string, mright: q.mright })
+    return await api_get.search_raw_sgroups_using_a_subject(logged_user(req), toDn(subject_dn), mright)
+}))
+
 api.get("/mygroups", handleJsonP(async (req) => {
     return await api_get.mygroups(logged_user(req))
 }))

@@ -7,7 +7,7 @@ import * as ldpSubject from './ldap_subject'
 import * as api_log from './api_log'
 import conf from "./conf"
 import ldap_filter from "./ldap_filter"
-import { dn_to_sgroup_id, people_id_to_dn, sgroup_id_to_dn } from "./dn"
+import { dn_to_sgroup_id, dn_to_url, people_id_to_dn, sgroup_id_to_dn } from "./dn"
 import { mono_attrs, mono_attrs_, multi_attrs, sgroup_filter, to_allowed_flattened_attrs, to_flattened_attr, user_has_direct_right_on_group_filter } from "./ldap_helpers"
 import { Dn, hLdapConfig, hMright, hMyMap, hRight, toRqSql, LoggedUser, LoggedUserDn, MonoAttrs, Mright, MultiAttrs, MyMap, MySet, Option, RemoteQuery, Right, SgroupAndMoreOut, SgroupOutAndRight, SgroupOutMore, SgroupsWithAttrs, Subjects, SubjectsAndCount, toDn, isRqSql, TestRemoteQuery, SubjectSourceConfig, FlavorDn, SubjectsOrNull } from "./my_types"
 import { is_grandchild, is_stem, parent_stems, validate_sgroup_id } from "./stem_helpers"
@@ -355,6 +355,24 @@ export async function search_sgroups(logged_user: LoggedUser, right: Right, sear
     )
     console.log(group_filters)
     return await search_sgroups_with_attrs(group_filters, (sizeLimit))
+}
+
+/**
+ * Search raw groups/stems having a direct member/right on ''subject_dn''
+ * (aka subject memberships)
+ * @param subject_dn - Subject DN to search
+ * @param mright - member/right to search
+ */
+export async function search_raw_sgroups_using_a_subject(logged_user: LoggedUser, subject_dn: Dn, mright: Mright) {
+    console.log("search_sgroups_using_a_subject(%s, %s)", subject_dn, mright);
+    const right_filter = 'TrustedAdmin' in logged_user ? undefined : await user_right_filter(logged_user, mright === 'member' ? 'reader' : mright)
+    const filter = ldap_filter.and(_.compact([
+        right_filter,
+        ldap_filter.eq(hMright.to_attr(mright), dn_to_url(subject_dn)),
+        conf.ldap.sgroup_filter,
+    ]))
+    const l = await ldpSgroup.search_sgroups(filter, [], undefined)
+    return l.map(e => dn_to_sgroup_id(e.dn))
 }
 
 /** if group "A" has group member "B", searching for group subjects to add as member of "B" must exclude "B" and "A"
